@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger Scrutiny | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --red-bg: rgba(255,76,106,0.1);
+      --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px;
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge {
+      background: var(--surface2); color: var(--accent);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 3.5rem 2rem 2.5rem;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto; }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-section { max-width: 700px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: var(--surface);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(0,212,170,0.04);
+    }
+    .upload-icon { font-size: 2.8rem; margin-bottom: 1rem; }
+    .upload-zone h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+    .upload-btn {
+      display: inline-block; margin-top: 1.25rem;
+      background: var(--accent); color: #0b0f1a;
+      font-weight: 700; font-size: 0.9rem;
+      padding: 0.6rem 1.6rem; border-radius: 8px;
+      border: none; cursor: pointer; letter-spacing: 0.03em;
+    }
+    .upload-btn:hover { background: var(--accent2); }
+    #fileInput { display: none; }
+
+    .format-hint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.25rem;
+      text-align: left;
+    }
+    .format-hint h4 { font-size: 0.82rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.7rem; }
+    .format-hint ul { color: var(--muted); font-size: 0.84rem; list-style: disc; padding-left: 1.2rem; }
+    .format-hint li { margin-bottom: 0.3rem; }
+
+    /* ── PROCESSING ── */
+    #processingSection {
+      display: none; text-align: center;
+      padding: 4rem 2rem;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-steps { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+    #processingMsg { color: var(--text); font-size: 1.05rem; }
+
+    /* ── RESULTS ── */
+    #resultsSection { display: none; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .results-meta { color: var(--muted); font-size: 0.85rem; }
+
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent); color: #0b0f1a;
+      border: none; padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    @media (max-width: 640px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .summary-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .summary-card:hover { border-color: var(--accent); }
+    .summary-card.active { border-width: 2px; }
+    .summary-card.active-red { border-color: var(--red); background: var(--red-bg); }
+    .summary-card.active-orange { border-color: var(--orange); background: var(--orange-bg); }
+    .summary-card.active-yellow { border-color: var(--yellow); background: var(--yellow-bg); }
+    .summary-card.active-green { border-color: var(--green); background: var(--green-bg); }
+    .card-count { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .card-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    .count-red { color: var(--red); }
+    .count-orange { color: var(--orange); }
+    .count-yellow { color: var(--yellow); }
+    .count-green { color: var(--green); }
+
+    /* ── FILTER BAR ── */
+    .filter-bar {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      margin-bottom: 1.5rem; padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .filter-label { color: var(--muted); font-size: 0.82rem; margin-right: 0.25rem; }
+    .filter-chip {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.8rem; padding: 0.3rem 0.8rem;
+      border-radius: 20px; cursor: pointer; transition: all 0.2s;
+    }
+    .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+    .filter-chip.active { background: var(--accent); color: #0b0f1a; border-color: var(--accent); font-weight: 600; }
+
+    /* ── FILE INFO BAR ── */
+    .file-info-bar {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 1.25rem;
+      display: flex; align-items: center; gap: 1.5rem;
+      flex-wrap: wrap; margin-bottom: 1.5rem; font-size: 0.85rem;
+    }
+    .file-info-item { display: flex; align-items: center; gap: 0.4rem; }
+    .file-info-item .fi-label { color: var(--muted); }
+    .file-info-item .fi-value { font-weight: 600; color: var(--text); }
+    .fi-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    /* ── OBSERVATION CARDS ── */
+    .observations-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .obs-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 4px solid; border-radius: 12px;
+      padding: 1.25rem 1.5rem; transition: all 0.2s;
+    }
+    .obs-card:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .obs-card.sev-red { border-left-color: var(--red); }
+    .obs-card.sev-orange { border-left-color: var(--orange); }
+    .obs-card.sev-yellow { border-left-color: var(--yellow); }
+    .obs-card.sev-green { border-left-color: var(--green); }
+
+    .obs-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+    .obs-sev-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 3px 9px;
+      border-radius: 20px; letter-spacing: 0.06em; white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-red { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .badge-orange { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+    .obs-check-tag {
+      font-size: 0.72rem; background: var(--surface2); color: var(--muted);
+      padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .obs-account { font-size: 0.72rem; color: var(--accent); padding: 3px 9px;
+      border-radius: 20px; background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.2); white-space: nowrap; }
+
+    .obs-title { font-weight: 600; font-size: 0.97rem; color: var(--text); flex: 1; min-width: 200px; }
+
+    .obs-body { font-size: 0.875rem; color: #a0aec0; line-height: 1.7; margin-bottom: 0.75rem; }
+
+    .obs-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
+    @media (max-width: 640px) { .obs-sections { grid-template-columns: 1fr; } }
+
+    .obs-reasons, .obs-action {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem 1rem;
+    }
+    .obs-section-title {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;
+    }
+    .obs-reasons ul { list-style: disc; padding-left: 1.1rem; }
+    .obs-reasons li, .obs-action p { font-size: 0.83rem; color: #8899aa; line-height: 1.6; }
+    .obs-reasons li { margin-bottom: 0.2rem; }
+    .obs-action p { color: var(--accent); font-weight: 500; }
+
+    /* Month grid mini-table */
+    .month-grid-container { margin-top: 0.75rem; overflow-x: auto; }
+    .month-grid {
+      display: flex; gap: 4px; min-width: max-content;
+    }
+    .month-cell {
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 52px;
+    }
+    .month-label { font-size: 0.65rem; color: var(--muted); margin-bottom: 3px; }
+    .month-bar {
+      width: 44px; height: 32px; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 600;
+    }
+    .bar-active { background: rgba(0,212,170,0.2); color: var(--accent); border: 1px solid rgba(0,212,170,0.3); }
+    .bar-nil { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .bar-flag { background: rgba(255,76,106,0.2); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--accent); color: #0b0f1a;
+      padding: 0.8rem 1.4rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.35s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── HISTORY PANEL ── */
+    #historySection { display: none; max-width: 900px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .history-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .history-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.4rem;
+      display: flex; align-items: center; gap: 1.25rem;
+      transition: all 0.2s; cursor: pointer;
+    }
+    .history-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+
+    .hc-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .hc-info { flex: 1; min-width: 0; }
+    .hc-entity { font-weight: 600; font-size: 1rem; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hc-meta { font-size: 0.8rem; color: var(--muted); display: flex; gap: 1rem; flex-wrap: wrap; }
+    .hc-counts { display: flex; gap: 0.6rem; flex-shrink: 0; }
+    .hc-sev {
+      font-size: 0.72rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .hc-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .hc-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); padding: 0.4rem 0.7rem; border-radius: 6px;
+      cursor: pointer; font-size: 0.78rem; transition: all 0.2s;
+    }
+    .hc-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .hc-btn-del:hover { border-color: var(--red); color: var(--red); }
+    .history-empty { text-align: center; padding: 3rem; color: var(--muted); }
+    .history-empty .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+    .nav-history {
+      color: var(--muted); text-decoration: none; font-size: 0.85rem;
+      padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .nav-history:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-right { display: flex; gap: 0.75rem; align-items: center; }
+
+    /* ── PRINT STYLES ── */
+    @media print {
+      nav, .action-bar, .filter-bar, .upload-section, .format-hint, #processingSection { display: none !important; }
+      body { background: white; color: black; }
+      .obs-card { border: 1px solid #ddd !important; border-left: 4px solid !important; break-inside: avoid; margin-bottom: 1rem; }
+      .summary-card { border: 1px solid #ddd; }
+      .obs-card.sev-red { border-left-color: #c0392b !important; }
+      .obs-card.sev-orange { border-left-color: #e67e22 !important; }
+      .obs-card.sev-yellow { border-left-color: #f39c12 !important; }
+      .obs-card.sev-green { border-left-color: #27ae60 !important; }
+      .obs-body, .obs-reasons li, .obs-action p { color: #444 !important; }
+      .obs-account, .obs-check-tag { color: #666 !important; background: #f5f5f5 !important; }
+      .file-info-bar, .obs-reasons, .obs-action { background: #f9f9f9 !important; border: 1px solid #ddd !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <span class="nav-badge">LEDGER SCRUTINY</span>
+  <div class="nav-right">
+    <a href="#" class="nav-history" onclick="showHistory(); return false;">📂 Saved Reports</a>
+    <a href="index.html" class="nav-back">← Back to Apps</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <h1>Ledger <span>Scrutiny</span> Engine</h1>
+  <p>Upload a monthly trial balance and get an instant, India-standard analysis of every anomaly, gap, and irregularity across all ledger accounts.</p>
+</div>
+
+<!-- ── UPLOAD ── -->
+<div class="upload-section" id="uploadSection">
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">📊</div>
+    <h3>Drop your Trial Balance here</h3>
+    <p>Excel file with month-on-month closing balances, debits and credits</p>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File (.xlsx)</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+  </div>
+
+  <div class="format-hint">
+    <h4>Expected Format</h4>
+    <ul>
+      <li>Single Excel sheet titled "Trial Balance"</li>
+      <li>Columns: Particulars | Apr Dr | Apr Cr | Apr Closing | May Dr | May Cr | May Closing … (all 12 months)</li>
+      <li>Header rows at the top (firm name, address, period) are auto-skipped</li>
+      <li>Account names in Column A; parent/group accounts and leaf ledgers both supported</li>
+      <li>April to March financial year (Indian FY) · INR amounts · unlimited accounts</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── PROCESSING ── -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Reading trial balance…</div>
+  <div class="processing-steps">Running ledger scrutiny checks — this takes just a moment</div>
+</div>
+
+<!-- ── RESULTS ── -->
+<div id="resultsSection">
+  <div class="results-header">
+    <div>
+      <h2>Ledger Scrutiny Report</h2>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="resetApp()">↑ Upload New File</button>
+      <button class="btn-outline" onclick="saveReport()">💾 Save Report</button>
+      <button class="btn-primary" onclick="window.print()">🖨 Export Report</button>
+    </div>
+  </div>
+
+  <div class="file-info-bar" id="fileInfoBar"></div>
+
+  <div class="summary-strip">
+    <div class="summary-card" id="cardRed" onclick="filterBySeverity('red')">
+      <div class="card-count count-red" id="countRed">0</div>
+      <div class="card-label">🔴 Red Flags</div>
+    </div>
+    <div class="summary-card" id="cardOrange" onclick="filterBySeverity('orange')">
+      <div class="card-count count-orange" id="countOrange">0</div>
+      <div class="card-label">🟠 Concerns</div>
+    </div>
+    <div class="summary-card" id="cardYellow" onclick="filterBySeverity('yellow')">
+      <div class="card-count count-yellow" id="countYellow">0</div>
+      <div class="card-label">🟡 Advisories</div>
+    </div>
+    <div class="summary-card" id="cardGreen" onclick="filterBySeverity('green')">
+      <div class="card-count count-green" id="countGreen">0</div>
+      <div class="card-label">🟢 Observations</div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All</button>
+    <button class="filter-chip" data-filter="red" onclick="setFilter('red',this)">🔴 Red Flags</button>
+    <button class="filter-chip" data-filter="orange" onclick="setFilter('orange',this)">🟠 Concerns</button>
+    <button class="filter-chip" data-filter="yellow" onclick="setFilter('yellow',this)">🟡 Advisories</button>
+    <button class="filter-chip" data-filter="green" onclick="setFilter('green',this)">🟢 Observations</button>
+    <button class="filter-chip" data-filter="income" onclick="setFilter('income',this)">Income</button>
+    <button class="filter-chip" data-filter="expense" onclick="setFilter('expense',this)">Expense</button>
+    <button class="filter-chip" data-filter="asset" onclick="setFilter('asset',this)">Assets</button>
+    <button class="filter-chip" data-filter="liability" onclick="setFilter('liability',this)">Liabilities</button>
+  </div>
+
+  <div class="observations-list" id="observationsList"></div>
+</div>
+
+<!-- ── HISTORY ── -->
+<div id="historySection">
+  <div class="history-header">
+    <h2>📂 Saved Reports</h2>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="backToUpload()">↑ New Analysis</button>
+    </div>
+  </div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════
+const fmtINR = n => {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  let s;
+  if (abs >= 1e7) s = (abs / 1e7).toFixed(2) + ' Cr';
+  else if (abs >= 1e5) s = (abs / 1e5).toFixed(2) + ' L';
+  else s = abs.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  return (n < 0 ? '(' : '') + '₹' + s + (n < 0 ? ')' : '');
+};
+
+const parseNum = v => {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+
+const avg = arr => arr.length ? arr.reduce((a,b) => a + b, 0) / arr.length : 0;
+const sum = arr => arr.reduce((a,b) => a + b, 0);
+
+function parseMonthLabel(str) {
+  // "1-Apr-25 to 30-Apr-25" → "Apr '25"
+  const m = str.match(/\d+[-\/](\w{3})[-\/](\d{2,4})/);
+  if (m) return `${m[1]} '${String(m[2]).slice(-2)}`;
+  // fallback: just return first word
+  return str.split(' ')[0];
+}
+
+// ═══════════════════════════════════════════════
+//  PARSER
+// ═══════════════════════════════════════════════
+function parseTrialBalance(workbook) {
+  const ws = workbook.Sheets[workbook.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+  let particularsRow = -1;
+  let colHeaderRow = -1;
+
+  for (let i = 0; i < raw.length; i++) {
+    const row = raw[i];
+    if (!row) continue;
+    // Find "Particulars" in col 0
+    if (row[0] && String(row[0]).trim() === 'Particulars') {
+      particularsRow = i;
+    }
+    // Find the Debit/Credit/Balance row
+    const rowStr = row.map(v => v ? String(v).trim() : '').join('|');
+    if (rowStr.includes('Debit') && rowStr.includes('Credit') && rowStr.includes('Balance')) {
+      colHeaderRow = i;
+      break;
+    }
+  }
+
+  if (particularsRow === -1 || colHeaderRow === -1) {
+    // Try alternate: find row where cols 1,2,3 contain Debit,Credit,Balance
+    for (let i = 0; i < raw.length; i++) {
+      const row = raw[i];
+      if (!row) continue;
+      if ((row[1] === 'Debit' || String(row[1]||'').includes('Debit')) && row[2] !== null) {
+        colHeaderRow = i;
+        particularsRow = i - 2;
+        break;
+      }
+    }
+    if (colHeaderRow === -1) throw new Error('Could not detect trial balance structure. Please check the file format matches the expected layout.');
+  }
+
+  // Extract month labels from particularsRow
+  const monthRowData = raw[particularsRow] || [];
+  const months = [];
+  // Month period strings are at cols 1, 4, 7, ... (every 3rd starting at 1)
+  for (let c = 1; c < monthRowData.length; c += 3) {
+    if (monthRowData[c] && String(monthRowData[c]).match(/\d/)) {
+      months.push(parseMonthLabel(String(monthRowData[c])));
+    } else if (months.length > 0) {
+      // stop if we've already found some and hit a blank
+      break;
+    }
+  }
+
+  if (months.length === 0) {
+    // fallback: standard FY months
+    ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar']
+      .forEach(m => months.push(m + " '25"));
+  }
+
+  const dataStartRow = colHeaderRow + 1;
+  const SKIP = new Set(['Grand Total','Grand  Total','Total']);
+  const accounts = [];
+
+  for (let r = dataStartRow; r < raw.length; r++) {
+    const row = raw[r];
+    if (!row || row[0] === null || row[0] === undefined) continue;
+    const name = String(row[0]).trim();
+    if (!name || SKIP.has(name)) continue;
+
+    const monthData = [];
+    for (let m = 0; m < months.length; m++) {
+      const dCol = 1 + m * 3;
+      const cCol = 2 + m * 3;
+      const bCol = 3 + m * 3;
+      monthData.push({
+        month: months[m],
+        debit:   parseNum(row[dCol]),
+        credit:  parseNum(row[cCol]),
+        closing: parseNum(row[bCol])
+      });
+    }
+
+    // Determine if this is a group/parent row vs leaf
+    // Heuristic: if account name contains keywords for groups
+    const isGroup = /^(Capital Account|Current Assets|Fixed Assets|Branch|Divisions|Sales Accounts|Direct Expenses|Indirect Expenses|Current Liabilities|Loans \(Liab|Secured Loan|Unsecured Loan|Profit & Loss|Sundry Creditor|Sundry Debtor)/.test(name);
+
+    accounts.push({ name, months: monthData, isGroup });
+  }
+
+  return { months, accounts, entity: detectEntity(raw) };
+}
+
+function detectEntity(raw) {
+  // Try to find the entity/firm name from header rows
+  for (let i = 0; i < Math.min(6, raw.length); i++) {
+    const row = raw[i];
+    if (row && row[0] && String(row[0]).length > 3 && !String(row[0]).includes('@') && !String(row[0]).includes('Trial')) {
+      return String(row[0]).trim();
+    }
+  }
+  return 'Client';
+}
+
+// ═══════════════════════════════════════════════
+//  ACCOUNT CLASSIFICATION
+// ═══════════════════════════════════════════════
+function classifyAccount(name) {
+  const n = name.toLowerCase();
+
+  // Equity / Capital
+  if (/\b(capital|reserve|surplus|retained earnings|equity|proprietor|partner)\b/.test(n)) return 'equity';
+
+  // Liabilities
+  if (/\b(loan|borrowing|overdraft|term loan|cc limit|working capital limit)\b/.test(n)) return 'liability';
+  if (/payable|creditor|advance.*receiv|tds.*payabl|gst.*payabl|pf.*payabl|esic|profession.*tax.*payabl|salary.*payabl|rent.*payabl|provision|statutory due|outstanding.*liab/.test(n)) return 'liability';
+  if (/\b(secured loan|unsecured loan|debenture|deposit.*receiv)\b/.test(n)) return 'liability';
+
+  // Assets
+  if (/debtor|receivable|deposit.*(asset)|advance.*paid|prepaid|tds.*rec|gst.*rec|input.*gst|itc|advance.*tax.*asset/.test(n)) return 'asset';
+  if (/\b(bank|cash|fd|fixed deposit|petty cash|savings|current account)\b/.test(n)) return 'asset';
+  if (/\b(investment|mutual fund|share|stock|security deposit)\b/.test(n)) return 'asset';
+  if (/loans.*advances|branch|division|mom|inter.*branch|sister concern/.test(n)) return 'asset';
+  if (/fixed asset|machinery|equipment|furniture|vehicle|building|land|software|computer|office|plant/.test(n)) return 'asset';
+  if (/\baccumulated depreciation\b/.test(n)) return 'asset'; // contra
+
+  // Income
+  if (/\b(sales|revenue|income|turnover)\b/.test(n)) return 'income';
+  if (/fee|charges|consultancy|professional|audit|attestation|certification|retainer|service|commission|rent.*income|interest.*income|dividend/.test(n)) return 'income';
+  if (/reimbursement/.test(n)) return 'income'; // in service firms, reimbursements billed to clients
+
+  // Expense
+  if (/expense|cost|salary|wage|rent.*exp|insurance|repair|maintenance|printing|stationery/.test(n)) return 'expense';
+  if (/travelling|conveyance|telephone|internet|electricity|water|fuel|vehicle|petrol/.test(n)) return 'expense';
+  if (/depreciation|amortisation|amortization|interest.*exp|bank charge|legal|subscription|advertisement/.test(n)) return 'expense';
+  if (/staff|employee|manpower|contractual|security guard|housekeeping/.test(n)) return 'expense';
+
+  // P&L account
+  if (/profit.*loss|p.*l.*a.*c|retained/.test(n)) return 'pnl';
+
+  return 'unknown';
+}
+
+function accountTypeLabel(type) {
+  return { equity:'Equity', liability:'Liability', asset:'Asset', income:'Income', expense:'Expense', pnl:'P&L', unknown:'Other' }[type] || 'Other';
+}
+
+// ═══════════════════════════════════════════════
+//  ANALYSIS ENGINE
+// ═══════════════════════════════════════════════
+function analyseAccount(account) {
+  const type = classifyAccount(account.name);
+  const observations = [];
+  const M = account.months;
+  const N = M.length;
+
+  const totalDr   = sum(M.map(m => m.debit));
+  const totalCr   = sum(M.map(m => m.credit));
+  const totalTx   = totalDr + totalCr;
+  const hasTx     = m => m.debit + m.credit > 0;
+  const txArr     = M.map(hasTx);
+  const closings  = M.map(m => m.closing);
+
+  // ── FUNDAMENTAL DISTINCTION: Balance Sheet vs Profit & Loss ──────────
+  // BS items (asset/liability/equity): closing balance is CUMULATIVE month-on-month.
+  //   closing[m] = closing[m-1] + Dr[m] - Cr[m]  (or + Cr[m] - Dr[m] for Cr-natured)
+  // P&L items (income/expense): closing balance is NET TRANSACTION for that month only.
+  //   closing[m] = Dr[m] - Cr[m]  (or Cr[m] - Dr[m]) — independent of prior months.
+  const isBSItem  = ['asset', 'liability', 'equity', 'pnl'].includes(type);
+  const isPnLItem = ['income', 'expense'].includes(type);
+
+  // ── Check 1: Balance Math Verification ───────────────────────────────
+  // For BS items: closing[m] should = closing[m-1] ± (Dr - Cr). Try both natures.
+  // For P&L items: closing[m] should = Dr[m] - Cr[m] or Cr[m] - Dr[m]. No prior month dependency.
+  if (isBSItem) {
+    // ── BS item: cumulative balance check ──
+    for (let i = 1; i < N; i++) {
+      const prev = closings[i-1];
+      const curr = closings[i];
+      const d = M[i].debit, c = M[i].credit;
+      if (curr === 0 && d === 0 && c === 0) continue;
+      if (d === 0 && c === 0) continue; // no movement — balance carries, skip
+      const expDr = prev + d - c;   // expected if Dr-natured
+      const expCr = prev + c - d;   // expected if Cr-natured
+      const diffDr = Math.abs(curr - expDr);
+      const diffCr = Math.abs(curr - expCr);
+      const bestDiff = Math.min(diffDr, diffCr);
+      const reference = Math.max(Math.abs(curr), Math.abs(prev), 1);
+      if (bestDiff > 500 && bestDiff / reference > 0.02) {
+        const bestExp = diffDr <= diffCr ? expDr : expCr;
+        observations.push({
+          severity: 'red',
+          check: 'Balance Mismatch',
+          title: `Closing balance does not reconcile in ${M[i].month}`,
+          body: `BS item: Expected closing[${M[i].month}] = prior closing ${fmtINR(prev)} + net movement, but computed ${fmtINR(bestExp)} vs actual ${fmtINR(curr)} (diff: ${fmtINR(bestDiff)}).`,
+          reasons: [
+            'Sub-ledger entries not visible in this group-level view',
+            'Opening balance for this month differs from prior month closing (correction entry)',
+            'Data export may have omitted some transactions',
+            'A journal entry adjusted the balance without a corresponding Dr/Cr entry'
+          ],
+          action: `Extract the full ledger detail for ${account.name} for ${M[i].month} from Tally/accounting software and reconcile transaction by transaction.`,
+          highlight: [i]
+        });
+        break;
+      }
+    }
+  } else if (isPnLItem) {
+    // ── P&L item: each month closing = net of that month transactions only ──
+    for (let i = 0; i < N; i++) {
+      const d = M[i].debit, c = M[i].credit;
+      const curr = closings[i];
+      if (d === 0 && c === 0 && curr === 0) continue;
+      // Try both: closing = Dr - Cr (expense/debit-natured) or Cr - Dr (income/credit-natured)
+      const expDr = d - c;
+      const expCr = c - d;
+      const diffDr = Math.abs(curr - expDr);
+      const diffCr = Math.abs(curr - expCr);
+      const bestDiff = Math.min(diffDr, diffCr);
+      const reference = Math.max(Math.abs(curr), Math.abs(d), Math.abs(c), 1);
+      if (bestDiff > 500 && bestDiff / reference > 0.02) {
+        const bestExp = diffDr <= diffCr ? expDr : expCr;
+        observations.push({
+          severity: 'red',
+          check: 'Balance Mismatch',
+          title: `Monthly net does not match closing in ${M[i].month}`,
+          body: `P&L item: Dr ${fmtINR(d)} minus Cr ${fmtINR(c)} = net ${fmtINR(bestExp)}, but the closing balance shows ${fmtINR(curr)} (diff: ${fmtINR(bestDiff)}). The transactions do not add up to the stated monthly closing.`,
+          reasons: [
+            'Sub-ledger or child account entries not visible at this summary level',
+            'Data export from the accounting software rounded or omitted entries',
+            'An adjustment was passed directly without matching Dr/Cr columns',
+            'Group row is aggregating differently from visible sub-accounts'
+          ],
+          action: `Extract the detailed ${type} ledger for ${account.name} for ${M[i].month} and verify each transaction.`,
+          highlight: [i]
+        });
+        break;
+      }
+    }
+  }
+
+  // ── Check 2: Missing Period (sandwich pattern) ────────────────────────
+  // Only flag if adjacent months have meaningful amounts (> ₹1,000) to avoid noise
+  if (type === 'income' || type === 'expense') {
+    const MIN_AMOUNT = 1000;
+    for (let i = 1; i < N - 1; i++) {
+      const prevAmt = M[i-1].debit + M[i-1].credit;
+      const nextAmt = M[i+1].debit + M[i+1].credit;
+      if (!txArr[i] && txArr[i-1] && txArr[i+1] && prevAmt >= MIN_AMOUNT && nextAmt >= MIN_AMOUNT) {
+        observations.push({
+          severity: 'orange',
+          check: 'Missing Period',
+          title: `No entry in ${M[i].month} despite activity in adjacent months`,
+          body: `${account.name} had transactions in ${M[i-1].month} (${fmtINR(prevAmt)}) and ${M[i+1].month} (${fmtINR(nextAmt)}), but zero entries in ${M[i].month}. This gap may indicate an omitted booking.`,
+          reasons: [
+            'The entry for this period was simply not passed in the books',
+            'Advance payment/receipt in the prior month covered this period (no accrual)',
+            'Billing/recognition timing differs — payment received but not yet invoiced',
+            type === 'expense' ? 'Periodic expense (rent, subscription) may have been prepaid' : 'Revenue recognition deferred to next period'
+          ],
+          action: `Confirm with client whether a transaction exists for ${M[i].month}. If yes, obtain supporting document and pass the entry. If no, document the reason in the workpapers.`,
+          highlight: [i]
+        });
+      }
+    }
+  }
+
+  // ── Check 3: Multiple Consecutive Missing Periods ─────────────────────
+  // Only flag if there was meaningful activity before AND after the gap (> ₹1,000 avg)
+  if (type === 'income' || type === 'expense') {
+    const MIN_AMOUNT = 1000;
+    let gapStart = -1;
+    for (let i = 0; i < N; i++) {
+      if (!txArr[i]) {
+        if (gapStart === -1) gapStart = i;
+      } else {
+        if (gapStart !== -1 && (i - gapStart) >= 3 && gapStart > 0) {
+          // Check that the active months before and after have meaningful amounts
+          const beforeAmt = M[gapStart - 1].debit + M[gapStart - 1].credit;
+          const afterAmt  = M[i].debit + M[i].credit;
+          if (beforeAmt >= MIN_AMOUNT && afterAmt >= MIN_AMOUNT) {
+            observations.push({
+              severity: 'orange',
+              check: 'Extended Gap',
+              title: `No activity for ${i - gapStart} consecutive months (${M[gapStart].month}–${M[i-1].month})`,
+              body: `${account.name} shows no transactions for ${i - gapStart} months in a row. This extended gap after active periods suggests a possible omission or a fundamental change in the nature of this transaction.`,
+              reasons: [
+                'Expense/income may have been discontinued during this period',
+                'Billing cycle changed or billing was held back',
+                'Advance payment covering the gap period',
+                'Accounting oversight — entries not posted for multiple periods'
+              ],
+              action: `Seek a clear explanation from the client for the gap from ${M[gapStart].month} to ${M[i-1].month}. Obtain supporting schedules to confirm whether entries are missing.`,
+              highlight: Array.from({length: i - gapStart}, (_, k) => gapStart + k)
+            });
+          }
+        }
+        gapStart = -1;
+      }
+    }
+  }
+
+  // ── Check 4: Account Never Active All Year (with existing balance) ────
+  // ONLY for Balance Sheet items — P&L items with zero transactions naturally show zero closing.
+  // Only flag if balance is significant (> ₹10,000).
+  if (isBSItem && totalTx === 0) {
+    const hasBalance = closings.some(c => Math.abs(c) > 10000);
+    if (hasBalance) {
+      const bal = closings.find(c => Math.abs(c) > 10000) || 0;
+      // Skip fixed assets, depreciation, deposits, P&L appropriation — zero movement is expected
+      const isFixedAsset = /fixed asset|machinery|equipment|furniture|vehicle|building|land|software|computer|plant|accumulated depreciation|accum.*dep|profit\s*[&]\s*loss|p\s*&\s*l\s*a\/c|p\.?l\.?\s*a\/c|profit.*loss.*a\/c/i.test(account.name);
+      if (!isFixedAsset) {
+        observations.push({
+          severity: 'yellow',
+          check: 'Zero Movement',
+          title: `No transactions all year — balance of ${fmtINR(bal)} carried forward`,
+          body: `This Balance Sheet account has had no debit or credit entries throughout the year. The balance of ${fmtINR(bal)} appears to be purely an opening balance from the prior year. While this can be normal for deposits and long-term items, it warrants a brief confirmation.`,
+          reasons: [
+            'Security deposit, FD, or long-term balance with no periodic cash flows — this is normal',
+            'Outstanding receivable/payable from a prior year pending settlement',
+            'Account may have been settled in reality but not written off in the books',
+            type === 'asset' ? 'Old advance that may need confirmation of recoverability' : 'Old liability that may need confirmation of existence'
+          ],
+          action: `Quickly confirm with the client that this balance is genuine and still outstanding. If recoverable/payable, no action needed. If written off / settled, pass the appropriate entry.`,
+          highlight: []
+        });
+      }
+    }
+  }
+
+  // ── Check 5: Static Closing Balance (with no transactions) ─────────────
+  // ONLY for Balance Sheet items — P&L closings are per-month and not cumulative,
+  // so a "frozen" P&L balance just means same net each month (handled by Check 9).
+  // Only flag if: balance > ₹10,000, frozen for 6+ months, not fixed asset/deposit.
+  if (isBSItem && totalTx > 0) {
+    const isStaticExpected = /fixed asset|machinery|equipment|furniture|vehicle|building|land|software|computer|plant|accumulated depreciation|accum.*dep|deposit|fd|fixed deposit/i.test(account.name);
+    if (!isStaticExpected) {
+      let staticRun = 1, maxRun = 1, maxRunStart = 0;
+      for (let i = 1; i < N; i++) {
+        if (Math.abs(closings[i] - closings[i-1]) < 0.01 && !txArr[i]) {
+          staticRun++;
+          if (staticRun > maxRun) { maxRun = staticRun; maxRunStart = i - staticRun + 1; }
+        } else {
+          staticRun = 1;
+        }
+      }
+      const frozenBalance = closings[maxRunStart] || 0;
+      if (maxRun >= 6 && Math.abs(frozenBalance) > 10000) {
+        const mStart = M[maxRunStart].month;
+        const mEnd   = M[maxRunStart + maxRun - 1].month;
+        observations.push({
+          severity: 'yellow',
+          check: 'Frozen Balance',
+          title: `Balance frozen for ${maxRun} consecutive months (${mStart}–${mEnd})`,
+          body: `The closing balance of ${fmtINR(frozenBalance)} has remained exactly the same for ${maxRun} months with no supporting transactions. This account had activity earlier in the year, but has since stopped moving.`,
+          reasons: [
+            'Receivable/payable may be genuinely outstanding and pending settlement',
+            'Periodic entry (e.g., instalment, rent) may have stopped being recorded',
+            'Amount may represent a lump-sum advance/deposit with no expected periodic movement'
+          ],
+          action: `Confirm with the client why this balance has not moved since ${mStart}. Obtain a confirmation or statement to verify the amount is still outstanding.`,
+          highlight: Array.from({length: maxRun}, (_, k) => maxRunStart + k)
+        });
+      }
+    }
+  }
+
+  // ── Check 6: Account Activates Mid-Year ──────────────────────────────
+  {
+    let firstActive = -1;
+    for (let i = 0; i < N; i++) {
+      if (txArr[i] || closings[i] !== 0) { firstActive = i; break; }
+    }
+    if (firstActive > 1) { // appeared after Month 2
+      observations.push({
+        severity: 'yellow',
+        check: 'Mid-Year Activation',
+        title: `Account first appears in ${M[firstActive].month} (${firstActive} month${firstActive > 1 ? 's' : ''} into the year)`,
+        body: `This account had no opening balance and no transactions until ${M[firstActive].month}. It was either a new account opened during the year or an existing one not captured in prior months.`,
+        reasons: [
+          'New contract/client/arrangement commenced mid-year',
+          'New fixed asset acquired, deposit placed, or loan availed during the year',
+          type === 'income' ? 'New revenue stream activated mid-year' : '',
+          'Account may have existed but entries routed here only from this month onward'
+        ].filter(Boolean),
+        action: `Confirm date of inception of this account. Ensure all prior period entries (if any) have not been mis-classified under a different ledger.`,
+        highlight: [firstActive]
+      });
+    }
+  }
+
+  // ── Check 7: Account Goes Dormant Mid-Year ────────────────────────────
+  // Only flag income accounts (revenue stoppage is important to flag).
+  // For expense accounts: only flag if dormant for 4+ months AND last active amount was > ₹5,000.
+  // This avoids flagging one-off expenses that naturally stop.
+  {
+    let lastActive = -1;
+    for (let i = N - 1; i >= 0; i--) {
+      if (txArr[i]) { lastActive = i; break; }
+    }
+    if (lastActive >= 0 && lastActive < N - 3) {
+      const dormantCount = N - 1 - lastActive;
+      const dormantList  = M.slice(lastActive + 1).map(m => m.month).join(', ');
+      const lastAmt = M[lastActive].debit + M[lastActive].credit;
+      // Skip deposits, FDs, fixed assets — they're meant to be static
+      const isDormantExcluded = /deposit|fd|fixed deposit|fixed asset|machinery|equipment|furniture|vehicle|building|land|branch|division/i.test(account.name);
+      const shouldFlag = isDormantExcluded ? false
+        : type === 'income' ? lastAmt >= 5000   // income: flag if meaningful amount
+        : (dormantCount >= 4 && lastAmt >= 5000); // expense: only flag 4+ months with significant last entry
+      if (shouldFlag) {
+        observations.push({
+          severity: type === 'income' ? 'orange' : 'yellow',
+          check: 'Account Dormant',
+          title: `No transactions after ${M[lastActive].month} — dormant for last ${dormantCount} months`,
+          body: `The last transaction in this account was ${fmtINR(lastAmt)} in ${M[lastActive].month}. The months ${dormantList} show no activity. ${type === 'income' ? 'Revenue stoppage mid-year warrants confirmation.' : 'If this is a recurring expense, the missing entries should be confirmed.'}`,
+          reasons: [
+            type === 'income' ? 'Client/contract may have been discontinued or concluded' : 'Expense obligation may have ended (e.g., lease expired, loan repaid)',
+            'Final billing or payment occurred and the account is now settled',
+            'Entries may be pending for the dormant months and not yet booked',
+            'Transactions may have been reclassified to a different ledger from this period onward'
+          ],
+          action: `Confirm with the client why this account shows no movement from ${M[lastActive + 1].month} onward. If the arrangement is ongoing, obtain and pass the missing entries. If concluded, document accordingly.`,
+          highlight: Array.from({length: dormantCount}, (_, k) => lastActive + 1 + k)
+        });
+      }
+    }
+  }
+
+  // ── Check 8: Lump Sum Booking (P&L accounts) ──────────────────────────
+  if ((type === 'income' || type === 'expense') && totalTx > 0) {
+    const monthlyTx = M.map(m => m.debit + m.credit);
+    const maxTx     = Math.max(...monthlyTx);
+    const maxIdx    = monthlyTx.indexOf(maxTx);
+    const pct       = maxTx / totalTx;
+
+    if (pct >= 0.55 && N >= 6) {
+      const sev = pct >= 0.80 ? 'orange' : 'yellow';
+      observations.push({
+        severity: sev,
+        check: 'Lump Sum Booking',
+        title: `${Math.round(pct * 100)}% of annual total booked in a single month (${M[maxIdx].month})`,
+        body: `Of the total annual volume of ${fmtINR(totalTx)}, approximately ${fmtINR(maxTx)} was booked entirely in ${M[maxIdx].month}. This concentration may indicate a prepaid booking, an annual renewal, or a catch-up entry.`,
+        reasons: [
+          'Annual premium/renewal (insurance, maintenance contracts, subscriptions) paid once',
+          'Advance payment or retainer received/paid in a single instalment',
+          'Catch-up entry: multiple months accrual booked together',
+          type === 'expense' ? 'If prepaid, the portion relating to future periods should be treated as a Prepaid Expense' : 'If advance received, deferred revenue recognition may be applicable'
+        ],
+        action: type === 'expense'
+          ? `Obtain the invoice/contract for the ${M[maxIdx].month} booking. If it covers multiple periods, compute the prepaid portion and pass a Prepaid Expense entry for the unexpired period.`
+          : `Confirm whether the ${M[maxIdx].month} receipt/recognition is for a single period or spans multiple periods. If spanning, verify revenue recognition policy under Ind AS 115.`,
+        highlight: [maxIdx]
+      });
+    }
+  }
+
+  // ── Check 9: Identical Consecutive Amounts ────────────────────────────
+  if (type === 'income' || type === 'expense') {
+    const credits = M.map(m => m.credit);
+    const debits  = M.map(m => m.debit);
+
+    const checkStreak = (arr, label) => {
+      let run = 1;
+      for (let i = 1; i < N; i++) {
+        if (arr[i] > 0 && arr[i] === arr[i-1]) {
+          run++;
+          if (run >= 4) {
+            const val = arr[i];
+            observations.push({
+              severity: 'green',
+              check: 'Recurring Amount',
+              title: `Same ${label} amount of ${fmtINR(val)} for ${run} consecutive months from ${M[i-run+1].month}`,
+              body: `${account.name} shows an identical ${label.toLowerCase()} of ${fmtINR(val)} for ${run} months in a row. This pattern is often seen in fixed retainers, standing instructions, or periodic accruals — but should be verified to ensure it is not a posting error.`,
+              reasons: [
+                'Fixed monthly retainer fee or contractual obligation',
+                'Standing bank instruction or auto-debit/auto-credit',
+                'Periodic accrual entry passed via journal template',
+                'Possible copy-paste error in accounting software'
+              ],
+              action: `Confirm that the recurring amount of ${fmtINR(val)} is genuinely the same each month and not a result of a duplicated entry. Obtain supporting invoices/contracts.`,
+              highlight: Array.from({length: run}, (_, k) => i - run + 1 + k)
+            });
+            run = 1; // reset to avoid duplicate flags
+          }
+        } else {
+          run = 1;
+        }
+      }
+    };
+
+    checkStreak(credits, 'Credit');
+    checkStreak(debits, 'Debit');
+  }
+
+  // ── Check 10: Growing Asset with Zero Recovery ────────────────────────
+  if (type === 'asset' && totalDr > 0 && totalCr === 0) {
+    // Skip deposits — they're expected to grow with zero credits until refund
+    const isDepositType = /deposit|fd|fixed deposit|security deposit|earnest|emd/i.test(account.name);
+    if (isDepositType) { /* skip — deposits naturally have zero credits */ }
+    else {
+    const openBal = closings[0] - M[0].debit; // approximate opening
+    observations.push({
+      severity: 'orange',
+      check: 'No Recovery / No Receipts',
+      title: `Asset growing with zero credit entries — ${fmtINR(closings[N-1])} outstanding at year-end`,
+      body: `${account.name} shows only debit transactions (total: ${fmtINR(totalDr)}) with absolutely no credits throughout the year. The balance is continuously increasing with no receipts, payments, or adjustments recorded.`,
+      reasons: [
+        'Debtors not paying — collections may have lapsed or be overdue',
+        'Advance paid with no recovery or adjustment made',
+        type === 'asset' && /tds/i.test(account.name) ? 'TDS receivable accruing but never claimed or adjusted against tax liability' : '',
+        'The corresponding receipt may be getting booked under a different account',
+        'Credit entries may have been omitted/not passed'
+      ].filter(Boolean),
+      action: /tds/i.test(account.name)
+        ? `File the TDS returns and claim credit. Reconcile with Form 26AS to ensure all TDS deducted is reflected. Plan for utilizing the credit against advance tax or self-assessment tax.`
+        : `Prepare an age-wise debtors/advances analysis. Initiate recovery proceedings for overdue amounts. Assess recoverability and consider provisioning under Ind AS 109 if required.`,
+      highlight: M.map((m,i) => m.debit > 0 ? i : -1).filter(i => i >= 0)
+    });
+    } // end else (not deposit)
+  }
+
+  // ── Check 11: Negative Closing Balance ───────────────────────────────
+  for (let i = 0; i < N; i++) {
+    const c = closings[i];
+    if (c === 0) continue;
+    if (type === 'asset' && c < -1) {
+      observations.push({
+        severity: 'red',
+        check: 'Negative Asset Balance',
+        title: `Negative closing balance of ${fmtINR(c)} in ${M[i].month}`,
+        body: `An asset account should not carry a negative balance. ${account.name} shows a closing balance of ${fmtINR(c)} which means credit entries exceed debit entries — indicating a possible mis-classification or over-payment.`,
+        reasons: [
+          'Advance payment received has been credited here instead of a liability account',
+          'Excess payment/credit note causing the balance to go negative',
+          'Incorrect posting — a liability-nature entry booked under this asset ledger',
+          'Opening balance sign error'
+        ],
+        action: `Immediately investigate and correct. An asset account with a credit balance should either be reclassified to a liability account or have the erroneous entry reversed.`,
+        highlight: [i]
+      });
+      break;
+    }
+    if ((type === 'equity' || type === 'liability') && c > 1 && !account.name.toLowerCase().includes('advance') && !account.name.toLowerCase().includes('loan')) {
+      // Liabilities going negative is sometimes a concern (overpayment)
+    }
+  }
+
+  // ── Check 12: Capital Account Movement ──────────────────────────────
+  if (type === 'equity' && totalTx > 0) {
+    observations.push({
+      severity: 'yellow',
+      check: 'Capital Movement',
+      title: `Transactions of ${fmtINR(totalTx)} observed in capital/equity account`,
+      body: `Capital accounts typically remain static during the year except for owner drawings, capital introductions, or year-end profit transfer. Total activity of ${fmtINR(totalTx)} (Dr: ${fmtINR(totalDr)}, Cr: ${fmtINR(totalCr)}) was observed.`,
+      reasons: [
+        'Owner drawings or personal expenses routed through the firm',
+        'Capital introduced by proprietor/partner during the year',
+        'Year-end profit/loss transferred from P&L account',
+        'Loan from proprietor/partner being re-classified as capital'
+      ],
+      action: `Obtain a detailed narration for each transaction in the capital account. Verify whether drawings and introductions are supported and properly classified. Ensure personal expenses (if any) are backed by board resolutions or proprietor acknowledgment.`,
+      highlight: M.map((m,i) => hasTx(m) ? i : -1).filter(i => i >= 0)
+    });
+  }
+
+  // ── Check 13: Nil Revenue in Active Income Account ───────────────────
+  if (type === 'income') {
+    const activeMths = txArr.filter(Boolean).length;
+    const nilMths    = txArr.filter(v => !v).length;
+    if (activeMths >= 4 && nilMths >= 4) {
+      // Already caught by missing period check; no double-flag
+    } else if (activeMths < 4 && totalTx > 0) {
+      observations.push({
+        severity: 'yellow',
+        check: 'Sparse Revenue',
+        title: `Revenue recognised in only ${activeMths} out of ${N} months`,
+        body: `${account.name} shows income in only ${activeMths} month${activeMths !== 1 ? 's' : ''} of the year. While seasonal income is common in some practices, this level of sparseness should be verified against billing records.`,
+        reasons: [
+          'Engagement/project-based income billed only at milestones',
+          'One-time advisory or certification fees',
+          'Billing may be pending for the remaining months',
+          'Revenue could be getting recognised under a different ledger code'
+        ],
+        action: `Cross-verify billing registers and client contracts for the months with nil revenue. Confirm all invoiced amounts are captured and no invoice has been omitted.`,
+        highlight: M.map((m,i) => !txArr[i] && i > 0 ? i : -1).filter(i => i >= 0)
+      });
+    }
+  }
+
+  return observations.map(o => ({ ...o, account: account.name, type }));
+}
+
+// ═══════════════════════════════════════════════
+//  MAIN ANALYSIS RUNNER
+// ═══════════════════════════════════════════════
+function runScrutiny(parsed) {
+  const allObservations = [];
+
+  for (const account of parsed.accounts) {
+    const obs = analyseAccount(account);
+    allObservations.push(...obs);
+  }
+
+  // Sort: red → orange → yellow → green
+  const sevOrder = { red: 0, orange: 1, yellow: 2, green: 3 };
+  allObservations.sort((a, b) => (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9));
+
+  return allObservations;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════
+let allObs    = [];
+let parsedData = null;
+let activeFilter = 'all';
+
+function renderResults(parsed, observations) {
+  parsedData = parsed;
+  allObs     = observations;
+
+  // File info bar
+  const months = parsed.months;
+  const fy = months.length > 0
+    ? `${months[0]} – ${months[months.length-1]}`
+    : 'N/A';
+
+  document.getElementById('fileInfoBar').innerHTML = `
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Entity:</span><span class="fi-value">${parsed.entity}</span></div>
+    <div class="file-info-item"><span class="fi-label">Period:</span><span class="fi-value">${fy}</span></div>
+    <div class="file-info-item"><span class="fi-label">Accounts:</span><span class="fi-value">${parsed.accounts.length}</span></div>
+    <div class="file-info-item"><span class="fi-label">Findings:</span><span class="fi-value">${observations.length}</span></div>
+  `;
+
+  const counts = { red: 0, orange: 0, yellow: 0, green: 0 };
+  for (const o of observations) counts[o.severity] = (counts[o.severity] || 0) + 1;
+
+  document.getElementById('countRed').textContent    = counts.red    || 0;
+  document.getElementById('countOrange').textContent = counts.orange || 0;
+  document.getElementById('countYellow').textContent = counts.yellow || 0;
+  document.getElementById('countGreen').textContent  = counts.green  || 0;
+
+  document.getElementById('resultsMeta').textContent =
+    `${observations.length} finding${observations.length !== 1 ? 's' : ''} across ${parsed.accounts.length} ledger accounts`;
+
+  renderObservations('all');
+}
+
+function renderObservations(filter) {
+  activeFilter = filter;
+  const list = document.getElementById('observationsList');
+  const sevMap = { red: 'red', orange: 'orange', yellow: 'yellow', green: 'green' };
+
+  let filtered = allObs.filter(o => {
+    if (filter === 'all') return true;
+    if (['red','orange','yellow','green'].includes(filter)) return o.severity === filter;
+    return o.type === filter;
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No findings match this filter.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((o, idx) => {
+    const sevLabel = { red:'🔴 Red Flag', orange:'🟠 Concern', yellow:'🟡 Advisory', green:'🟢 Observation' }[o.severity] || o.severity;
+    const badgeCls = `badge-${o.severity}`;
+    const cardCls  = `sev-${o.severity}`;
+
+    const reasonsHtml = o.reasons.map(r => `<li>${r}</li>`).join('');
+
+    // Month activity strip
+    const monthStrip = parsedData ? (() => {
+      const acc = parsedData.accounts.find(a => a.name === o.account);
+      if (!acc) return '';
+      return `
+        <div class="month-grid-container">
+          <div class="month-grid">
+            ${acc.months.map((m, mi) => {
+              let cls = 'bar-nil';
+              let lbl = '—';
+              const hasTx = m.debit + m.credit > 0;
+              if (hasTx) { cls = 'bar-active'; lbl = '✓'; }
+              if (o.highlight && o.highlight.includes(mi)) { cls = 'bar-flag'; lbl = hasTx ? '⚑' : '∅'; }
+              return `<div class="month-cell"><div class="month-label">${m.month.split(' ')[0]}</div><div class="month-bar ${cls}">${lbl}</div></div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    })() : '';
+
+    return `
+      <div class="obs-card ${cardCls}" data-sev="${o.severity}" data-type="${o.type}">
+        <div class="obs-header">
+          <span class="obs-sev-badge ${badgeCls}">${sevLabel}</span>
+          <span class="obs-check-tag">${o.check}</span>
+          <span class="obs-account">${o.account}</span>
+          <div class="obs-title">${o.title}</div>
+        </div>
+        <p class="obs-body">${o.body}</p>
+        ${monthStrip}
+        <div class="obs-sections">
+          <div class="obs-reasons">
+            <div class="obs-section-title">Possible Reasons</div>
+            <ul>${reasonsHtml}</ul>
+          </div>
+          <div class="obs-action">
+            <div class="obs-section-title">Recommended Action</div>
+            <p>${o.action}</p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function setFilter(f, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  // Update summary card active states
+  ['red','orange','yellow','green'].forEach(s => {
+    const card = document.getElementById('card' + s.charAt(0).toUpperCase() + s.slice(1));
+    card.classList.remove('active', `active-${s}`);
+  });
+  renderObservations(f);
+}
+
+function filterBySeverity(sev) {
+  const chip = document.querySelector(`.filter-chip[data-filter="${sev}"]`);
+  if (chip) setFilter(sev, chip);
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active','active-red','active-orange','active-yellow','active-green'));
+  const card = document.getElementById('card' + sev.charAt(0).toUpperCase() + sev.slice(1));
+  if (card) { card.classList.add('active', `active-${sev}`); }
+}
+
+function resetApp() {
+  hideAll();
+  document.getElementById('uploadSection').style.display = '';
+  document.querySelector('.hero').style.display = '';
+  document.getElementById('fileInput').value = '';
+}
+
+// ═══════════════════════════════════════════════
+//  REPORT STORAGE (localStorage)
+// ═══════════════════════════════════════════════
+const STORAGE_KEY = 'credlance_scrutiny_reports';
+
+function getStoredReports() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveReport() {
+  if (!parsedData || !allObs.length) return;
+
+  const counts = { red: 0, orange: 0, yellow: 0, green: 0 };
+  for (const o of allObs) counts[o.severity] = (counts[o.severity] || 0) + 1;
+
+  const months = parsedData.months;
+  const report = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    entity: parsedData.entity,
+    period: months.length ? `${months[0]} - ${months[months.length-1]}` : 'N/A',
+    date: new Date().toISOString(),
+    accountCount: parsedData.accounts.length,
+    counts,
+    observations: allObs,
+    accounts: parsedData.accounts,
+    months: parsedData.months
+  };
+
+  const reports = getStoredReports();
+
+  // Check for duplicate (same entity + period)
+  const existing = reports.findIndex(r => r.entity === report.entity && r.period === report.period);
+  if (existing >= 0) {
+    reports[existing] = report; // overwrite
+    showToast('Report updated (same entity + period)');
+  } else {
+    reports.unshift(report);
+    showToast('Report saved successfully');
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showHistory() {
+  hideAll();
+  document.getElementById('historySection').style.display = 'block';
+  renderHistory();
+}
+
+function backToUpload() {
+  hideAll();
+  document.getElementById('uploadSection').style.display = '';
+  document.querySelector('.hero').style.display = '';
+}
+
+function hideAll() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'none';
+  document.getElementById('historySection').style.display = 'none';
+  document.querySelector('.hero').style.display = 'none';
+}
+
+function renderHistory() {
+  const reports = getStoredReports();
+  const list = document.getElementById('historyList');
+
+  if (!reports.length) {
+    list.innerHTML = `
+      <div class="history-empty">
+        <div class="icon">📭</div>
+        <p>No saved reports yet. Upload a trial balance and click "Save Report" to store it here.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = reports.map(r => {
+    const d = new Date(r.date);
+    const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const c = r.counts || {};
+
+    return `
+      <div class="history-card" onclick="viewSavedReport('${r.id}')">
+        <div class="hc-icon">📊</div>
+        <div class="hc-info">
+          <div class="hc-entity">${r.entity}</div>
+          <div class="hc-meta">
+            <span>${r.period}</span>
+            <span>${dateStr} at ${timeStr}</span>
+            <span>${r.accountCount} accounts</span>
+          </div>
+        </div>
+        <div class="hc-counts">
+          ${c.red   ? `<span class="hc-sev badge-red">${c.red} Red</span>` : ''}
+          ${c.orange ? `<span class="hc-sev badge-orange">${c.orange} Concern</span>` : ''}
+          ${c.yellow ? `<span class="hc-sev badge-yellow">${c.yellow} Advisory</span>` : ''}
+          ${c.green  ? `<span class="hc-sev badge-green">${c.green} Obs</span>` : ''}
+        </div>
+        <div class="hc-actions">
+          <button class="hc-btn hc-btn-del" onclick="event.stopPropagation(); deleteReport('${r.id}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function viewSavedReport(id) {
+  const reports = getStoredReports();
+  const r = reports.find(x => x.id === id);
+  if (!r) return;
+
+  // Reconstruct parsedData and allObs from the saved report
+  const restored = {
+    entity: r.entity,
+    months: r.months,
+    accounts: r.accounts
+  };
+
+  hideAll();
+  document.getElementById('resultsSection').style.display = 'block';
+  renderResults(restored, r.observations);
+
+  // Reset filter chips
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+}
+
+function deleteReport(id) {
+  if (!confirm('Delete this saved report?')) return;
+  let reports = getStoredReports();
+  reports = reports.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  renderHistory();
+  showToast('Report deleted');
+}
+
+// ═══════════════════════════════════════════════
+//  FILE HANDLING
+// ═══════════════════════════════════════════════
+function processFile(file) {
+  if (!file) return;
+  if (!file.name.match(/\.xlsx?$/i)) {
+    alert('Please upload an Excel file (.xlsx or .xls)');
+    return;
+  }
+
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+
+  const steps = [
+    'Reading trial balance…',
+    'Identifying account structure…',
+    'Classifying ledger accounts…',
+    'Running 13 scrutiny checks…',
+    'Generating clarification report…'
+  ];
+  let stepIdx = 0;
+  const msgEl = document.getElementById('processingMsg');
+  const stepInterval = setInterval(() => {
+    stepIdx++;
+    if (stepIdx < steps.length) msgEl.textContent = steps[stepIdx];
+  }, 400);
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    setTimeout(() => {
+      clearInterval(stepInterval);
+      try {
+        const data    = new Uint8Array(e.target.result);
+        const wb      = XLSX.read(data, { type: 'array' });
+        const parsed  = parseTrialBalance(wb);
+        const obs     = runScrutiny(parsed);
+
+        document.getElementById('processingSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'block';
+        renderResults(parsed, obs);
+
+        // Reset filter chips
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+
+      } catch (err) {
+        clearInterval(stepInterval);
+        document.getElementById('processingSection').style.display = 'none';
+        document.getElementById('uploadSection').style.display = '';
+        alert('Error: ' + err.message);
+      }
+    }, 2200);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Event listeners ──
+document.getElementById('fileInput').addEventListener('change', e => {
+  processFile(e.target.files[0]);
+});
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  processFile(e.dataTransfer.files[0]);
+});
+</script>
+</body>
+</html>
