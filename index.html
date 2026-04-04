@@ -3,83 +3,459 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Credlance - Fintech App Lab</title>
+  <title>Credlance – Fintech App Lab</title>
   <style>
+    /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0b0f1a; color: #e2e8f0; line-height: 1.6; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0b0f1a;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
     a { text-decoration: none; color: inherit; }
-    :root { --accent: #00d4aa; --accent-dark: #00a882; --accent-glow: rgba(0,212,170,0.15); --surface: #111827; --surface2: #1a2235; --border: rgba(255,255,255,0.07); --text-muted: #94a3b8; }
-    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 5%; background: rgba(11,15,26,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
-    .logo { font-size: 1.4rem; font-weight: 700; }
+
+    /* ── CSS Variables ── */
+    :root {
+      --accent: #00d4aa;
+      --accent-dark: #00a882;
+      --accent-glow: rgba(0, 212, 170, 0.15);
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: rgba(255,255,255,0.07);
+      --text-muted: #94a3b8;
+    }
+
+    /* ── Navigation ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 5%;
+      background: rgba(11, 15, 26, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
     .logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 2rem; list-style: none; }
-    .nav-links a { font-size: 0.9rem; color: var(--text-muted); transition: color 0.2s; }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
     .nav-links a:hover { color: #fff; }
-    .nav-cta { background: var(--accent); color: #0b0f1a !important; padding: 0.45rem 1.1rem; border-radius: 6px; font-weight: 600; }
-    .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6rem 5% 4rem; position: relative; overflow: hidden; }
-    .hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,170,0.08) 0%, transparent 70%); pointer-events: none; }
-    .hero-badge { display: inline-flex; align-items: center; background: var(--accent-glow); border: 1px solid rgba(0,212,170,0.3); color: var(--accent); font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 999px; margin-bottom: 1.8rem; text-transform: uppercase; }
-    h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); font-weight: 800; line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 1.5rem; }
-    h1 em { font-style: normal; color: var(--accent); }
-    .hero-sub { font-size: clamp(1rem, 2.5vw, 1.2rem); color: var(--text-muted); max-width: 560px; margin: 0 auto 2.5rem; }
-    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-    .btn-primary { background: var(--accent); color: #0b0f1a; font-weight: 700; padding: 0.75rem 1.8rem; border-radius: 8px; box-shadow: 0 0 24px rgba(0,212,170,0.25); }
-    .btn-secondary { background: transparent; color: #e2e8f0; font-weight: 600; padding: 0.75rem 1.8rem; border-radius: 8px; border: 1px solid var(--border); }
-    .hero-stats { display: flex; gap: 3rem; justify-content: center; flex-wrap: wrap; margin-top: 4rem; padding-top: 3rem; border-top: 1px solid var(--border); }
-    .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
-    .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; }
+    .nav-cta {
+      background: var(--accent);
+      color: #0b0f1a !important;
+      padding: 0.45rem 1.1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem !important;
+      transition: background 0.2s, transform 0.1s !important;
+    }
+    .nav-cta:hover { background: var(--accent-dark) !important; transform: translateY(-1px); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 5% 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,170,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(59,130,246,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--accent-glow);
+      border: 1px solid rgba(0,212,170,0.3);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      margin-bottom: 1.8rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .hero-badge::before { content: '\u2b21'; font-size: 0.75rem; }
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 1.5rem;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #0b0f1a;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.75rem 1.8rem;
+      border-radius: 8px;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 0 24px rgba(0,212,170,0.25);
+    }
+    .btn-primary:hover {
+      background: var(--accent-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 0 32px rgba(0,212,170,0.4);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.75rem 1.8rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .btn-secondary:hover {
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.04);
+      transform: translateY(-2px);
+    }
+    .hero-stats {
+      display: flex;
+      gap: 3rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 4rem;
+      padding-top: 3rem;
+      border-top: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Section Base ── */
     section { padding: 6rem 5%; }
-    .section-label { font-size: 0.75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.8rem; }
-    h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; margin-bottom: 1rem; }
-    .section-sub { color: var(--text-muted); font-size: 1.05rem; max-width: 560px; margin-bottom: 3.5rem; }
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.8rem;
+    }
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-bottom: 1rem;
+    }
+    .section-sub {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 560px;
+      margin-bottom: 3.5rem;
+    }
     .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ── About / Mission ── */
     #about { background: var(--surface); }
-    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-    .about-pillars { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem; }
-    .pillar { display: flex; gap: 1rem; align-items: flex-start; }
-    .pillar-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--accent-glow); border: 1px solid rgba(0,212,170,0.25); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-    .pillar-title { font-weight: 700; margin-bottom: 0.2rem; }
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    .about-pillars {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .pillar {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .pillar-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(0,212,170,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .pillar-title {
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
     .pillar-desc { font-size: 0.9rem; color: var(--text-muted); }
-    .about-visual { background: var(--surface2); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; }
-    .visual-tag { font-size: 0.75rem; color: var(--accent); font-weight: 600; text-transform: uppercase; margin-bottom: 1.5rem; }
-    .visual-item { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .about-visual {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .about-visual::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(0,212,170,0.12), transparent 70%);
+      border-radius: 50%;
+    }
+    .visual-tag {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
+    }
+    .visual-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.9rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
     .visual-item:last-child { border-bottom: none; }
     .visual-item-label { color: var(--text-muted); }
-    .badge { font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 999px; }
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+    }
     .badge-green { background: rgba(0,212,170,0.15); color: var(--accent); }
     .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
     .badge-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+
+    /* ── Apps ── */
     #apps { background: #0b0f1a; }
-    .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
-    .app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.8rem; transition: border-color 0.2s, transform 0.2s; }
-    .app-card:hover { border-color: rgba(0,212,170,0.3); transform: translateY(-3px); }
-    .app-card-coming { opacity: 0.65; }
-    .app-icon { width: 48px; height: 48px; background: var(--accent-glow); border: 1px solid rgba(0,212,170,0.25); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1.2rem; }
-    .app-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .app-desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.2rem; }
-    .app-status { font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.7rem; border-radius: 999px; display: inline-block; }
-    .status-soon { background: rgba(251,146,60,0.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .app-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.8rem;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .app-card:hover {
+      border-color: rgba(0,212,170,0.3);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    }
+    .app-card-coming {
+      opacity: 0.6;
+    }
+    .app-icon {
+      width: 48px; height: 48px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(0,212,170,0.25);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1.2rem;
+    }
+    .app-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .app-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 1.2rem;
+      line-height: 1.55;
+    }
+    .app-status {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .status-soon {
+      background: rgba(251,146,60,0.12);
+      color: #fb923c;
+      border: 1px solid rgba(251,146,60,0.2);
+    }
+    .status-live {
+      background: rgba(0,212,170,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(0,212,170,0.25);
+    }
+
+    /* ── How It Works ── */
     #how { background: var(--surface); }
-    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; }
-    .step { padding: 2rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; }
-    .step-number { font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem; }
-    .step-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+      counter-reset: steps;
+    }
+    .step {
+      position: relative;
+      padding: 2rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .step-number {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .step-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
     .step-desc { font-size: 0.88rem; color: var(--text-muted); }
-    #contact { background: linear-gradient(135deg, #0b0f1a 0%, #0d1a1a 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .cta-banner { text-align: center; max-width: 640px; margin: 0 auto; }
-    .cta-banner p { color: var(--text-muted); margin-bottom: 2rem; }
-    .cta-email { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--accent); font-weight: 600; border: 1px solid rgba(0,212,170,0.3); padding: 0.7rem 1.5rem; border-radius: 8px; background: var(--accent-glow); }
-    footer { background: var(--surface); border-top: 1px solid var(--border); padding: 2.5rem 5%; }
-    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+
+    /* ── Contact / CTA Banner ── */
+    #contact {
+      background: linear-gradient(135deg, #0b0f1a 0%, #0d1a1a 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .cta-banner {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .cta-banner h2 { margin-bottom: 1rem; }
+    .cta-banner p { color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem; }
+    .cta-email {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 1.05rem;
+      border: 1px solid rgba(0,212,170,0.3);
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      background: var(--accent-glow);
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .cta-email:hover {
+      background: rgba(0,212,170,0.2);
+      border-color: rgba(0,212,170,0.5);
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 5%;
+    }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
     .footer-copy { font-size: 0.85rem; color: var(--text-muted); }
-    .footer-links { display: flex; gap: 1.5rem; list-style: none; }
-    .footer-links a { font-size: 0.85rem; color: var(--text-muted); }
-    .footer-disclaimer { max-width: 1100px; margin: 1.2rem auto 0; font-size: 0.75rem; color: #475569; }
-    @media (max-width: 768px) { .about-grid { grid-template-columns: 1fr; } .nav-links { display: none; } }
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .footer-links a {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #fff; }
+    .footer-disclaimer {
+      max-width: 1100px;
+      margin: 1.2rem auto 0;
+      font-size: 0.75rem;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .about-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+      .nav-links { display: none; }
+      .hero-stats { gap: 2rem; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Navigation -->
   <nav>
     <div class="logo">Cred<span>lance</span></div>
     <ul class="nav-links">
@@ -89,93 +465,249 @@
       <li><a href="#contact" class="nav-cta">Get in Touch</a></li>
     </ul>
   </nav>
+
+  <!-- Hero -->
   <section class="hero">
     <div class="hero-bg"></div>
-    <div style="position:relative;z-index:1;width:100%;">
+    <div style="position:relative; z-index:1; width:100%;">
       <div class="hero-badge">Fintech App Lab</div>
       <h1>Where <em>Fintech Ideas</em><br>Come to Life</h1>
-      <p class="hero-sub">Credlance is a personal lab for building, testing, and publishing fintech tools - from loan calculators to investment trackers and beyond.</p>
+      <p class="hero-sub">
+        Credlance is a personal lab for building, testing, and publishing fintech tools &mdash;
+        from loan calculators to investment trackers and beyond.
+      </p>
       <div class="hero-actions">
         <a href="#apps" class="btn-primary">Explore Apps</a>
         <a href="#about" class="btn-secondary">Learn More</a>
       </div>
       <div class="hero-stats">
-        <div class="stat"><div class="stat-value">100%</div><div class="stat-label">Free to Use</div></div>
-        <div class="stat"><div class="stat-value">$0</div><div class="stat-label">No Subscriptions</div></div>
-        <div class="stat"><div class="stat-value">6+</div><div class="stat-label">Apps in Progress</div></div>
+        <div class="stat">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Free to Use</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">0$</div>
+          <div class="stat-label">No Subscriptions</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">&infin;</div>
+          <div class="stat-label">Apps in Progress</div>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- About -->
   <section id="about">
     <div class="container">
       <div class="about-grid">
         <div>
           <div class="section-label">About Credlance</div>
           <h2>A Lab Built for Real Financial Problems</h2>
-          <p style="color:var(--text-muted);margin-bottom:1rem;">Credlance is an independent fintech lab where ideas become working tools. Every app is built with simplicity in mind - no jargon, no clutter.</p>
-          <p style="color:var(--text-muted);">This is a testing ground for new ideas. Apps launch here first, refined based on real feedback.</p>
+          <p style="color:var(--text-muted); font-size:1rem; margin-bottom:1rem;">
+            Credlance is an independent fintech lab where ideas are turned into working tools.
+            Every app is built with simplicity and clarity in mind &mdash; no jargon, no clutter,
+            just clean tools that help people make better financial decisions.
+          </p>
+          <p style="color:var(--text-muted); font-size:1rem;">
+            This is a testing ground for new ideas. Apps are released here first, refined
+            based on feedback, and evolved over time.
+          </p>
           <div class="about-pillars">
-            <div class="pillar"><div class="pillar-icon">&#127919;</div><div><div class="pillar-title">Problem First</div><div class="pillar-desc">Every tool starts with a real financial pain point people face daily.</div></div></div>
-            <div class="pillar"><div class="pillar-icon">&#128274;</div><div><div class="pillar-title">Privacy Focused</div><div class="pillar-desc">No personal data stored. What you calculate stays with you.</div></div></div>
-            <div class="pillar"><div class="pillar-icon">&#9889;</div><div><div class="pillar-title">Always Improving</div><div class="pillar-desc">Apps evolve continuously based on your feedback.</div></div></div>
+            <div class="pillar">
+              <div class="pillar-icon">&#127919;</div>
+              <div>
+                <div class="pillar-title">Problem First</div>
+                <div class="pillar-desc">Every tool starts with a real financial pain point people face daily.</div>
+              </div>
+            </div>
+            <div class="pillar">
+              <div class="pillar-icon">&#128274;</div>
+              <div>
+                <div class="pillar-title">Privacy Focused</div>
+                <div class="pillar-desc">No personal data stored. What you calculate stays with you.</div>
+              </div>
+            </div>
+            <div class="pillar">
+              <div class="pillar-icon">&#9889;</div>
+              <div>
+                <div class="pillar-title">Always Improving</div>
+                <div class="pillar-desc">Apps evolve continuously. Feedback shapes every iteration.</div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="about-visual">
           <div class="visual-tag">Platform Status</div>
-          <div class="visual-item"><span class="visual-item-label">Platform</span><span class="badge badge-green">Live</span></div>
-          <div class="visual-item"><span class="visual-item-label">Apps in Beta</span><span class="badge badge-orange">Coming Soon</span></div>
-          <div class="visual-item"><span class="visual-item-label">Data Collection</span><span class="badge badge-green">None</span></div>
-          <div class="visual-item"><span class="visual-item-label">Cost to Users</span><span class="badge badge-green">Free</span></div>
-          <div class="visual-item"><span class="visual-item-label">Uptime</span><span class="badge badge-blue">99.9%</span></div>
-          <div class="visual-item"><span class="visual-item-label">Mobile Friendly</span><span class="badge badge-green">Yes</span></div>
+          <div class="visual-item">
+            <span class="visual-item-label">Platform</span>
+            <span class="badge badge-green">Live</span>
+          </div>
+          <div class="visual-item">
+            <span class="visual-item-label">Apps in Beta</span>
+            <span class="badge badge-orange">Coming Soon</span>
+          </div>
+          <div class="visual-item">
+            <span class="visual-item-label">Data Collection</span>
+            <span class="badge badge-green">None</span>
+          </div>
+          <div class="visual-item">
+            <span class="visual-item-label">Cost to Users</span>
+            <span class="badge badge-green">Free</span>
+          </div>
+          <div class="visual-item">
+            <span class="visual-item-label">Uptime</span>
+            <span class="badge badge-blue">99.9%</span>
+          </div>
+          <div class="visual-item">
+            <span class="visual-item-label">Mobile Friendly</span>
+            <span class="badge badge-green">Yes</span>
+          </div>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- Apps -->
   <section id="apps">
     <div class="container">
       <div class="section-label">The Lab</div>
       <h2>Fintech Apps</h2>
-      <p class="section-sub">Tools being built and tested. Check back often - new apps launch regularly.</p>
+      <p class="section-sub">
+        Tools being built and tested. Check back often &mdash; new apps launch regularly.
+      </p>
       <div class="apps-grid">
-        <div class="app-card app-card-coming"><div class="app-icon">&#127974;</div><div class="app-name">Loan EMI Calculator</div><div class="app-desc">Calculate monthly EMI for home, car, or personal loans with full amortization breakdown.</div><span class="app-status status-soon">Coming Soon</span></div>
-        <div class="app-card app-card-coming"><div class="app-icon">&#128200;</div><div class="app-name">SIP Returns Estimator</div><div class="app-desc">Project future value of SIP investments across different return scenarios.</div><span class="app-status status-soon">Coming Soon</span></div>
-        <div class="app-card app-card-coming"><div class="app-icon">&#128179;</div><div class="app-name">Credit Score Guide</div><div class="app-desc">Understand what affects your credit score and get a personalised improvement plan.</div><span class="app-status status-soon">Coming Soon</span></div>
-        <div class="app-card app-card-coming"><div class="app-icon">&#129534;</div><div class="app-name">Budget Planner</div><div class="app-desc">Map your monthly income against expenses and find where your money goes.</div><span class="app-status status-soon">Coming Soon</span></div>
-        <div class="app-card app-card-coming"><div class="app-icon">&#127968;</div><div class="app-name">Rent vs Buy Calculator</div><div class="app-desc">Compare the true cost of renting vs buying a home over time.</div><span class="app-status status-soon">Coming Soon</span></div>
-        <div class="app-card app-card-coming"><div class="app-icon">&#128176;</div><div class="app-name">FD / RD Calculator</div><div class="app-desc">Calculate maturity amounts for Fixed and Recurring Deposits across Indian banks.</div><span class="app-status status-soon">Coming Soon</span></div>
+
+        <a href="ledger-scrutiny.html" class="app-card" style="text-decoration:none;color:inherit;">
+          <div class="app-icon">&#128269;</div>
+          <div class="app-name">Ledger Scrutiny Engine</div>
+          <div class="app-desc">Upload a monthly trial balance and instantly get a structured clarification report &mdash; missing entries, lump sums, dormant accounts, and more, flagged by severity with possible reasons and recommended actions.</div>
+          <span class="app-status status-live">Live &middot; India Standard</span>
+        </a>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#128202;</div>
+          <div class="app-name">MIS Dashboard</div>
+          <div class="app-desc">Upload trial balance and get full P&amp;L, Balance Sheet, Cash Flow, and 15+ financial ratios in Ind AS format &mdash; with charts and month-on-month variance analysis.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#129302;</div>
+          <div class="app-name">AI Financial Analyzer</div>
+          <div class="app-desc">Reads your MIS reports and generates a severity-coded analysis &mdash; red flags, concerns, advisories, ratio commentary, and a prioritised action plan for client discussions.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#127974;</div>
+          <div class="app-name">Loan EMI Calculator</div>
+          <div class="app-desc">Calculate your monthly EMI for home, car, or personal loans with a full amortization breakdown.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#128200;</div>
+          <div class="app-name">SIP Returns Estimator</div>
+          <div class="app-desc">Project the future value of your SIP investments across different return scenarios.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#128179;</div>
+          <div class="app-name">Credit Score Guide</div>
+          <div class="app-desc">Understand what affects your credit score and get a personalised action plan to improve it.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#129534;</div>
+          <div class="app-name">Budget Planner</div>
+          <div class="app-desc">Map your monthly income against expenses and find exactly where your money goes.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#127968;</div>
+          <div class="app-name">Rent vs Buy Calculator</div>
+          <div class="app-desc">Compare the true cost of renting vs buying a home over time, adjusted for your city.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
+        <div class="app-card app-card-coming">
+          <div class="app-icon">&#128176;</div>
+          <div class="app-name">FD / RD Calculator</div>
+          <div class="app-desc">Calculate maturity amounts for Fixed Deposits and Recurring Deposits across Indian banks.</div>
+          <span class="app-status status-soon">Coming Soon</span>
+        </div>
+
       </div>
     </div>
   </section>
+
+  <!-- How It Works -->
   <section id="how">
     <div class="container">
       <div class="section-label">How It Works</div>
       <h2>Simple by Design</h2>
       <p class="section-sub">Every app on Credlance follows the same simple principles.</p>
       <div class="steps">
-        <div class="step"><div class="step-number">Step 01</div><div class="step-title">Pick a Tool</div><div class="step-desc">Browse the apps and choose the one that fits your financial question.</div></div>
-        <div class="step"><div class="step-number">Step 02</div><div class="step-title">Enter Your Numbers</div><div class="step-desc">Input your figures - no sign-up, no email, no personal data required.</div></div>
-        <div class="step"><div class="step-number">Step 03</div><div class="step-title">Get Your Answer</div><div class="step-desc">See clear results instantly with plain-language explanations.</div></div>
-        <div class="step"><div class="step-number">Step 04</div><div class="step-title">Decide with Confidence</div><div class="step-desc">Use the insights to make smarter financial choices on your own terms.</div></div>
+        <div class="step">
+          <div class="step-number">Step 01</div>
+          <div class="step-title">Pick a Tool</div>
+          <div class="step-desc">Browse the apps above and choose the one that fits your financial question.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">Step 02</div>
+          <div class="step-title">Enter Your Numbers</div>
+          <div class="step-desc">Input your own figures &mdash; no sign-up, no email, no personal data required.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">Step 03</div>
+          <div class="step-title">Get Your Answer</div>
+          <div class="step-desc">See clear results instantly with plain-language explanations, not confusing jargon.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">Step 04</div>
+          <div class="step-title">Decide with Confidence</div>
+          <div class="step-desc">Use the insights to make smarter financial choices &mdash; on your own terms.</div>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- Contact / CTA -->
   <section id="contact">
     <div class="container">
       <div class="cta-banner">
         <div class="section-label">Get in Touch</div>
         <h2>Have an Idea for an App?</h2>
-        <p>Credlance is built around real problems. If you have a financial question that needs a better tool, reach out.</p>
-        <a href="mailto:rahul.jaiswal@rahuljaiswalgroup.com" class="cta-email">&#9993; rahul.jaiswal@rahuljaiswalgroup.com</a>
+        <p>
+          Credlance is built around real problems. If you have a financial question
+          that needs a better tool, reach out &mdash; it might just become the next app.
+        </p>
+        <a href="mailto:rahul.jaiswal@rahuljaiswalgroup.com" class="cta-email">
+          &#9993; rahul.jaiswal@rahuljaiswalgroup.com
+        </a>
       </div>
     </div>
   </section>
+
+  <!-- Footer -->
   <footer>
     <div class="footer-inner">
-      <div class="footer-copy">&#169; 2026 Credlance. All rights reserved.</div>
-      <ul class="footer-links"><li><a href="#about">About</a></li><li><a href="#apps">Apps</a></li><li><a href="#contact">Contact</a></li></ul>
+      <div class="footer-copy">&copy; 2026 Credlance. All rights reserved.</div>
+      <ul class="footer-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#apps">Apps</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
     </div>
-    <div class="footer-disclaimer">&#9888; Disclaimer: Credlance is an independent experimental platform. All tools are for informational and educational purposes only. Nothing on this site constitutes financial advice. Please consult a qualified financial advisor before making any financial decisions.</div>
+    <div class="footer-disclaimer">
+      &#9888; Disclaimer: Credlance is an independent experimental platform. All tools are for informational and educational purposes only.
+      Nothing on this site constitutes financial advice. Please consult a qualified financial advisor before making any financial decisions.
+    </div>
   </footer>
+
 </body>
-</html>
+  </html>
