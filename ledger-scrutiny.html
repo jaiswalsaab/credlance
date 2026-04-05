@@ -333,6 +333,33 @@
     .nav-history:hover { border-color: var(--accent); color: var(--accent); }
     .nav-right { display: flex; gap: 0.75rem; align-items: center; }
 
+    /* ── CLASSIFY SECTION ── */
+    #classifySection { display: none; max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .classify-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .classify-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .classify-subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+    .classify-table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.25rem; }
+    .classify-table { width: 100%; border-collapse: collapse; }
+    .classify-table th { padding: 0.7rem 1rem; text-align: left; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    .classify-table td { padding: 0.6rem 1rem; font-size: 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .classify-table tr:last-child td { border-bottom: none; }
+    .classify-table tr.row-unknown td { background: rgba(255,76,106,0.04); }
+    .classify-table tr:hover td { background: rgba(0,212,170,0.03); }
+    .cls-auto-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; white-space: nowrap; }
+    .cls-badge-asset     { background: rgba(0,212,170,0.15); color: var(--accent); }
+    .cls-badge-liability { background: rgba(255,140,66,0.15); color: var(--orange); }
+    .cls-badge-equity    { background: rgba(245,197,24,0.15); color: var(--yellow); }
+    .cls-badge-income    { background: rgba(34,197,94,0.15); color: var(--green); }
+    .cls-badge-expense   { background: rgba(255,76,106,0.15); color: var(--red); }
+    .cls-badge-pnl       { background: rgba(130,130,255,0.15); color: #9090ff; }
+    .cls-badge-unknown   { background: rgba(255,76,106,0.2); color: var(--red); border: 1px solid rgba(255,76,106,0.4); }
+    .cls-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.83rem; cursor: pointer; width: 100%; max-width: 180px; }
+    .cls-select:focus { border-color: var(--accent); outline: none; }
+    .cls-unknown-marker { color: var(--red); font-size: 0.68rem; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+    .classify-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .classify-notice { font-size: 0.79rem; color: var(--muted); }
+    .cls-changed td { background: rgba(0,212,170,0.04) !important; }
+
     /* ── PRINT STYLES ── */
     @media print {
       nav, .action-bar, .filter-bar, .upload-section, .format-hint, #processingSection { display: none !important; }
@@ -406,7 +433,7 @@
     <div class="action-bar">
       <button class="btn-outline" onclick="resetApp()">↑ Upload New File</button>
       <button class="btn-outline" onclick="saveReport()">💾 Save Report</button>
-      <button class="btn-primary" onclick="window.print()">🖨 Export Report</button>
+      <button class="btn-primary" onclick="exportToExcel()">📥 Export to Excel</button>
     </div>
   </div>
 
@@ -456,6 +483,37 @@
     </div>
   </div>
   <div class="history-list" id="historyList"></div>
+</div>
+
+<!-- ── CLASSIFY SECTION ── -->
+<div id="classifySection">
+  <div class="classify-header">
+    <div>
+      <h2>Review Account Classifications</h2>
+      <div class="classify-subtitle" id="classifySubtitle"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="skipClassify()">⚡ Skip — Use Auto-Detection</button>
+      <button class="btn-primary" onclick="applyClassifications()">✅ Save &amp; Run Analysis</button>
+    </div>
+  </div>
+  <div class="classify-table-wrap">
+    <table class="classify-table">
+      <thead>
+        <tr>
+          <th style="width:44%">Account Name</th>
+          <th style="width:18%">Auto-Detected</th>
+          <th style="width:22%">Confirm / Correct Type</th>
+        </tr>
+      </thead>
+      <tbody id="classifyTableBody"></tbody>
+    </table>
+  </div>
+  <div class="classify-actions">
+    <button class="btn-primary" onclick="applyClassifications()">✅ Save &amp; Run Analysis</button>
+    <button class="btn-outline" onclick="skipClassify()">⚡ Skip — Use Auto-Detection</button>
+    <span class="classify-notice">💾 Classifications are permanently remembered for this client in your browser</span>
+  </div>
 </div>
 
 <!-- ── TOAST ── -->
@@ -641,7 +699,10 @@ function accountTypeLabel(type) {
 //  ANALYSIS ENGINE
 // ═══════════════════════════════════════════════
 function analyseAccount(account) {
-  const type = classifyAccount(account.name);
+  // Use confirmed classification from localStorage if available, else auto-detect
+  const type = (window._classMap && window._classMap[account.name] && window._classMap[account.name] !== 'unknown')
+    ? window._classMap[account.name]
+    : classifyAccount(account.name);
   const observations = [];
   const M = account.months;
   const N = M.length;
@@ -674,9 +735,13 @@ function analyseAccount(account) {
       if (d === 0 && c === 0) continue; // no movement — balance carries, skip
       const expDr = prev + d - c;   // expected if Dr-natured
       const expCr = prev + c - d;   // expected if Cr-natured
-      const diffDr = Math.abs(curr - expDr);
-      const diffCr = Math.abs(curr - expCr);
-      const bestDiff = Math.min(diffDr, diffCr);
+      const diffDr    = Math.abs(curr - expDr);
+      const diffCr    = Math.abs(curr - expCr);
+      // Also try with sign-flipped closing — accounts that crossed zero (Dr→Cr or Cr→Dr)
+      // report the absolute value in the Excel, so -curr is the "other side" interpretation
+      const diffDrNeg = Math.abs(-curr - expDr);
+      const diffCrNeg = Math.abs(-curr - expCr);
+      const bestDiff  = Math.min(diffDr, diffCr, diffDrNeg, diffCrNeg);
       const reference = Math.max(Math.abs(curr), Math.abs(prev), 1);
       if (bestDiff > 500 && bestDiff / reference > 0.02) {
         const bestExp = diffDr <= diffCr ? expDr : expCr;
@@ -788,34 +853,6 @@ function analyseAccount(account) {
           }
         }
         gapStart = -1;
-      }
-    }
-  }
-
-  // ── Check 4: Account Never Active All Year (with existing balance) ────
-  // ONLY for Balance Sheet items — P&L items with zero transactions naturally show zero closing.
-  // Only flag if balance is significant (> ₹10,000).
-  if (isBSItem && totalTx === 0) {
-    const hasBalance = closings.some(c => Math.abs(c) > 10000);
-    if (hasBalance) {
-      const bal = closings.find(c => Math.abs(c) > 10000) || 0;
-      // Skip fixed assets, depreciation, deposits, P&L appropriation — zero movement is expected
-      const isFixedAsset = /fixed asset|machinery|equipment|furniture|vehicle|building|land|software|computer|plant|accumulated depreciation|accum.*dep|profit\s*[&]\s*loss|p\s*&\s*l\s*a\/c|p\.?l\.?\s*a\/c|profit.*loss.*a\/c/i.test(account.name);
-      if (!isFixedAsset) {
-        observations.push({
-          severity: 'yellow',
-          check: 'Zero Movement',
-          title: `No transactions all year — balance of ${fmtINR(bal)} carried forward`,
-          body: `This Balance Sheet account has had no debit or credit entries throughout the year. The balance of ${fmtINR(bal)} appears to be purely an opening balance from the prior year. While this can be normal for deposits and long-term items, it warrants a brief confirmation.`,
-          reasons: [
-            'Security deposit, FD, or long-term balance with no periodic cash flows — this is normal',
-            'Outstanding receivable/payable from a prior year pending settlement',
-            'Account may have been settled in reality but not written off in the books',
-            type === 'asset' ? 'Old advance that may need confirmation of recoverability' : 'Old liability that may need confirmation of existence'
-          ],
-          action: `Quickly confirm with the client that this balance is genuine and still outstanding. If recoverable/payable, no action needed. If written off / settled, pass the appropriate entry.`,
-          highlight: []
-        });
       }
     }
   }
@@ -1298,6 +1335,7 @@ function hideAll() {
   document.getElementById('resultsSection').style.display = 'none';
   document.getElementById('processingSection').style.display = 'none';
   document.getElementById('historySection').style.display = 'none';
+  document.getElementById('classifySection').style.display = 'none';
   document.querySelector('.hero').style.display = 'none';
 }
 
@@ -1375,6 +1413,180 @@ function deleteReport(id) {
 }
 
 // ═══════════════════════════════════════════════
+//  CLASSIFICATION MANAGEMENT (localStorage per client)
+// ═══════════════════════════════════════════════
+window._classMap = {};
+let _classifyParsed = null;
+
+function clsStorageKey(entityName) {
+  return 'credlance_cls_' + entityName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
+function loadClassifications(entityName) {
+  try {
+    const raw = localStorage.getItem(clsStorageKey(entityName));
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveClassifications(entityName, map) {
+  try { localStorage.setItem(clsStorageKey(entityName), JSON.stringify(map)); } catch {}
+}
+
+function showClassifyScreen(parsed) {
+  _classifyParsed = parsed;
+  const saved = loadClassifications(parsed.entity);
+  window._classMap = { ...saved };
+
+  const unknownCount = parsed.accounts.filter(a => {
+    const r = saved[a.name] || classifyAccount(a.name);
+    return !r || r === 'unknown';
+  }).length;
+
+  document.getElementById('classifySubtitle').innerHTML =
+    `Entity: <strong>${parsed.entity}</strong> &nbsp;·&nbsp; ${parsed.accounts.length} accounts` +
+    (unknownCount > 0
+      ? ` &nbsp;·&nbsp; <span style="color:var(--red)">⚠ ${unknownCount} account${unknownCount > 1 ? 's' : ''} need classification</span>`
+      : ` &nbsp;·&nbsp; <span style="color:var(--green)">✓ All accounts classified</span>`);
+
+  const typeLabels = {
+    asset:     'Asset (BS)',
+    liability: 'Liability (BS)',
+    equity:    'Equity / Capital (BS)',
+    income:    'Income (P&L)',
+    expense:   'Expense (P&L)',
+    pnl:       'P&L Account (BS)',
+    unknown:   '— Not Sure / Other —'
+  };
+  const autoLabel = t => ({ asset:'Asset', liability:'Liability', equity:'Equity', income:'Income', expense:'Expense', pnl:'P&L Acct', unknown:'Unknown' }[t] || t);
+
+  document.getElementById('classifyTableBody').innerHTML = parsed.accounts.map(a => {
+    const auto      = classifyAccount(a.name);
+    const confirmed = saved[a.name] || auto;
+    const isUnknown = confirmed === 'unknown' || !confirmed;
+    const isSaved   = !!saved[a.name];
+    const opts = Object.keys(typeLabels).map(t =>
+      `<option value="${t}" ${confirmed === t ? 'selected' : ''}>${typeLabels[t]}</option>`
+    ).join('');
+    return `<tr class="${isUnknown ? 'row-unknown' : ''}" data-name="${a.name.replace(/"/g,'&quot;')}">
+      <td>${a.name}${isUnknown ? '<span class="cls-unknown-marker">⚠ Unknown</span>' : (isSaved ? '<span class="cls-unknown-marker" style="color:var(--accent)"> ✓ Saved</span>' : '')}</td>
+      <td><span class="cls-auto-badge cls-badge-${auto}">${autoLabel(auto)}</span></td>
+      <td><select class="cls-select" data-account="${a.name.replace(/"/g,'&quot;')}" onchange="this.closest('tr').classList.add('cls-changed')">${opts}</select></td>
+    </tr>`;
+  }).join('');
+
+  hideAll();
+  document.getElementById('classifySection').style.display = 'block';
+}
+
+function applyClassifications() {
+  if (!_classifyParsed) return;
+  const newMap = {};
+  document.querySelectorAll('.cls-select').forEach(sel => {
+    newMap[sel.getAttribute('data-account')] = sel.value;
+  });
+  window._classMap = newMap;
+  saveClassifications(_classifyParsed.entity, newMap);
+  showToast('Classifications saved ✓');
+  runAnalysisAndShow(_classifyParsed);
+}
+
+function skipClassify() {
+  if (!_classifyParsed) return;
+  window._classMap = loadClassifications(_classifyParsed.entity);
+  runAnalysisAndShow(_classifyParsed);
+}
+
+function runAnalysisAndShow(parsed) {
+  document.getElementById('classifySection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+  document.getElementById('processingMsg').textContent = 'Running scrutiny checks…';
+  setTimeout(() => {
+    try {
+      const obs = runScrutiny(parsed);
+      document.getElementById('processingSection').style.display = 'none';
+      document.getElementById('resultsSection').style.display = 'block';
+      renderResults(parsed, obs);
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+    } catch(err) {
+      document.getElementById('processingSection').style.display = 'none';
+      document.getElementById('uploadSection').style.display = '';
+      alert('Analysis error: ' + err.message);
+    }
+  }, 600);
+}
+
+// ═══════════════════════════════════════════════
+//  EXCEL EXPORT
+// ═══════════════════════════════════════════════
+function exportToExcel() {
+  if (!parsedData || !allObs.length) {
+    showToast('Nothing to export — run analysis first');
+    return;
+  }
+
+  // Build a findings summary sheet
+  const sevLabel = { red: '🔴 Red Flag', orange: '🟠 Concern', yellow: '🟡 Advisory', green: '🟢 Observation' };
+  const rows = [
+    ['Credlance – Ledger Scrutiny Report'],
+    [`Entity: ${parsedData.entity}`, '', `Period: ${parsedData.months[0]} – ${parsedData.months[parsedData.months.length-1]}`],
+    [`Generated: ${new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}`],
+    [],
+    ['Sr', 'Level of Concern', 'Account', 'Account Type', 'Check', 'Finding', 'Details', 'Recommended Action']
+  ];
+
+  allObs.forEach((o, i) => {
+    rows.push([
+      i + 1,
+      sevLabel[o.severity] || o.severity,
+      o.account,
+      accountTypeLabel(o.type),
+      o.check,
+      o.title,
+      o.body,
+      o.action
+    ]);
+  });
+
+  // Add a blank row then per-account summary
+  rows.push([]);
+  rows.push(['Account Summary']);
+  rows.push(['Account Name', 'Type', 'Red', 'Orange', 'Yellow', 'Green', 'Total Findings']);
+  const acctCounts = {};
+  for (const o of allObs) {
+    if (!acctCounts[o.account]) acctCounts[o.account] = { type: o.type, red:0, orange:0, yellow:0, green:0 };
+    acctCounts[o.account][o.severity]++;
+  }
+  for (const [acct, c] of Object.entries(acctCounts)) {
+    rows.push([acct, accountTypeLabel(c.type), c.red||0, c.orange||0, c.yellow||0, c.green||0, c.red+c.orange+c.yellow+c.green]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 4 }, { wch: 16 }, { wch: 32 }, { wch: 14 }, { wch: 22 },
+    { wch: 48 }, { wch: 70 }, { wch: 60 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Scrutiny Report');
+
+  // If original workbook is available, also include the original trial balance sheet
+  if (window._originalWB) {
+    const origSheetName = window._originalWB.SheetNames[0];
+    const origWs = window._originalWB.Sheets[origSheetName];
+    // Clone to avoid mutation
+    XLSX.utils.book_append_sheet(wb, origWs, 'Trial Balance (Original)');
+  }
+
+  const entitySlug = parsedData.entity.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+  XLSX.writeFile(wb, `Credlance_Scrutiny_${entitySlug}.xlsx`);
+  showToast('Excel report downloaded ✓');
+}
+
+// ═══════════════════════════════════════════════
 //  FILE HANDLING
 // ═══════════════════════════════════════════════
 function processFile(file) {
@@ -1392,8 +1604,8 @@ function processFile(file) {
     'Reading trial balance…',
     'Identifying account structure…',
     'Classifying ledger accounts…',
-    'Running 13 scrutiny checks…',
-    'Generating clarification report…'
+    'Preparing classification review…',
+    'Almost ready…'
   ];
   let stepIdx = 0;
   const msgEl = document.getElementById('processingMsg');
@@ -1407,18 +1619,15 @@ function processFile(file) {
     setTimeout(() => {
       clearInterval(stepInterval);
       try {
-        const data    = new Uint8Array(e.target.result);
-        const wb      = XLSX.read(data, { type: 'array' });
-        const parsed  = parseTrialBalance(wb);
-        const obs     = runScrutiny(parsed);
+        const data   = new Uint8Array(e.target.result);
+        const wb     = XLSX.read(data, { type: 'array' });
+        window._originalWB       = wb;                // store for Excel export
+        window._originalFileName = file.name;
+
+        const parsed = parseTrialBalance(wb);
 
         document.getElementById('processingSection').style.display = 'none';
-        document.getElementById('resultsSection').style.display = 'block';
-        renderResults(parsed, obs);
-
-        // Reset filter chips
-        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-        document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+        showClassifyScreen(parsed);                   // → review classifications first
 
       } catch (err) {
         clearInterval(stepInterval);
