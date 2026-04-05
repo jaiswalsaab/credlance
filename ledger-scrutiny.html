@@ -360,6 +360,31 @@
     .classify-notice { font-size: 0.79rem; color: var(--muted); }
     .cls-changed td { background: rgba(0,212,170,0.04) !important; }
 
+    /* ── CLASSIFY EXCEL WORKFLOW ── */
+    .cls-summary-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+    }
+    .cls-stat { text-align: center; }
+    .cls-stat-num { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .cls-stat-lbl { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.3rem; }
+    .cls-stat-num.warn { color: var(--red); }
+    .cls-workflow { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem; }
+    .cls-step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+    .cls-step-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .cls-step-num { background: var(--accent); color: #0b0f1a; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0; }
+    .cls-step-title { font-weight: 600; font-size: 0.97rem; }
+    .cls-step-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.6; margin-bottom: 0.85rem; }
+    .cls-upload-zone {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 1.5rem; text-align: center; cursor: pointer;
+      transition: all 0.25s; position: relative;
+    }
+    .cls-upload-zone:hover, .cls-upload-zone.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+    .cls-upload-zone p { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
+
     /* ── PRINT STYLES ── */
     @media print {
       nav, .action-bar, .filter-bar, .upload-section, .format-hint, #processingSection { display: none !important; }
@@ -489,30 +514,55 @@
 <div id="classifySection">
   <div class="classify-header">
     <div>
-      <h2>Review Account Classifications</h2>
+      <h2>📋 Classification Worksheet</h2>
       <div class="classify-subtitle" id="classifySubtitle"></div>
     </div>
     <div class="action-bar">
       <button class="btn-outline" onclick="skipClassify()">⚡ Skip — Use Auto-Detection</button>
-      <button class="btn-primary" onclick="applyClassifications()">✅ Save &amp; Run Analysis</button>
     </div>
   </div>
-  <div class="classify-table-wrap">
-    <table class="classify-table">
-      <thead>
-        <tr>
-          <th style="width:44%">Account Name</th>
-          <th style="width:18%">Auto-Detected</th>
-          <th style="width:22%">Confirm / Correct Type</th>
-        </tr>
-      </thead>
-      <tbody id="classifyTableBody"></tbody>
-    </table>
+
+  <div class="cls-summary-card">
+    <div class="cls-stat">
+      <div class="cls-stat-num" id="clsStatAccounts">0</div>
+      <div class="cls-stat-lbl">Total Accounts</div>
+    </div>
+    <div class="cls-stat">
+      <div class="cls-stat-num" id="clsStatClassified">0</div>
+      <div class="cls-stat-lbl">Auto-Classified</div>
+    </div>
+    <div class="cls-stat">
+      <div class="cls-stat-num warn" id="clsStatUnknown">0</div>
+      <div class="cls-stat-lbl">Need Classification</div>
+    </div>
   </div>
-  <div class="classify-actions">
-    <button class="btn-primary" onclick="applyClassifications()">✅ Save &amp; Run Analysis</button>
-    <button class="btn-outline" onclick="skipClassify()">⚡ Skip — Use Auto-Detection</button>
-    <span class="classify-notice">💾 Classifications are permanently remembered for this client in your browser</span>
+
+  <div class="cls-workflow">
+    <div class="cls-step">
+      <div class="cls-step-header">
+        <div class="cls-step-num">1</div>
+        <div class="cls-step-title">Download the Classification Sheet</div>
+      </div>
+      <p class="cls-step-desc">
+        Download an Excel sheet with all account names pre-filled. Column B shows the auto-detected type.
+        Correct any misclassifications in Column B and save the file.<br>
+        Valid values for Column B: <strong>Asset, Liability, Equity, Income, Expense, P&amp;L, Unknown</strong>
+      </p>
+      <button class="btn-primary" onclick="downloadClassificationSheet()">📥 Download Classification Sheet</button>
+    </div>
+
+    <div class="cls-step">
+      <div class="cls-step-header">
+        <div class="cls-step-num">2</div>
+        <div class="cls-step-title">Upload the Filled Sheet</div>
+      </div>
+      <p class="cls-step-desc">After correcting the Type column, upload the sheet back here. Classifications will be saved and the analysis will run immediately.</p>
+      <div class="cls-upload-zone" id="clsUploadZone" onclick="document.getElementById('clsFileInput').click()">
+        <p>🗂️ Drop your filled classification sheet here, or click to browse</p>
+        <button class="upload-btn" type="button" onclick="event.stopPropagation(); document.getElementById('clsFileInput').click()">Choose File (.xlsx)</button>
+      </div>
+      <input type="file" id="clsFileInput" accept=".xlsx,.xls" style="display:none" />
+    </div>
   </div>
 </div>
 
@@ -857,66 +907,9 @@ function analyseAccount(account) {
     }
   }
 
-  // ── Check 5: Static Closing Balance (with no transactions) ─────────────
-  // ONLY for Balance Sheet items — P&L closings are per-month and not cumulative,
-  // so a "frozen" P&L balance just means same net each month (handled by Check 9).
-  // Only flag if: balance > ₹10,000, frozen for 6+ months, not fixed asset/deposit.
-  if (isBSItem && totalTx > 0) {
-    const isStaticExpected = /fixed asset|machinery|equipment|furniture|vehicle|building|land|software|computer|plant|accumulated depreciation|accum.*dep|deposit|fd|fixed deposit/i.test(account.name);
-    if (!isStaticExpected) {
-      let staticRun = 1, maxRun = 1, maxRunStart = 0;
-      for (let i = 1; i < N; i++) {
-        if (Math.abs(closings[i] - closings[i-1]) < 0.01 && !txArr[i]) {
-          staticRun++;
-          if (staticRun > maxRun) { maxRun = staticRun; maxRunStart = i - staticRun + 1; }
-        } else {
-          staticRun = 1;
-        }
-      }
-      const frozenBalance = closings[maxRunStart] || 0;
-      if (maxRun >= 6 && Math.abs(frozenBalance) > 10000) {
-        const mStart = M[maxRunStart].month;
-        const mEnd   = M[maxRunStart + maxRun - 1].month;
-        observations.push({
-          severity: 'yellow',
-          check: 'Frozen Balance',
-          title: `Balance frozen for ${maxRun} consecutive months (${mStart}–${mEnd})`,
-          body: `The closing balance of ${fmtINR(frozenBalance)} has remained exactly the same for ${maxRun} months with no supporting transactions. This account had activity earlier in the year, but has since stopped moving.`,
-          reasons: [
-            'Receivable/payable may be genuinely outstanding and pending settlement',
-            'Periodic entry (e.g., instalment, rent) may have stopped being recorded',
-            'Amount may represent a lump-sum advance/deposit with no expected periodic movement'
-          ],
-          action: `Confirm with the client why this balance has not moved since ${mStart}. Obtain a confirmation or statement to verify the amount is still outstanding.`,
-          highlight: Array.from({length: maxRun}, (_, k) => maxRunStart + k)
-        });
-      }
-    }
-  }
+  // ── Check 5: Frozen Balance — removed (generates noise for normal BS accounts) ──
 
-  // ── Check 6: Account Activates Mid-Year ──────────────────────────────
-  {
-    let firstActive = -1;
-    for (let i = 0; i < N; i++) {
-      if (txArr[i] || closings[i] !== 0) { firstActive = i; break; }
-    }
-    if (firstActive > 1) { // appeared after Month 2
-      observations.push({
-        severity: 'yellow',
-        check: 'Mid-Year Activation',
-        title: `Account first appears in ${M[firstActive].month} (${firstActive} month${firstActive > 1 ? 's' : ''} into the year)`,
-        body: `This account had no opening balance and no transactions until ${M[firstActive].month}. It was either a new account opened during the year or an existing one not captured in prior months.`,
-        reasons: [
-          'New contract/client/arrangement commenced mid-year',
-          'New fixed asset acquired, deposit placed, or loan availed during the year',
-          type === 'income' ? 'New revenue stream activated mid-year' : '',
-          'Account may have existed but entries routed here only from this month onward'
-        ].filter(Boolean),
-        action: `Confirm date of inception of this account. Ensure all prior period entries (if any) have not been mis-classified under a different ledger.`,
-        highlight: [firstActive]
-      });
-    }
-  }
+  // ── Check 6: Mid-Year Activation — removed (generates noise; most new accounts are legitimate) ──
 
   // ── Check 7: Account Goes Dormant Mid-Year ────────────────────────────
   // Only flag income accounts (revenue stoppage is important to flag).
@@ -1442,38 +1435,28 @@ function showClassifyScreen(parsed) {
     const r = saved[a.name] || classifyAccount(a.name);
     return !r || r === 'unknown';
   }).length;
+  const classifiedCount = parsed.accounts.length - unknownCount;
 
   document.getElementById('classifySubtitle').innerHTML =
-    `Entity: <strong>${parsed.entity}</strong> &nbsp;·&nbsp; ${parsed.accounts.length} accounts` +
-    (unknownCount > 0
-      ? ` &nbsp;·&nbsp; <span style="color:var(--red)">⚠ ${unknownCount} account${unknownCount > 1 ? 's' : ''} need classification</span>`
-      : ` &nbsp;·&nbsp; <span style="color:var(--green)">✓ All accounts classified</span>`);
+    `Entity: <strong>${parsed.entity}</strong> &nbsp;·&nbsp; ${parsed.accounts.length} accounts`;
 
-  const typeLabels = {
-    asset:     'Asset (BS)',
-    liability: 'Liability (BS)',
-    equity:    'Equity / Capital (BS)',
-    income:    'Income (P&L)',
-    expense:   'Expense (P&L)',
-    pnl:       'P&L Account (BS)',
-    unknown:   '— Not Sure / Other —'
+  document.getElementById('clsStatAccounts').textContent = parsed.accounts.length;
+  document.getElementById('clsStatClassified').textContent = classifiedCount;
+  document.getElementById('clsStatUnknown').textContent = unknownCount;
+
+  // Wire up the classification file input
+  const clsInput = document.getElementById('clsFileInput');
+  clsInput.onchange = e => uploadClassificationSheet(e.target.files[0]);
+
+  // Wire up drag-and-drop on the upload zone
+  const clsZone = document.getElementById('clsUploadZone');
+  clsZone.ondragover  = e => { e.preventDefault(); clsZone.classList.add('drag-over'); };
+  clsZone.ondragleave = () => clsZone.classList.remove('drag-over');
+  clsZone.ondrop = e => {
+    e.preventDefault();
+    clsZone.classList.remove('drag-over');
+    uploadClassificationSheet(e.dataTransfer.files[0]);
   };
-  const autoLabel = t => ({ asset:'Asset', liability:'Liability', equity:'Equity', income:'Income', expense:'Expense', pnl:'P&L Acct', unknown:'Unknown' }[t] || t);
-
-  document.getElementById('classifyTableBody').innerHTML = parsed.accounts.map(a => {
-    const auto      = classifyAccount(a.name);
-    const confirmed = saved[a.name] || auto;
-    const isUnknown = confirmed === 'unknown' || !confirmed;
-    const isSaved   = !!saved[a.name];
-    const opts = Object.keys(typeLabels).map(t =>
-      `<option value="${t}" ${confirmed === t ? 'selected' : ''}>${typeLabels[t]}</option>`
-    ).join('');
-    return `<tr class="${isUnknown ? 'row-unknown' : ''}" data-name="${a.name.replace(/"/g,'&quot;')}">
-      <td>${a.name}${isUnknown ? '<span class="cls-unknown-marker">⚠ Unknown</span>' : (isSaved ? '<span class="cls-unknown-marker" style="color:var(--accent)"> ✓ Saved</span>' : '')}</td>
-      <td><span class="cls-auto-badge cls-badge-${auto}">${autoLabel(auto)}</span></td>
-      <td><select class="cls-select" data-account="${a.name.replace(/"/g,'&quot;')}" onchange="this.closest('tr').classList.add('cls-changed')">${opts}</select></td>
-    </tr>`;
-  }).join('');
 
   hideAll();
   document.getElementById('classifySection').style.display = 'block';
@@ -1495,6 +1478,109 @@ function skipClassify() {
   if (!_classifyParsed) return;
   window._classMap = loadClassifications(_classifyParsed.entity);
   runAnalysisAndShow(_classifyParsed);
+}
+
+function downloadClassificationSheet() {
+  if (!_classifyParsed) return;
+
+  const saved      = loadClassifications(_classifyParsed.entity);
+  const typeCapMap = { asset:'Asset', liability:'Liability', equity:'Equity',
+                       income:'Income', expense:'Expense', pnl:'P&L', unknown:'Unknown' };
+
+  // Build rows: instruction row → header → one row per account
+  const rows = [
+    ['INSTRUCTIONS: Fill in Column B for each account. Valid values: Asset, Liability, Equity, Income, Expense, P&L, Unknown. Do not edit Column A.', ''],
+    ['Account Name', 'Type']
+  ];
+  for (const acc of _classifyParsed.accounts) {
+    const raw = saved[acc.name] || classifyAccount(acc.name);
+    rows.push([acc.name, typeCapMap[raw] || 'Unknown']);
+  }
+
+  // Use SheetJS to generate a clean, Excel-compatible xlsx
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 52 }, { wch: 16 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Classifications');
+
+  const entitySlug = _classifyParsed.entity.replace(/[^a-zA-Z0-9 ]/g,'').trim().replace(/\s+/g,'_');
+  XLSX.writeFile(wb, `Credlance_ClassifySheet_${entitySlug}.xlsx`);
+  showToast('Classification sheet downloaded - fill Column B and re-upload');
+}
+
+function uploadClassificationSheet(file) {
+  if (!file || !_classifyParsed) return;
+  if (!file.name.match(/\.xlsx?$/i)) {
+    alert('Please upload an Excel file (.xlsx or .xls)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Find the header row (contains "Account Name" and "Type")
+      let headerRow = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (r && r[0] && String(r[0]).trim() === 'Account Name') {
+          headerRow = i;
+          break;
+        }
+      }
+      if (headerRow === -1) {
+        alert('Could not find the "Account Name" header in the uploaded sheet. Please use the sheet downloaded from this app.');
+        return;
+      }
+
+      // Comprehensive fuzzy map — handles common spellings, plurals, abbreviations
+      const typeNormMap = {
+        'asset':'asset',      'assets':'asset',     'currentasset':'asset', 'fixedasset':'asset',
+        'liability':'liability','liabilities':'liability','liab':'liability','currentliability':'liability',
+        'equity':'equity',    'equities':'equity',  'capital':'equity',   'ownerfunds':'equity',
+        'income':'income',    'revenue':'income',   'revenues':'income',  'sales':'income',
+        'expense':'expense',  'expenses':'expense', 'expenditure':'expense','cost':'expense','costs':'expense',
+        'pl':'pnl',           'p&l':'pnl',          'pnl':'pnl',          'profitloss':'pnl','profit&loss':'pnl',
+        'unknown':'unknown',  'other':'unknown',    'na':'unknown',       '—':'unknown', '-':'unknown', '':'unknown'
+      };
+
+      const newMap = {};
+      let unrecognised = 0;
+      for (let i = headerRow + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r[0]) continue;
+        const name = String(r[0]).trim();
+        if (!name) continue;
+        // Normalise: lowercase, strip spaces and non-alpha except &
+        const rawType = r[1] ? String(r[1]).trim().toLowerCase().replace(/[\s_]/g, '').replace(/[^a-z&]/g, '') : '';
+        const mappedType = typeNormMap[rawType];
+        if (mappedType) {
+          newMap[name] = mappedType;
+        } else {
+          // Unrecognised — fall back to auto-detect so analysis still runs
+          newMap[name] = classifyAccount(name);
+          unrecognised++;
+        }
+      }
+
+      window._classMap = newMap;
+      saveClassifications(_classifyParsed.entity, newMap);
+      const msg = unrecognised > 0
+        ? `Classifications applied ✓ (${unrecognised} unrecognised value${unrecognised > 1 ? 's' : ''} fell back to auto-detect) — running analysis…`
+        : 'Classifications applied ✓ — running analysis…';
+      showToast(msg);
+      runAnalysisAndShow(_classifyParsed);
+
+    } catch(err) {
+      alert('Error reading classification sheet: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function runAnalysisAndShow(parsed) {
@@ -1526,8 +1612,83 @@ function exportToExcel() {
     return;
   }
 
-  // Build a findings summary sheet
-  const sevLabel = { red: '🔴 Red Flag', orange: '🟠 Concern', yellow: '🟡 Advisory', green: '🟢 Observation' };
+  const entitySlug = parsedData.entity.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+  const sevLabel = { red: 'Red Flag', orange: 'Concern', yellow: 'Advisory', green: 'Observation' };
+  const sevOrder = { red: 0, orange: 1, yellow: 2, green: 3 };
+
+  // ── Build per-account findings index ──────────────────────────────────
+  const findingsByAccount = {};
+  for (const o of allObs) {
+    if (!findingsByAccount[o.account]) findingsByAccount[o.account] = [];
+    findingsByAccount[o.account].push(o);
+  }
+
+  function highestSeverity(obs) {
+    if (!obs || !obs.length) return null;
+    return obs.reduce((best, o) =>
+      (sevOrder[o.severity] < sevOrder[best.severity] ? o : best), obs[0]);
+  }
+
+  // ── PRIMARY PATH: annotate original trial balance ──────────────────────
+  if (window._originalWB) {
+    const origSheet = window._originalWB.Sheets[window._originalWB.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(origSheet, { header: 1, defval: null });
+
+    // Find the header row (contains 'Particulars' or 'Debit'/'Credit'/'Balance')
+    let headerRowIdx = -1;
+    for (let i = 0; i < aoa.length; i++) {
+      const r = aoa[i];
+      if (!r) continue;
+      const cells = r.map(v => (v ? String(v).trim() : ''));
+      const joined = cells.join('|');
+      if (cells[0] === 'Particulars' || (joined.includes('Debit') && joined.includes('Credit') && joined.includes('Balance'))) {
+        headerRowIdx = i;
+        break;
+      }
+    }
+
+    const SKIP_NAMES = new Set(['Grand Total', 'Grand  Total', 'Total']);
+
+    // Insert the two new column headers at position 1 (after Column A) in the header row
+    if (headerRowIdx >= 0) {
+      aoa[headerRowIdx].splice(1, 0, 'Level of Concern', 'Findings / Queries');
+    }
+
+    // Annotate every other row — insert at position 1 to keep columns B & C consistent
+    for (let i = 0; i < aoa.length; i++) {
+      if (i === headerRowIdx) continue; // already handled above
+      const row = aoa[i];
+      if (!row) { continue; }
+
+      const cellVal = row[0];
+      const name = cellVal ? String(cellVal).trim() : '';
+
+      // Non-account rows (blank, note, total rows): insert empty cells
+      if (!name || SKIP_NAMES.has(name) || i < headerRowIdx) {
+        row.splice(1, 0, null, null);
+        continue;
+      }
+
+      const obs = findingsByAccount[name];
+      if (obs && obs.length > 0) {
+        const worst = highestSeverity(obs);
+        const concern = sevLabel[worst.severity] || worst.severity;
+        const findings = obs.map(o => o.title).join(' | ');
+        row.splice(1, 0, concern, findings);
+      } else {
+        row.splice(1, 0, null, null); // blank — no findings for this account
+      }
+    }
+
+    const newWs = XLSX.utils.aoa_to_sheet(aoa);
+    const newWb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWb, newWs, 'Annotated Trial Balance');
+    XLSX.writeFile(newWb, `Credlance_Scrutiny_${entitySlug}.xlsx`);
+    showToast('Excel report downloaded ✓');
+    return;
+  }
+
+  // ── FALLBACK PATH: no original workbook — build standalone findings sheet ─
   const rows = [
     ['Credlance – Ledger Scrutiny Report'],
     [`Entity: ${parsedData.entity}`, '', `Period: ${parsedData.months[0]} – ${parsedData.months[parsedData.months.length-1]}`],
@@ -1549,7 +1710,6 @@ function exportToExcel() {
     ]);
   });
 
-  // Add a blank row then per-account summary
   rows.push([]);
   rows.push(['Account Summary']);
   rows.push(['Account Name', 'Type', 'Red', 'Orange', 'Yellow', 'Green', 'Total Findings']);
@@ -1563,8 +1723,6 @@ function exportToExcel() {
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Column widths
   ws['!cols'] = [
     { wch: 4 }, { wch: 16 }, { wch: 32 }, { wch: 14 }, { wch: 22 },
     { wch: 48 }, { wch: 70 }, { wch: 60 }
@@ -1572,16 +1730,6 @@ function exportToExcel() {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Scrutiny Report');
-
-  // If original workbook is available, also include the original trial balance sheet
-  if (window._originalWB) {
-    const origSheetName = window._originalWB.SheetNames[0];
-    const origWs = window._originalWB.Sheets[origSheetName];
-    // Clone to avoid mutation
-    XLSX.utils.book_append_sheet(wb, origWs, 'Trial Balance (Original)');
-  }
-
-  const entitySlug = parsedData.entity.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
   XLSX.writeFile(wb, `Credlance_Scrutiny_${entitySlug}.xlsx`);
   showToast('Excel report downloaded ✓');
 }
