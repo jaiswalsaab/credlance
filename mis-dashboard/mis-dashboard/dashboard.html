@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Credlance MIS · Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/financials.js"></script>
+<script src="js/ratios.js"></script>
+<style>
+  :root {
+    --bg:       #0b0f1a;
+    --surface:  #111827;
+    --surface2: #1a2233;
+    --border:   #1f2d45;
+    --accent:   #00d4aa;
+    --accent2:  #0099ff;
+    --text:     #e2e8f0;
+    --muted:    #6b7280;
+    --red:      #ef4444;
+    --amber:    #f59e0b;
+    --green:    #22c55e;
+    --purple:   #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+  /* ── Layout ─────────────────── */
+  .app-shell { display: flex; height: 100vh; }
+
+  /* ── Sidebar ────────────────── */
+  .sidebar {
+    width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 20px 18px 14px; font-size: 18px; font-weight: 700; color: var(--accent);
+    letter-spacing: -0.4px; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo span { color: var(--muted); font-size: 11px; font-weight: 400; display: block; margin-top: 2px; }
+  .nav-group { padding: 10px 0; }
+  .nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 6px 18px 4px; letter-spacing: .8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 18px;
+    color: var(--text); text-decoration: none; font-size: 13px; transition: background .15s;
+    border-left: 3px solid transparent; cursor: pointer;
+  }
+  .nav-item:hover { background: var(--surface2); }
+  .nav-item.active { background: var(--surface2); border-left-color: var(--accent); color: var(--accent); }
+  .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--border); }
+  .client-badge {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 12px; color: var(--muted);
+  }
+  .client-badge strong { display: block; color: var(--text); font-size: 13px; }
+
+  /* ── Main Content ───────────── */
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .page-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .page-title span { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 8px; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .controls label { font-size: 12px; color: var(--muted); }
+  .controls select, .controls input {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none;
+  }
+  .controls select:focus, .controls input:focus { border-color: var(--accent); }
+  .toggle-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all .15s;
+  }
+  .toggle-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+  /* ── Demo Banner ─────────────── */
+  .demo-banner {
+    background: linear-gradient(90deg, rgba(0,212,170,.12), rgba(0,153,255,.08));
+    border: 1px solid rgba(0,212,170,.3); border-radius: 8px;
+    padding: 8px 14px; font-size: 12px; color: var(--accent);
+    display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  }
+
+  /* ── KPI Tiles ───────────────── */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px; margin-bottom: 22px;
+  }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .kpi-card.accent-green::before  { background: var(--green); }
+  .kpi-card.accent-teal::before   { background: var(--accent); }
+  .kpi-card.accent-blue::before   { background: var(--accent2); }
+  .kpi-card.accent-purple::before { background: var(--purple); }
+  .kpi-card.accent-amber::before  { background: var(--amber); }
+  .kpi-label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: .6px; margin-bottom: 6px; }
+  .kpi-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.1; }
+  .kpi-value .unit { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+  .kpi-meta { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+  .kpi-rag { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .rag-green  { background: var(--green); }
+  .rag-amber  { background: var(--amber); }
+  .rag-red    { background: var(--red); }
+  .kpi-vs { font-size: 11px; color: var(--muted); }
+  .kpi-vs .good { color: var(--green); }
+  .kpi-vs .bad  { color: var(--red); }
+
+  /* ── Charts Grid ─────────────── */
+  .charts-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px;
+  }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; display: flex; flex-direction: column;
+  }
+  .chart-card.full-width { grid-column: 1 / -1; }
+  .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .chart-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chart-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .chart-body { position: relative; flex: 1; min-height: 220px; }
+  .chart-body canvas { width: 100% !important; }
+
+  /* ── Waterfall ───────────────── */
+  .waterfall-grid {
+    display: flex; align-items: flex-end; gap: 4px; height: 200px; padding: 0 4px;
+  }
+  .wf-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .wf-bar-wrap { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; position: relative; }
+  .wf-connector {
+    position: absolute; top: 0; left: 50%; width: 100%; height: 1px;
+    border-top: 1px dashed rgba(255,255,255,0.15);
+  }
+  .wf-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 4px; transition: all .3s; }
+  .wf-label { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.2; margin-top: 4px; }
+  .wf-value { font-size: 10px; font-weight: 600; text-align: center; }
+  .bar-green  { background: linear-gradient(180deg, #22c55e, #16a34a); }
+  .bar-red    { background: linear-gradient(180deg, #ef4444, #dc2626); }
+  .bar-blue   { background: linear-gradient(180deg, #3b82f6, #2563eb); }
+  .bar-teal   { background: linear-gradient(180deg, #00d4aa, #00a886); }
+  .bar-amber  { background: linear-gradient(180deg, #f59e0b, #d97706); }
+  .bar-purple { background: linear-gradient(180deg, #a855f7, #9333ea); }
+
+  /* ── Ratio Summary ───────────── */
+  .ratio-summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+  }
+  .rs-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .rs-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .rs-value { font-size: 18px; font-weight: 700; }
+  .rs-value.rag-green  { color: var(--green); }
+  .rs-value.rag-amber  { color: var(--amber); }
+  .rs-value.rag-red    { color: var(--red); }
+  .rs-trend { font-size: 11px; color: var(--muted); }
+  .rs-trend .up   { color: var(--green); }
+  .rs-trend .down { color: var(--red); }
+
+  /* ── Responsive ──────────────── */
+  @media (max-width: 900px) {
+    .sidebar { width: 54px; min-width: 54px; }
+    .sidebar-logo, .nav-label, .nav-item span, .client-badge { display: none; }
+    .nav-item { justify-content: center; padding: 10px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.full-width { grid-column: 1; }
+  }
+  @media (max-width: 600px) {
+    .main { padding: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── Scrollbar ───────────────── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      Credlance
+      <span>MIS Dashboard</span>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Navigation</div>
+      <a class="nav-item" href="index.html">
+        <span class="icon">🏠</span><span>Home</span>
+      </a>
+      <a class="nav-item active" href="dashboard.html">
+        <span class="icon">📊</span><span>Dashboard</span>
+      </a>
+      <a class="nav-item" href="financials.html">
+        <span class="icon">📋</span><span>Financials</span>
+      </a>
+      <a class="nav-item" href="sales.html">
+        <span class="icon">💼</span><span>Sales &amp; AR/AP</span>
+      </a>
+      <a class="nav-item" href="analyzer.html">
+        <span class="icon">🤖</span><span>Analyzer</span>
+      </a>
+      <a class="nav-item" href="admin.html">
+        <span class="icon">⚙️</span><span>Admin</span>
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="client-badge">
+        <strong id="sb-client-name">Demo Mode</strong>
+        <span id="sb-fy-label">FY 2025-26</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <main class="main" id="main-content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Visual Dashboard<span id="dash-month-label">· Sep 2025</span></div>
+      </div>
+      <div class="controls">
+        <label for="monthSel">Month</label>
+        <select id="monthSel">
+          <option value="0">Apr 2025</option>
+          <option value="1">May 2025</option>
+          <option value="2">Jun 2025</option>
+          <option value="3">Jul 2025</option>
+          <option value="4">Aug 2025</option>
+          <option value="5" selected>Sep 2025</option>
+          <option value="6">Oct 2025</option>
+          <option value="7">Nov 2025</option>
+          <option value="8">Dec 2025</option>
+          <option value="9">Jan 2026</option>
+          <option value="10">Feb 2026</option>
+          <option value="11">Mar 2026</option>
+        </select>
+        <button class="toggle-btn" id="ytdBtn" onclick="toggleYTD()">YTD</button>
+      </div>
+    </div>
+
+    <!-- Demo Banner -->
+    <div class="demo-banner" id="demoBanner">
+      📊 <strong>Demo Mode</strong> — Showing illustrative data for a mid-size Indian professional services firm. Upload client data via Home → Upload Templates to switch to live data.
+    </div>
+
+    <!-- KPI Tiles -->
+    <div class="kpi-grid" id="kpiGrid">
+      <!-- rendered by JS -->
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid">
+
+      <!-- 1. Revenue Trend -->
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Revenue Trend — Monthly</div>
+            <div class="chart-subtitle">Actuals vs Budget vs Prior Year (₹ Lakhs)</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>Actual</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0099ff"></div>Budget</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div>Prior Year</div>
+          </div>
+        </div>
+        <div class="chart-body" style="min-height:240px">
+          <canvas id="revTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 2. EBITDA Bridge (Waterfall) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">P&amp;L Waterfall</div>
+            <div class="chart-subtitle" id="wfSubtitle">EBITDA Bridge — Sep 2025 (₹ Lakhs)</div>
+          </div>
+        </div>
+        <div class="chart-body" id="waterfallBody">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- 3. Expense Breakdown (Donut) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Expense Breakdown</div>
+            <div class="chart-subtitle" id="donutSubtitle">Total Cost Mix — Sep 2025</div>
+          </div>
+          <div class="chart-legend" id="donutLegend"></div>
+        </div>
+        <div class="chart-body" style="min-height:220px; max-height:260px; display:flex; align-items:center; justify-content:center;">
+          <canvas id="expDonutChart" style="max-width:240px; max-height:240px;"></canvas>
+        </div>
+      </div>
+
+      <!-- 4. Gross Margin Trend -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Gross Margin Trend</div>
+            <div class="chart-subtitle">Monthly Gross Margin % — Actual vs Budget</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>Actual</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0099ff; opacity:.5"></div>Budget</div>
+          </div>
+        </div>
+        <div class="chart-body" style="min-height:220px">
+          <canvas id="grossMarginChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 5. Working Capital Cycle -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Working Capital Cycle</div>
+            <div class="chart-subtitle">DSO · DPO · CCC — Last 6 Months (Days)</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>DSO</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>DPO</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>CCC</div>
+          </div>
+        </div>
+        <div class="chart-body" style="min-height:220px">
+          <canvas id="wccChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 6. EBITDA Margin Trend -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">EBITDA &amp; PAT Margin</div>
+            <div class="chart-subtitle">Monthly Margin % — Actual</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>EBITDA %</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>PAT %</div>
+          </div>
+        </div>
+        <div class="chart-body" style="min-height:220px">
+          <canvas id="marginTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 7. Key Ratios Summary -->
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Key Financial Ratios</div>
+            <div class="chart-subtitle" id="ratioSubtitle">Snapshot — Sep 2025 · Green = Healthy · Amber = Watch · Red = Alert</div>
+          </div>
+        </div>
+        <div class="ratio-summary-grid" id="ratioSummaryGrid">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+    </div><!-- /charts-grid -->
+  </main>
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let MONTH    = 5;   // default Sep-25 (index 5)
+let YTD_MODE = false;
+let DATA     = null;
+let charts   = {};
+
+// ── Chart.js global defaults ──────────────────────────────────────────────
+Chart.defaults.color        = '#6b7280';
+Chart.defaults.borderColor  = '#1f2d45';
+Chart.defaults.font.family  = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size    = 12;
+Chart.defaults.plugins.legend.display = false;
+Chart.defaults.plugins.tooltip.backgroundColor = '#1a2233';
+Chart.defaults.plugins.tooltip.borderColor      = '#1f2d45';
+Chart.defaults.plugins.tooltip.borderWidth      = 1;
+Chart.defaults.plugins.tooltip.padding          = 10;
+Chart.defaults.plugins.tooltip.titleColor       = '#e2e8f0';
+Chart.defaults.plugins.tooltip.bodyColor        = '#9ca3af';
+Chart.defaults.plugins.tooltip.cornerRadius     = 6;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function inr2(v, dec=2) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  const s   = abs.toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return v < 0 ? `(${s})` : s;
+}
+function pct(v, dec=1) {
+  if (v == null || !isFinite(v)) return '—';
+  return (v >= 0 ? '+' : '') + v.toFixed(dec) + '%';
+}
+function pctSimple(v, dec=1) {
+  if (v == null || !isFinite(v)) return '—';
+  return v.toFixed(dec) + '%';
+}
+function sum(arr, from, to) {
+  return arr.slice(from, to + 1).reduce((s, v) => s + (v || 0), 0);
+}
+function val(arr, i, ytd) {
+  return ytd ? sum(arr, 0, i) : (arr[i] || 0);
+}
+
+// ── Compute P&L from raw arrays ────────────────────────────────────────────
+function computePLRow(d, i, ytd) {
+  const rev    = val(d.revenue_ops, i, ytd);
+  const oth    = val(d.other_income, i, ytd);
+  const dc     = val(d.direct_costs, i, ytd);
+  const ec     = val(d.employee_costs, i, ytd);
+  const fc     = val(d.finance_costs, i, ytd);
+  const dep    = val(d.depreciation, i, ytd);
+  const oe     = val(d.other_expenses, i, ytd);
+  const ct     = val(d.current_tax, i, ytd);
+  const dt     = val(d.deferred_tax, i, ytd);
+  const gp     = rev - dc;
+  const ebitda = gp - ec - oe;
+  const ebit   = ebitda - dep;
+  const pbt    = ebit - fc + oth;
+  const pat    = pbt - ct - dt;
+  return { rev, oth, dc, ec, fc, dep, oe, ct, dt, gp, ebitda, ebit, pbt, pat };
+}
+
+// ── KPI Tiles ─────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const A = DATA.actual; const B = DATA.budget; const P = DATA.prior_year;
+  const i = MONTH; const ytd = YTD_MODE;
+  const a  = computePLRow(A, i, ytd);
+  const b  = computePLRow(B, i, ytd);
+  const p  = computePLRow(P, i, ytd);
+
+  const revVsBud = b.rev ? ((a.rev - b.rev) / b.rev * 100) : null;
+  const revVsPY  = p.rev ? ((a.rev - p.rev) / p.rev * 100) : null;
+  const ebitdaM  = a.rev ? (a.ebitda / a.rev * 100) : null;
+  const patM     = a.rev ? (a.pat / a.rev * 100) : null;
+
+  // Current ratio from BS
+  const bs    = DATA.bs[i];
+  const ca    = bs.trade_receivables + bs.cash + bs.other_current_assets;
+  const cl    = bs.st_borrowings + bs.trade_payables + bs.other_cl + bs.provisions;
+  const curRat = cl > 0 ? ca / cl : null;
+
+  const dso   = a.rev > 0 ? (bs.trade_receivables / (a.rev / (ytd ? (i+1) : 1) * (30/30.44))) : null; // approx
+  // simplified DSO for display
+  const dsoVal = a.rev > 0 ? Math.round(bs.trade_receivables / (a.rev / (ytd ? i+1 : 1)) * 30) : null;
+
+  const kpis = [
+    {
+      label: 'Revenue' + (ytd ? ' (YTD)' : ''),
+      value: '₹' + inr2(a.rev, 1),
+      unit: 'L',
+      meta: `vs Bud: <span class="${revVsBud >= 0 ? 'good' : 'bad'}">${pct(revVsBud)}</span> · vs PY: <span class="${revVsPY >= 0 ? 'good' : 'bad'}">${pct(revVsPY)}</span>`,
+      rag: revVsBud >= 0 ? 'green' : revVsBud >= -5 ? 'amber' : 'red',
+      accent: 'accent-green'
+    },
+    {
+      label: 'EBITDA Margin',
+      value: pctSimple(ebitdaM),
+      unit: '',
+      meta: `EBITDA ₹${inr2(a.ebitda, 1)}L`,
+      rag: ebitdaM >= 25 ? 'green' : ebitdaM >= 18 ? 'amber' : 'red',
+      accent: 'accent-teal'
+    },
+    {
+      label: 'PAT' + (ytd ? ' (YTD)' : ''),
+      value: '₹' + inr2(a.pat, 1),
+      unit: 'L',
+      meta: `PAT Margin: ${pctSimple(patM)}`,
+      rag: patM >= 10 ? 'green' : patM >= 6 ? 'amber' : 'red',
+      accent: 'accent-blue'
+    },
+    {
+      label: 'Current Ratio',
+      value: curRat ? curRat.toFixed(2) : '—',
+      unit: 'x',
+      meta: `CA ₹${inr2(ca,1)}L · CL ₹${inr2(cl,1)}L`,
+      rag: curRat >= 1.5 ? 'green' : curRat >= 1.0 ? 'amber' : 'red',
+      accent: 'accent-purple'
+    },
+    {
+      label: 'Gross Margin',
+      value: a.rev > 0 ? pctSimple(a.gp / a.rev * 100) : '—',
+      unit: '',
+      meta: `Gross Profit ₹${inr2(a.gp, 1)}L`,
+      rag: (a.rev > 0 && a.gp / a.rev > 0.60) ? 'green' : (a.rev > 0 && a.gp / a.rev > 0.50) ? 'amber' : 'red',
+      accent: 'accent-amber'
+    },
+  ];
+
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.accent}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}<span class="unit">${k.unit}</span></div>
+      <div class="kpi-meta">
+        <span class="kpi-rag rag-${k.rag}"></span>
+        <span class="kpi-vs">${k.meta}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Revenue Trend Chart ────────────────────────────────────────────────────
+function buildRevTrendChart() {
+  const A = DATA.actual; const B = DATA.budget; const P = DATA.prior_year;
+  const labels = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  const highlight = MONTH;
+
+  if (charts.revTrend) charts.revTrend.destroy();
+  const ctx = document.getElementById('revTrendChart').getContext('2d');
+
+  charts.revTrend = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Budget',
+          type: 'line',
+          data: B.revenue_ops,
+          borderColor: '#0099ff',
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+          order: 1
+        },
+        {
+          label: 'Prior Year',
+          type: 'line',
+          data: P.revenue_ops,
+          borderColor: '#6b7280',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+          order: 2
+        },
+        {
+          label: 'Actual',
+          type: 'bar',
+          data: A.revenue_ops,
+          backgroundColor: A.revenue_ops.map((v, i) =>
+            i === highlight ? '#00d4aa' : 'rgba(0,212,170,0.45)'
+          ),
+          borderColor: A.revenue_ops.map((v, i) =>
+            i === highlight ? '#00d4aa' : 'rgba(0,212,170,0.3)'
+          ),
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,69,0.6)' } },
+        y: {
+          grid: { color: 'rgba(31,45,69,0.6)' },
+          ticks: { callback: v => '₹' + v + 'L' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ₹${inr2(ctx.parsed.y, 1)}L`
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── Waterfall / EBITDA Bridge ──────────────────────────────────────────────
+function buildWaterfall() {
+  const A = DATA.actual;
+  const i = MONTH; const ytd = YTD_MODE;
+  const r = computePLRow(A, i, ytd);
+
+  document.getElementById('wfSubtitle').textContent =
+    `EBITDA Bridge — ${fyMonthLabel(i)} (₹ Lakhs)`;
+
+  const steps = [
+    { label: 'Revenue',    value: r.rev,            type: 'base',    color: 'bar-teal'   },
+    { label: 'Direct\nCosts', value: -r.dc,         type: 'deduct',  color: 'bar-red'    },
+    { label: 'Gross\nProfit', value: r.gp,          type: 'total',   color: 'bar-green'  },
+    { label: 'Emp\nCost',  value: -r.ec,            type: 'deduct',  color: 'bar-amber'  },
+    { label: 'Other\nExp', value: -r.oe,            type: 'deduct',  color: 'bar-red'    },
+    { label: 'EBITDA',     value: r.ebitda,          type: 'total',   color: 'bar-teal'   },
+    { label: 'Depn',       value: -r.dep,           type: 'deduct',  color: 'bar-amber'  },
+    { label: 'Finance',    value: -r.fc,            type: 'deduct',  color: 'bar-amber'  },
+    { label: 'Other\nInc',value: r.oth,             type: 'add',     color: 'bar-blue'   },
+    { label: 'PBT',        value: r.pbt,             type: 'total',   color: 'bar-blue'   },
+    { label: 'Tax',        value: -(r.ct + r.dt),   type: 'deduct',  color: 'bar-red'    },
+    { label: 'PAT',        value: r.pat,             type: 'total',   color: 'bar-purple' },
+  ];
+
+  const maxVal = Math.max(...steps.map(s => Math.abs(s.value)), 1);
+  const HEIGHT = 180;
+
+  const html = steps.map((s, idx) => {
+    const heightPx = Math.max(4, Math.round((Math.abs(s.value) / maxVal) * HEIGHT));
+    const valStr   = (s.value < 0 ? '(' : '') + inr2(Math.abs(s.value), 1) + (s.value < 0 ? ')' : '');
+    const labelLines = s.label.split('\n');
+    const colorClass = s.type === 'deduct' ? 'bar-red' : s.color;
+    return `
+      <div class="wf-col">
+        <div class="wf-bar-wrap">
+          ${idx > 0 ? '<div class="wf-connector"></div>' : ''}
+          <div class="wf-bar ${colorClass}" style="height:${heightPx}px"></div>
+        </div>
+        <div class="wf-value" style="color:${s.type==='deduct'?'#ef4444':s.type==='total'?'#00d4aa':'#9ca3af'};font-size:9px">${valStr}</div>
+        <div class="wf-label">${labelLines.join('<br>')}</div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('waterfallBody').innerHTML =
+    `<div class="waterfall-grid">${html}</div>`;
+}
+
+// ── Expense Donut ──────────────────────────────────────────────────────────
+function buildExpDonut() {
+  const A = DATA.actual;
+  const i = MONTH; const ytd = YTD_MODE;
+  const r = computePLRow(A, i, ytd);
+
+  document.getElementById('donutSubtitle').textContent =
+    `Total Cost Mix — ${fyMonthLabel(i)}`;
+
+  const segments = [
+    { label: 'Direct Costs',    value: r.dc,  color: '#00d4aa' },
+    { label: 'Employee Cost',   value: r.ec,  color: '#0099ff' },
+    { label: 'Finance Costs',   value: r.fc,  color: '#f59e0b' },
+    { label: 'Depreciation',    value: r.dep, color: '#a855f7' },
+    { label: 'Other Expenses',  value: r.oe,  color: '#6b7280' },
+    { label: 'Tax',             value: r.ct + r.dt, color: '#ef4444' },
+  ];
+
+  const legendHtml = segments.map(s => `
+    <div class="legend-item" style="flex-direction:column; align-items:flex-start; gap:2px">
+      <div style="display:flex;align-items:center;gap:5px">
+        <div class="legend-dot" style="background:${s.color}; width:10px;height:10px;border-radius:50%"></div>
+        <span style="font-size:10px">${s.label}</span>
+      </div>
+      <span style="font-size:10px; color:#e2e8f0; padding-left:15px">₹${inr2(s.value,1)}L</span>
+    </div>
+  `).join('');
+  document.getElementById('donutLegend').innerHTML = legendHtml;
+  document.getElementById('donutLegend').style.flexDirection = 'column';
+  document.getElementById('donutLegend').style.gap = '4px';
+
+  if (charts.expDonut) charts.expDonut.destroy();
+  const ctx = document.getElementById('expDonutChart').getContext('2d');
+  charts.expDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: segments.map(s => s.label),
+      datasets: [{
+        data: segments.map(s => s.value),
+        backgroundColor: segments.map(s => s.color),
+        borderColor: '#0b0f1a',
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ₹${inr2(ctx.parsed, 1)}L`
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── Gross Margin Trend ─────────────────────────────────────────────────────
+function buildGrossMarginChart() {
+  const A = DATA.actual; const B = DATA.budget;
+  const labels = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+
+  const actGM  = A.revenue_ops.map((r, i) => r > 0 ? +((r - A.direct_costs[i]) / r * 100).toFixed(1) : null);
+  const budGM  = B.revenue_ops.map((r, i) => r > 0 ? +((r - B.direct_costs[i]) / r * 100).toFixed(1) : null);
+
+  if (charts.grossMargin) charts.grossMargin.destroy();
+  const ctx = document.getElementById('grossMarginChart').getContext('2d');
+
+  charts.grossMargin = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Budget GM%',
+          data: budGM,
+          borderColor: 'rgba(0,153,255,0.4)',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.4
+        },
+        {
+          label: 'Actual GM%',
+          data: actGM,
+          borderColor: '#00d4aa',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#00d4aa',
+          pointBorderColor: '#0b0f1a',
+          pointBorderWidth: 2,
+          fill: {
+            target: 'origin',
+            above: 'rgba(0,212,170,0.07)'
+          },
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,69,0.6)' } },
+        y: {
+          grid: { color: 'rgba(31,45,69,0.6)' },
+          ticks: { callback: v => v + '%' },
+          min: 50, max: 75
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1)}%` } }
+      }
+    }
+  });
+}
+
+// ── Working Capital Cycle Chart ────────────────────────────────────────────
+function buildWCCChart() {
+  const A  = DATA.actual;
+  const bs = DATA.bs;
+  const start = Math.max(0, MONTH - 5);
+  const range = [];
+  for (let k = start; k <= MONTH; k++) range.push(k);
+
+  const labels = range.map(k => fyMonthLabel(k));
+  const dsoArr = range.map(k => {
+    const rev = A.revenue_ops[k] || 1;
+    return +(bs[k].trade_receivables / rev * 30).toFixed(1);
+  });
+  const dpoArr = range.map(k => {
+    const dc = A.direct_costs[k] || 1;
+    return +(bs[k].trade_payables / dc * 30).toFixed(1);
+  });
+  const cccArr = range.map((k, j) => Math.max(0, +(dsoArr[j] - dpoArr[j]).toFixed(1)));
+
+  if (charts.wcc) charts.wcc.destroy();
+  const ctx = document.getElementById('wccChart').getContext('2d');
+
+  charts.wcc = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'DSO (Days)',
+          data: dsoArr,
+          backgroundColor: 'rgba(0,212,170,0.6)',
+          borderColor: '#00d4aa',
+          borderWidth: 1,
+          borderRadius: 3
+        },
+        {
+          label: 'DPO (Days)',
+          data: dpoArr,
+          backgroundColor: 'rgba(245,158,11,0.5)',
+          borderColor: '#f59e0b',
+          borderWidth: 1,
+          borderRadius: 3
+        },
+        {
+          label: 'CCC (Days)',
+          data: cccArr,
+          type: 'line',
+          borderColor: '#ef4444',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#ef4444',
+          fill: false,
+          tension: 0.4,
+          yAxisID: 'y'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,69,0.6)' } },
+        y: { grid: { color: 'rgba(31,45,69,0.6)' }, ticks: { callback: v => v + 'd' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1)} days` } }
+      }
+    }
+  });
+}
+
+// ── EBITDA & PAT Margin Trend ──────────────────────────────────────────────
+function buildMarginTrendChart() {
+  const A = DATA.actual;
+  const labels = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+
+  const ebitdaM = A.revenue_ops.map((r, i) => {
+    if (!r) return null;
+    const gp     = r - A.direct_costs[i];
+    const ebitda = gp - A.employee_costs[i] - A.other_expenses[i];
+    return +(ebitda / r * 100).toFixed(1);
+  });
+  const patM = A.revenue_ops.map((r, i) => {
+    if (!r) return null;
+    const gp     = r - A.direct_costs[i];
+    const ebitda = gp - A.employee_costs[i] - A.other_expenses[i];
+    const ebit   = ebitda - A.depreciation[i];
+    const pbt    = ebit - A.finance_costs[i] + A.other_income[i];
+    const pat    = pbt - A.current_tax[i] - A.deferred_tax[i];
+    return +(pat / r * 100).toFixed(1);
+  });
+
+  if (charts.marginTrend) charts.marginTrend.destroy();
+  const ctx = document.getElementById('marginTrendChart').getContext('2d');
+
+  charts.marginTrend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'EBITDA Margin %',
+          data: ebitdaM,
+          borderColor: '#00d4aa',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#00d4aa',
+          fill: { target: 'origin', above: 'rgba(0,212,170,0.06)' },
+          tension: 0.4
+        },
+        {
+          label: 'PAT Margin %',
+          data: patM,
+          borderColor: '#a855f7',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#a855f7',
+          fill: false,
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,69,0.6)' } },
+        y: {
+          grid: { color: 'rgba(31,45,69,0.6)' },
+          ticks: { callback: v => v + '%' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1)}%` } }
+      }
+    }
+  });
+}
+
+// ── Key Ratios Summary ─────────────────────────────────────────────────────
+function renderRatioSummary() {
+  const A = DATA.actual;
+  const bs = DATA.bs[MONTH];
+  const i  = MONTH;
+
+  // Compute ratios for display
+  const rev      = A.revenue_ops[i];
+  const dc       = A.direct_costs[i];
+  const ec       = A.employee_costs[i];
+  const fc       = A.finance_costs[i];
+  const dep      = A.depreciation[i];
+  const oe       = A.other_expenses[i];
+  const oth_inc  = A.other_income[i];
+  const ct       = A.current_tax[i];
+  const dt_tax   = A.deferred_tax[i];
+
+  const gp       = rev - dc;
+  const ebitda   = gp - ec - oe;
+  const ebit     = ebitda - dep;
+  const pbt      = ebit - fc + oth_inc;
+  const pat      = pbt - ct - dt_tax;
+
+  const ca = bs.trade_receivables + bs.cash + bs.other_current_assets;
+  const cl = bs.st_borrowings + bs.trade_payables + bs.other_cl + bs.provisions;
+  const totalDebt = bs.lt_borrowings + bs.st_borrowings;
+  const equity    = bs.share_capital + bs.retained_earnings;
+  const totalAssets = bs.net_fixed_assets + bs.lt_investments + bs.trade_receivables + bs.cash + bs.other_current_assets;
+
+  function ragClass(v, g, a) { // v >= g = green, v >= a = amber, else red
+    if (v == null || isNaN(v)) return 'rag-red';
+    return v >= g ? 'rag-green' : v >= a ? 'rag-amber' : 'rag-red';
+  }
+  function ragClassLow(v, g, a) { // lower is better: v <= g = green, v <= a = amber, else red
+    if (v == null || isNaN(v)) return 'rag-red';
+    return v <= g ? 'rag-green' : v <= a ? 'rag-amber' : 'rag-red';
+  }
+
+  const ratios = [
+    { label: 'Current Ratio',     val: cl > 0 ? (ca/cl) : null,              fmt: v => v.toFixed(2)+'x', rag: v => ragClass(v, 1.5, 1.0) },
+    { label: 'Quick Ratio',       val: cl > 0 ? ((bs.cash + bs.trade_receivables)/cl) : null, fmt: v => v.toFixed(2)+'x', rag: v => ragClass(v, 1.0, 0.7) },
+    { label: 'D/E Ratio',         val: equity > 0 ? totalDebt/equity : null,  fmt: v => v.toFixed(2)+'x', rag: v => ragClassLow(v, 0.5, 1.0) },
+    { label: 'Interest Cover',    val: fc > 0 ? ebit/fc : null,               fmt: v => v.toFixed(1)+'x', rag: v => ragClass(v, 3, 1.5) },
+    { label: 'Gross Margin',      val: rev > 0 ? gp/rev*100 : null,           fmt: v => v.toFixed(1)+'%', rag: v => ragClass(v, 60, 50) },
+    { label: 'EBITDA Margin',     val: rev > 0 ? ebitda/rev*100 : null,       fmt: v => v.toFixed(1)+'%', rag: v => ragClass(v, 25, 18) },
+    { label: 'Net Margin',        val: rev > 0 ? pat/rev*100 : null,          fmt: v => v.toFixed(1)+'%', rag: v => ragClass(v, 10, 6) },
+    { label: 'ROE',               val: equity > 0 ? pat*12/equity*100 : null, fmt: v => v.toFixed(1)+'%', rag: v => ragClass(v, 15, 10) },
+    { label: 'ROCE',              val: (equity+totalDebt) > 0 ? ebit*12/(equity+totalDebt)*100 : null, fmt: v => v.toFixed(1)+'%', rag: v => ragClass(v, 15, 10) },
+    { label: 'Asset Turnover',    val: totalAssets > 0 ? rev*12/totalAssets : null, fmt: v => v.toFixed(2)+'x', rag: v => ragClass(v, 1.0, 0.6) },
+    { label: 'Debtor Days',       val: rev > 0 ? bs.trade_receivables/rev*30 : null, fmt: v => Math.round(v)+'d', rag: v => ragClassLow(v, 45, 60) },
+    { label: 'Creditor Days',     val: dc > 0 ? bs.trade_payables/dc*30 : null,      fmt: v => Math.round(v)+'d', rag: v => ragClass(v, 20, 10) },
+    { label: 'CCC',               val: (rev > 0 && dc > 0) ? (bs.trade_receivables/rev*30 - bs.trade_payables/dc*30) : null, fmt: v => Math.round(v)+'d', rag: v => ragClassLow(v, 30, 45) },
+  ];
+
+  document.getElementById('ratioSubtitle').textContent =
+    `Snapshot — ${fyMonthLabel(MONTH)} · Green = Healthy · Amber = Watch · Red = Alert`;
+
+  const grid = document.getElementById('ratioSummaryGrid');
+  grid.innerHTML = ratios.map(r => {
+    const v  = r.val;
+    const rc = v != null && isFinite(v) ? r.rag(v) : 'rag-red';
+    const fv = v != null && isFinite(v) ? r.fmt(v) : '—';
+    return `
+      <div class="rs-card">
+        <div class="rs-label">${r.label}</div>
+        <div class="rs-value ${rc}">${fv}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Main Render ────────────────────────────────────────────────────────────
+function refresh() {
+  const labels = ['Apr-25','May-25','Jun-25','Jul-25','Aug-25','Sep-25',
+                  'Oct-25','Nov-25','Dec-25','Jan-26','Feb-26','Mar-26'];
+  document.getElementById('dash-month-label').textContent =
+    '· ' + labels[MONTH] + (YTD_MODE ? ' YTD' : '');
+  document.getElementById('demoBanner').style.display =
+    (DATA._mode === 'demo' || DATA._mode === 'demo_with_data') ? 'flex' : 'none';
+
+  renderKPIs();
+  buildRevTrendChart();
+  buildWaterfall();
+  buildExpDonut();
+  buildGrossMarginChart();
+  buildWCCChart();
+  buildMarginTrendChart();
+  renderRatioSummary();
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+document.getElementById('monthSel').addEventListener('change', function() {
+  MONTH = parseInt(this.value);
+  refresh();
+});
+
+function toggleYTD() {
+  YTD_MODE = !YTD_MODE;
+  document.getElementById('ytdBtn').classList.toggle('active', YTD_MODE);
+  refresh();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  // Auth check — redirect to index if not logged in
+  if (typeof checkAuth === 'function') {
+    if (!checkAuth()) { window.location.href = 'index.html'; return; }
+  }
+
+  // Client name in sidebar
+  const client = sessionStorage.getItem('credlance_client')
+               || localStorage.getItem('credlance_active_client') || 'Demo Mode';
+  document.getElementById('sb-client-name').textContent = client;
+
+  // Load data
+  DATA = (typeof loadFinancialData === 'function') ? loadFinancialData() : generateDemoData();
+  window._RATIO_DATA = DATA;
+
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Credlance MIS Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --border: #1e293b;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --green: #10b981;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; display: flex; min-height: 100vh; }
+
+    /* ── Login overlay ── */
+    #login-overlay {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; z-index: 999;
+    }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 48px; width: 100%; max-width: 400px; text-align: center;
+    }
+    .login-card .logo { font-size: 28px; font-weight: 800; color: var(--accent); margin-bottom: 8px; letter-spacing: -0.5px; }
+    .login-card .tagline { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+    .login-card input {
+      width: 100%; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 15px; margin-bottom: 12px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-card input:focus { border-color: var(--accent); }
+    .login-card button {
+      width: 100%; padding: 12px; background: var(--accent); color: #0b0f1a;
+      border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .login-card button:hover { background: var(--accent2); }
+    .login-card .error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 240px; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; min-height: 100vh;
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px; font-size: 20px; font-weight: 800;
+      color: var(--accent); letter-spacing: -0.5px; border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo span { color: var(--muted); font-weight: 400; font-size: 12px; display: block; margin-top: 2px; }
+    .client-selector {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .client-selector label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .client-selector select {
+      width: 100%; margin-top: 4px; padding: 6px 8px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+      font-size: 13px; cursor: pointer; outline: none;
+    }
+    nav { flex: 1; padding: 12px 0; }
+    .nav-section { padding: 8px 16px 4px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    nav a {
+      display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+      color: var(--muted); text-decoration: none; font-size: 14px;
+      border-left: 3px solid transparent; transition: all 0.15s;
+    }
+    nav a:hover { color: var(--text); background: var(--surface2); }
+    nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,170,0.08); }
+    nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-footer {
+      padding: 16px; border-top: 1px solid var(--border);
+    }
+    .upload-btn {
+      display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 14px;
+      background: rgba(0,212,170,0.12); border: 1px solid rgba(0,212,170,0.3);
+      border-radius: 8px; color: var(--accent); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; text-decoration: none;
+    }
+    .upload-btn:hover { background: rgba(0,212,170,0.2); }
+    .logout-btn {
+      display: block; width: 100%; margin-top: 8px; padding: 8px;
+      background: none; border: none; color: var(--muted); font-size: 12px;
+      cursor: pointer; text-align: left; transition: color 0.2s;
+    }
+    .logout-btn:hover { color: var(--red); }
+
+    /* ── Main content ── */
+    #main { flex: 1; display: flex; flex-direction: column; }
+    #page-frame { flex: 1; width: 100%; border: none; background: var(--bg); }
+
+    /* ── Welcome screen ── */
+    #welcome {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; padding: 40px;
+    }
+    .welcome-icon { font-size: 64px; }
+    .welcome-title { font-size: 28px; font-weight: 700; color: var(--text); }
+    .welcome-sub { color: var(--muted); font-size: 15px; text-align: center; max-width: 400px; line-height: 1.6; }
+    .welcome-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 24px; max-width: 800px; width: 100%; }
+    .welcome-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; text-align: center; text-decoration: none; transition: all 0.2s;
+    }
+    .welcome-card:hover { border-color: var(--accent); background: var(--surface2); transform: translateY(-2px); }
+    .welcome-card .wc-icon { font-size: 28px; margin-bottom: 8px; }
+    .welcome-card .wc-title { color: var(--text); font-size: 14px; font-weight: 600; }
+    .welcome-card .wc-desc { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    /* ── Data Status Panel ── */
+    #data-status {
+      width: 100%; max-width: 800px; margin-top: 28px;
+    }
+    .ds-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .ds-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .ds-sub { font-size: 12px; color: var(--muted); }
+    .ds-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;
+    }
+    .ds-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+    }
+    .ds-row.loaded { border-color: rgba(16,185,129,0.3); }
+    .ds-row.missing { border-color: var(--border); }
+    .ds-icon { font-size: 16px; width: 22px; text-align: center; }
+    .ds-info { flex: 1; }
+    .ds-name { font-size: 12px; font-weight: 600; color: var(--text); }
+    .ds-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .ds-badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    }
+    .ds-badge.ok { background: rgba(16,185,129,0.15); color: var(--green); }
+    .ds-badge.no { background: rgba(100,116,139,0.12); color: var(--muted); }
+    .ds-action {
+      margin-top: 14px; padding: 12px 16px;
+      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 8px; font-size: 12px; color: var(--amber); line-height: 1.5;
+      display: none;
+    }
+    .ds-action a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .ds-action a:hover { text-decoration: underline; }
+
+    /* ── Upload modal ── */
+    #upload-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    #upload-modal.open { display: flex; }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      width: 100%; max-width: 640px; max-height: 85vh; overflow-y: auto;
+    }
+    .modal-header {
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h2 { font-size: 18px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 24px; }
+
+    @media (max-width: 768px) {
+      #sidebar { width: 200px; }
+    }
+    @media (max-width: 600px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="logo">Credlance</div>
+    <div class="tagline">MIS Dashboard · Financial Intelligence</div>
+    <input type="text" id="login-client" placeholder="Client name (or leave blank for Admin)" autocomplete="off" />
+    <input type="password" id="login-pass" placeholder="Password" />
+    <button onclick="doLogin()">Sign In</button>
+    <div class="error" id="login-error">Incorrect password. Please try again.</div>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div id="upload-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>📤 Upload Data</h2>
+      <button class="modal-close" onclick="closeUpload()">×</button>
+    </div>
+    <div class="modal-body" id="upload-body">
+      <!-- populated by upload.js -->
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-logo">Credlance <span>MIS Dashboard</span></div>
+  <div class="client-selector">
+    <label>Active Client</label>
+    <select id="client-select" onchange="switchClient(this.value)">
+      <option value="">— Select Client —</option>
+    </select>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <a href="#" class="active" onclick="showWelcome()" data-page="home">
+      <span class="icon">🏠</span> Home
+    </a>
+    <a href="dashboard.html" data-page="dashboard">
+      <span class="icon">📊</span> Dashboard
+    </a>
+    <div class="nav-section">Financials</div>
+    <a href="financials.html" data-page="financials">
+      <span class="icon">📋</span> Statements
+    </a>
+    <a href="financials.html#ratios" data-page="ratios">
+      <span class="icon">📐</span> Key Ratios
+    </a>
+    <div class="nav-section">Operations</div>
+    <a href="sales.html" data-page="sales">
+      <span class="icon">💰</span> Sales & AR/AP
+    </a>
+    <div class="nav-section">Intelligence</div>
+    <a href="analyzer.html" data-page="analyzer">
+      <span class="icon">🤖</span> AI Analyzer
+    </a>
+    <div class="nav-section">Settings</div>
+    <a href="admin.html" data-page="admin">
+      <span class="icon">⚙️</span> Admin Panel
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a class="upload-btn" href="#" onclick="openUpload()">
+      <span>📤</span> Upload Data
+    </a>
+    <button class="logout-btn" onclick="doLogout()">⬡ Sign Out</button>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main">
+  <div id="welcome">
+    <div class="welcome-icon">📊</div>
+    <div class="welcome-title">Welcome to Credlance MIS</div>
+    <div class="welcome-sub">Select a client and upload your data templates to get started with financial intelligence.</div>
+    <div class="welcome-cards">
+      <a class="welcome-card" href="dashboard.html">
+        <div class="wc-icon">📈</div>
+        <div class="wc-title">Dashboard</div>
+        <div class="wc-desc">Visual overview & charts</div>
+      </a>
+      <a class="welcome-card" href="financials.html">
+        <div class="wc-icon">📋</div>
+        <div class="wc-title">Financials</div>
+        <div class="wc-desc">P&L, Balance Sheet, Cash Flow</div>
+      </a>
+      <a class="welcome-card" href="sales.html">
+        <div class="wc-icon">💰</div>
+        <div class="wc-title">Sales & AR/AP</div>
+        <div class="wc-desc">Revenue, ageing, collections</div>
+      </a>
+      <a class="welcome-card" href="analyzer.html">
+        <div class="wc-icon">🤖</div>
+        <div class="wc-title">AI Analyzer</div>
+        <div class="wc-desc">Automated financial analysis</div>
+      </a>
+      <a class="welcome-card" href="admin.html">
+        <div class="wc-icon">⚙️</div>
+        <div class="wc-title">Admin Panel</div>
+        <div class="wc-desc">Clients, passwords & config</div>
+      </a>
+    </div>
+
+    <!-- Template upload status panel (shown after client selection) -->
+    <div id="data-status" style="display:none;">
+      <div class="ds-header">
+        <div class="ds-title">📂 Data Coverage</div>
+        <div class="ds-sub" id="ds-last-upload"></div>
+      </div>
+      <div class="ds-grid" id="ds-grid"></div>
+      <div class="ds-action" id="ds-action">
+        ⚠️ Some data templates are not yet uploaded. Pages will run on demo data until real data is provided.
+        <a href="#" onclick="openUpload()">Upload now →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/upload.js"></script>
+<script>
+  // Active nav link
+  document.querySelectorAll('nav a').forEach(a => {
+    a.addEventListener('click', function() {
+      document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  function showWelcome() {
+    document.getElementById('welcome').style.display = 'flex';
+  }
+
+  // Client selector
+  function refreshClientList() {
+    const sel = document.getElementById('client-select');
+    const clients = JSON.parse(localStorage.getItem('credlance_clients') || '[]');
+    const current = localStorage.getItem('credlance_active_client') || '';
+    sel.innerHTML = '<option value="">— Select Client —</option>';
+    clients.forEach(c => {
+      sel.innerHTML += `<option value="${c}" ${c === current ? 'selected' : ''}>${c}</option>`;
+    });
+  }
+
+  function switchClient(name) {
+    localStorage.setItem('credlance_active_client', name);
+    showWelcome();
+    renderDataStatus(name);
+  }
+
+  function renderDataStatus(name) {
+    const panel = document.getElementById('data-status');
+    if (!name) { panel.style.display = 'none'; return; }
+
+    const TEMPLATES = [
+      { id: 'trial_balance', name: 'Trial Balance', icon: '⚖️' },
+      { id: 'budget',        name: 'Budget',        icon: '🎯' },
+      { id: 'sales_register',name: 'Sales Register', icon: '🧾' },
+      { id: 'ar_ageing',    name: 'AR Ageing',      icon: '📥' },
+      { id: 'ap_ageing',    name: 'AP Ageing',      icon: '📤' },
+      { id: 'employee_cost', name: 'Employee Cost',  icon: '👥' }
+    ];
+
+    const grid = document.getElementById('ds-grid');
+    const action = document.getElementById('ds-action');
+    const lastUploadEl = document.getElementById('ds-last-upload');
+
+    let missingCount = 0;
+    grid.innerHTML = TEMPLATES.map(t => {
+      const raw = localStorage.getItem(`credlance_data_${name}_${t.id}`);
+      let loaded = false, rowsLabel = '', uploadDate = '';
+      if (raw) {
+        try {
+          const p = JSON.parse(raw);
+          loaded = true;
+          rowsLabel = p.rows ? `${p.rows.length} rows` : '';
+          if (p.uploadedAt) {
+            const d = new Date(p.uploadedAt);
+            uploadDate = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+          }
+        } catch(e) { /* corrupt data */ }
+      }
+      if (!loaded) missingCount++;
+      return `
+        <div class="ds-row ${loaded ? 'loaded' : 'missing'}">
+          <div class="ds-icon">${t.icon}</div>
+          <div class="ds-info">
+            <div class="ds-name">${t.name}</div>
+            <div class="ds-meta">${loaded ? (rowsLabel + (uploadDate ? ' · ' + uploadDate : '')) : 'Not uploaded'}</div>
+          </div>
+          <div class="ds-badge ${loaded ? 'ok' : 'no'}">${loaded ? '✓' : '—'}</div>
+        </div>`;
+    }).join('');
+
+    // Last upload label
+    const lastUpTs = localStorage.getItem(`credlance_data_${name}_last_upload`);
+    if (lastUpTs) {
+      const d = new Date(lastUpTs);
+      lastUploadEl.textContent = 'Last upload: ' + d.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    } else {
+      lastUploadEl.textContent = '';
+    }
+
+    // Warning banner if any templates missing
+    action.style.display = missingCount > 0 ? 'block' : 'none';
+    if (missingCount > 0) {
+      action.innerHTML = `⚠️ <strong>${missingCount} template${missingCount > 1 ? 's' : ''} not yet uploaded</strong> — pages will run on demo data until real data is provided. <a href="#" onclick="openUpload()">Upload now →</a>`;
+    }
+
+    panel.style.display = 'block';
+  }
+
+  // Upload modal
+  function openUpload() {
+    document.getElementById('upload-modal').classList.add('open');
+    initUploadUI();
+  }
+  function closeUpload() {
+    document.getElementById('upload-modal').classList.remove('open');
+    // Refresh data status after upload dialog closes (user may have just uploaded)
+    const client = localStorage.getItem('credlance_active_client') || '';
+    renderDataStatus(client);
+  }
+
+  // On load: restore client + show status
+  (function init() {
+    refreshClientList();
+    const client = localStorage.getItem('credlance_active_client') || '';
+    if (client) renderDataStatus(client);
+  })();
+</script>
+</body>
+</html>

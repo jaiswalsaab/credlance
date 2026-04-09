@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Credlance MIS · Admin</title>
+<script src="js/auth.js"></script>
+<style>
+:root {
+  --bg:       #0b0f1a;
+  --surface:  #111827;
+  --surface2: #1a2233;
+  --border:   #1f2d45;
+  --accent:   #00d4aa;
+  --accent2:  #0099ff;
+  --text:     #e2e8f0;
+  --muted:    #6b7280;
+  --red:      #ef4444;
+  --amber:    #f59e0b;
+  --green:    #22c55e;
+  --purple:   #a855f7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+/* ── Layout ────────────────────────────────────────────── */
+.app-shell { display: flex; height: 100vh; }
+
+/* ── Sidebar ───────────────────────────────────────────── */
+.sidebar {
+  width: 220px; min-width: 220px; background: var(--surface);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar-logo { padding: 20px 18px 14px; font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -.4px; border-bottom: 1px solid var(--border); }
+.sidebar-logo span { color: var(--muted); font-size: 11px; font-weight: 400; display: block; margin-top: 2px; }
+.nav-group { padding: 10px 0; }
+.nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 6px 18px 4px; letter-spacing: .8px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; color: var(--text); text-decoration: none; font-size: 13px; border-left: 3px solid transparent; transition: background .15s; }
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--surface2); border-left-color: var(--accent); color: var(--accent); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--border); }
+.role-badge { background: rgba(0,212,170,.12); border: 1px solid rgba(0,212,170,.3); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+.logout-btn { margin-top: 8px; width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 7px; font-size: 12px; cursor: pointer; transition: all .15s; }
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Main ──────────────────────────────────────────────── */
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 700; }
+.page-title span { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 8px; }
+
+/* ── Access Denied ─────────────────────────────────────── */
+.access-denied { display: none; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 16px; text-align: center; }
+.access-denied .icon-lg { font-size: 56px; }
+.access-denied h2 { font-size: 20px; font-weight: 700; color: var(--red); }
+.access-denied p { color: var(--muted); max-width: 380px; line-height: 1.6; }
+.access-denied a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* ── Stats Bar ─────────────────────────────────────────── */
+.stats-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 14px; margin-bottom: 28px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.stat-label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: .5px; margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--text); }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Add Client Form ───────────────────────────────────── */
+.section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 22px; }
+.section-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.section-title .stag { font-size: 11px; color: var(--muted); font-weight: 400; background: var(--surface2); border-radius: 4px; padding: 2px 7px; }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+.form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.form-group input {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; padding: 8px 12px; font-size: 13px; outline: none;
+  transition: border-color .15s;
+}
+.form-group input:focus { border-color: var(--accent); }
+.form-group input::placeholder { color: var(--muted); }
+.btn { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #00b894; }
+.btn-danger  { background: transparent; border: 1px solid var(--red); color: var(--red); }
+.btn-danger:hover  { background: rgba(239,68,68,.12); }
+.btn-ghost   { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-ghost:hover   { border-color: var(--accent); color: var(--accent); }
+.btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 5px; }
+.form-error { color: var(--red); font-size: 12px; margin-top: 4px; display: none; }
+.form-success { color: var(--green); font-size: 12px; margin-top: 4px; display: none; }
+
+/* ── Client List Table ─────────────────────────────────── */
+.client-table { width: 100%; border-collapse: collapse; }
+.client-table th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; padding: 9px 14px; text-align: left; font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.client-table td { padding: 12px 14px; border-bottom: 1px solid rgba(31,45,69,0.5); vertical-align: top; }
+.client-table tr:last-child td { border-bottom: none; }
+.client-table tr:hover td { background: rgba(255,255,255,0.02); }
+.client-name { font-weight: 600; color: var(--text); font-size: 13px; }
+.client-ns   { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: monospace; }
+
+/* ── Data Coverage Pills ───────────────────────────────── */
+.coverage-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.pill-ok  { background: rgba(34,197,94,.12);  color: var(--green); }
+.pill-miss { background: rgba(107,114,128,.12); color: var(--muted); }
+.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ── Inline Edit Password ──────────────────────────────── */
+.pass-row { display: flex; align-items: center; gap: 8px; }
+.pass-display { font-size: 12px; color: var(--muted); font-family: monospace; }
+.pass-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 4px 8px; font-size: 12px; outline: none; width: 130px; display: none; }
+.pass-input:focus { border-color: var(--accent); }
+.actions-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ── Modal ─────────────────────────────────────────────── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: min(440px, 95vw); }
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.modal-sub   { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── Empty State ───────────────────────────────────────── */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty-state .icon-lg { font-size: 40px; display: block; margin-bottom: 12px; }
+.empty-state p { font-size: 13px; line-height: 1.6; }
+
+/* ── Toast ─────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 16px; font-size: 13px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); transform: translateY(80px); opacity: 0;
+  transition: all .25s; min-width: 220px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(34,197,94,.4); color: var(--green); }
+.toast.error   { border-color: rgba(239,68,68,.4);  color: var(--red); }
+
+/* ── Master Pass Section ───────────────────────────────── */
+.master-info { background: rgba(0,212,170,.06); border: 1px solid rgba(0,212,170,.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 22px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.master-info strong { color: var(--accent); }
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { width: 54px; min-width: 54px; }
+  .sidebar-logo, .nav-label, .nav-item span, .role-badge span, .logout-btn span { display: none; }
+  .nav-item { justify-content: center; padding: 10px; }
+}
+@media (max-width: 600px) { .main { padding: 12px; } .form-row { flex-direction: column; } }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">Credlance<span>MIS Dashboard</span></div>
+    <div class="nav-group">
+      <div class="nav-label">Navigation</div>
+      <a class="nav-item" href="index.html"><span class="icon">🏠</span><span>Home</span></a>
+      <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a class="nav-item" href="financials.html"><span class="icon">📋</span><span>Financials</span></a>
+      <a class="nav-item" href="sales.html"><span class="icon">💼</span><span>Sales &amp; AR/AP</span></a>
+      <a class="nav-item" href="analyzer.html"><span class="icon">🤖</span><span>Analyzer</span></a>
+      <a class="nav-item active" href="admin.html"><span class="icon">⚙️</span><span>Admin</span></a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="role-badge">🔑 <span>Admin Access</span></div>
+      <button class="logout-btn" onclick="doLogout()">🚪 <span>Sign Out</span></button>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <main class="main" id="main-content">
+
+    <!-- Access denied (shown if not admin) -->
+    <div class="access-denied" id="accessDenied">
+      <div class="icon-lg">🔒</div>
+      <h2>Admin Access Required</h2>
+      <p>This page is only accessible with the master admin password. Please <a href="index.html">return to the home page</a> and sign in with the master credentials.</p>
+    </div>
+
+    <!-- Admin content (shown if admin) -->
+    <div id="adminContent" style="display:none">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Admin Panel<span>Client &amp; User Management</span></div>
+        </div>
+      </div>
+
+      <!-- Master pass note -->
+      <div class="master-info">
+        🔑 <strong>Master Password</strong> — The master password grants access to all clients and this admin panel. Change it by editing <code>js/auth.js</code> → <code>MASTER_PASS</code>.
+        &nbsp;|&nbsp; Per-client passwords allow clients to log in without the master password.
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="stat-label">Total Clients</div>
+          <div class="stat-value" id="statClients">0</div>
+          <div class="stat-sub">Registered client workspaces</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">With Full Data</div>
+          <div class="stat-value" id="statFullData">0</div>
+          <div class="stat-sub">All 6 templates uploaded</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">With Password</div>
+          <div class="stat-value" id="statWithPass">0</div>
+          <div class="stat-sub">Client-specific passwords set</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Data Namespaces</div>
+          <div class="stat-value" id="statKeys">0</div>
+          <div class="stat-sub">Total localStorage data keys</div>
+        </div>
+      </div>
+
+      <!-- Add Client -->
+      <div class="section-card">
+        <div class="section-title">➕ Add New Client <span class="stag">Creates isolated data namespace</span></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Client Name</label>
+            <input type="text" id="newClientName" placeholder="e.g. Acme Corp" maxlength="60"/>
+          </div>
+          <div class="form-group">
+            <label>Client Password <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+            <input type="password" id="newClientPass" placeholder="Leave blank to use master password"/>
+          </div>
+          <div class="form-group" style="flex:0 0 auto; justify-content:flex-end">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" onclick="addClient()">Add Client</button>
+          </div>
+        </div>
+        <div class="form-error" id="addError"></div>
+        <div class="form-success" id="addSuccess"></div>
+      </div>
+
+      <!-- Client List -->
+      <div class="section-card">
+        <div class="section-title">👥 Client Workspaces <span class="stag" id="clientCountTag">0 clients</span></div>
+        <div id="clientListWrap">
+          <div class="empty-state" id="emptyState">
+            <span class="icon-lg">📂</span>
+            <p>No clients added yet. Use the form above to add your first client workspace.</p>
+          </div>
+          <table class="client-table" id="clientTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Client Name</th>
+                <th>Data Coverage</th>
+                <th>Password</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clientTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Data Management -->
+      <div class="section-card">
+        <div class="section-title">🗄️ Data Management <span class="stag">localStorage</span></div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+          All client data is stored in your browser's localStorage. Data persists across sessions on the same browser. Clearing browser data will erase all client data. Export/backup will be added in Phase 8.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="exportConfig()">⬇️ Export Client Config (JSON)</button>
+          <button class="btn btn-ghost" onclick="importConfigClick()">⬆️ Import Client Config (JSON)</button>
+          <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importConfig(event)"/>
+        </div>
+      </div>
+
+    </div><!-- /adminContent -->
+  </main>
+</div>
+
+<!-- ── Delete Confirm Modal ── -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-title">⚠️ Remove Client?</div>
+    <div class="modal-sub" id="deleteModalSub"></div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">
+      This will permanently remove the client workspace and <strong style="color:var(--red)">all uploaded data</strong> for this client from your browser's localStorage. This action cannot be undone.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="deleteConfirmBtn">Remove Client &amp; Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✅ ' : '❌ ') + msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const TEMPLATES = ['trial_balance','budget','sales_register','ar_ageing','ap_ageing','employee_cost'];
+const TEMPLATE_LABELS = {
+  trial_balance:   'Trial Balance',
+  budget:          'Budget',
+  sales_register:  'Sales Register',
+  ar_ageing:       'AR Ageing',
+  ap_ageing:       'AP Ageing',
+  employee_cost:   'Employee Cost',
+};
+
+function clients() { return getClients(); }
+function saveClientList(list) { saveClients(list); }
+
+function countDataKeys(name) {
+  let count = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(`credlance_data_${name}_`)) count++;
+  }
+  return count;
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function refreshStats() {
+  const list = clients();
+  let fullData = 0, withPass = 0, totalKeys = 0;
+
+  list.forEach(name => {
+    const summary = getClientDataSummary(name);
+    if (summary.present.length === TEMPLATES.length) fullData++;
+    if (getClientPass(name)) withPass++;
+    totalKeys += countDataKeys(name);
+  });
+
+  document.getElementById('statClients').textContent  = list.length;
+  document.getElementById('statFullData').textContent = fullData;
+  document.getElementById('statWithPass').textContent = withPass;
+  document.getElementById('statKeys').textContent     = totalKeys;
+  document.getElementById('clientCountTag').textContent = list.length + ' client' + (list.length !== 1 ? 's' : '');
+}
+
+// ── Render Client Table ────────────────────────────────────────────────────
+function renderClientTable() {
+  const list = clients();
+  const empty = document.getElementById('emptyState');
+  const table = document.getElementById('clientTable');
+  const tbody = document.getElementById('clientTableBody');
+
+  if (list.length === 0) {
+    empty.style.display = 'block'; table.style.display = 'none';
+    refreshStats(); return;
+  }
+
+  empty.style.display = 'none'; table.style.display = 'table';
+
+  tbody.innerHTML = list.map(name => {
+    const summary = getClientDataSummary(name);
+    const hasPass = !!getClientPass(name);
+    const ns      = `credlance_data_${name}_*`;
+    const lastUp  = summary.lastUpload
+      ? new Date(summary.lastUpload).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' })
+      : '—';
+
+    // Coverage pills
+    const pills = TEMPLATES.map(t => {
+      const ok = summary.present.includes(t);
+      return `<span class="pill ${ok ? 'pill-ok' : 'pill-miss'}">
+        <span class="pill-dot"></span>${TEMPLATE_LABELS[t]}
+      </span>`;
+    }).join('');
+
+    // Password display
+    const passDisplay = hasPass
+      ? `<span class="pass-display">••••••••</span>`
+      : `<span class="pass-display" style="color:var(--amber)">Master only</span>`;
+
+    return `
+      <tr id="row-${CSS.escape(name)}">
+        <td>
+          <div class="client-name">${escHtml(name)}</div>
+          <div class="client-ns">${escHtml(ns)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Last upload: ${lastUp}</div>
+        </td>
+        <td>
+          <div class="coverage-pills">${pills}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:5px">
+            ${summary.present.length}/${TEMPLATES.length} templates · ${countDataKeys(name)} data keys
+          </div>
+        </td>
+        <td>
+          <div class="pass-row">
+            ${passDisplay}
+          </div>
+        </td>
+        <td>
+          <div class="actions-row">
+            <button class="btn btn-ghost btn-sm" onclick="openSetPass('${escAttr(name)}')">🔑 Set Password</button>
+            <button class="btn btn-ghost btn-sm" onclick="switchToClient('${escAttr(name)}')">↗ Switch</button>
+            <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${escAttr(name)}')">🗑 Remove</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  refreshStats();
+}
+
+// ── Add Client ─────────────────────────────────────────────────────────────
+function addClient() {
+  const nameEl  = document.getElementById('newClientName');
+  const passEl  = document.getElementById('newClientPass');
+  const errEl   = document.getElementById('addError');
+  const succEl  = document.getElementById('addSuccess');
+  errEl.style.display = 'none'; succEl.style.display = 'none';
+
+  const name = nameEl.value.trim();
+  const pass = passEl.value.trim();
+
+  if (!name) { errEl.textContent = 'Client name is required.'; errEl.style.display = 'block'; return; }
+  if (name.length < 2) { errEl.textContent = 'Client name must be at least 2 characters.'; errEl.style.display = 'block'; return; }
+  if (name.toLowerCase() === 'admin') { errEl.textContent = '"admin" is reserved and cannot be used as a client name.'; errEl.style.display = 'block'; return; }
+
+  const list = clients();
+  if (list.includes(name)) {
+    errEl.textContent = `Client "${name}" already exists.`; errEl.style.display = 'block'; return;
+  }
+
+  list.push(name);
+  saveClientList(list);
+  if (pass) setClientPass(name, pass);
+
+  nameEl.value = ''; passEl.value = '';
+  succEl.textContent = `✅ Client "${name}" added successfully.`;
+  succEl.style.display = 'block';
+  setTimeout(() => { succEl.style.display = 'none'; }, 3000);
+
+  renderClientTable();
+  showToast(`Client "${name}" added`);
+}
+
+// ── Set Password ───────────────────────────────────────────────────────────
+function openSetPass(name) {
+  const newPass = prompt(`Set password for "${name}":\n\nLeave blank to remove password (client will use master password).`);
+  if (newPass === null) return; // cancelled
+  setClientPass(name, newPass.trim());
+  renderClientTable();
+  showToast(newPass.trim() ? `Password set for "${name}"` : `Password removed — "${name}" now uses master password`);
+}
+
+// ── Switch to Client ───────────────────────────────────────────────────────
+function switchToClient(name) {
+  sessionStorage.setItem('credlance_client', name);
+  localStorage.setItem('credlance_active_client', name);
+  showToast(`Switched to client: ${name}`);
+  setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+}
+
+// ── Delete Client ──────────────────────────────────────────────────────────
+let _pendingDelete = null;
+function openDeleteModal(name) {
+  _pendingDelete = name;
+  document.getElementById('deleteModalSub').textContent =
+    `You are about to remove client workspace: "${name}"`;
+  document.getElementById('deleteModal').classList.add('open');
+  document.getElementById('deleteConfirmBtn').onclick = confirmDelete;
+}
+function closeModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+  _pendingDelete = null;
+}
+function confirmDelete() {
+  if (!_pendingDelete) return;
+  const name = _pendingDelete;
+  const list = clients().filter(c => c !== name);
+  saveClientList(list);
+  deleteClientData(name);
+  // If currently viewing this client, clear active client
+  if (sessionStorage.getItem('credlance_client') === name) {
+    sessionStorage.removeItem('credlance_client');
+    localStorage.removeItem('credlance_active_client');
+  }
+  closeModal();
+  renderClientTable();
+  showToast(`Client "${name}" removed`, 'error');
+}
+
+// ── Export / Import Config ─────────────────────────────────────────────────
+function exportConfig() {
+  const list = clients();
+  const config = {
+    exported: new Date().toISOString(),
+    version: 1,
+    clients: list.map(name => ({
+      name,
+      hasPassword: !!getClientPass(name),
+      dataSummary: getClientDataSummary(name),
+    }))
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'credlance_client_config.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Config exported');
+}
+
+function importConfigClick() {
+  document.getElementById('importFileInput').click();
+}
+
+function importConfig(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const config = JSON.parse(e.target.result);
+      if (!config.clients || !Array.isArray(config.clients)) throw new Error('Invalid format');
+      const list = clients();
+      let added = 0;
+      config.clients.forEach(c => {
+        if (c.name && !list.includes(c.name)) {
+          list.push(c.name);
+          added++;
+        }
+      });
+      saveClientList(list);
+      renderClientTable();
+      showToast(`Imported ${added} new client${added !== 1 ? 's' : ''}`);
+    } catch(err) {
+      showToast('Import failed — invalid JSON format', 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── Escape helpers ─────────────────────────────────────────────────────────
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return str.replace(/'/g,"\\'").replace(/"/g,'\\"');
+}
+
+// ── Close modal on overlay click ───────────────────────────────────────────
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  // Must be logged in at all
+  if (!checkAuth()) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // Must be admin
+  if (!checkAdminAuth()) {
+    document.getElementById('accessDenied').style.display  = 'flex';
+    document.getElementById('adminContent').style.display  = 'none';
+    return;
+  }
+
+  document.getElementById('accessDenied').style.display = 'none';
+  document.getElementById('adminContent').style.display  = 'block';
+
+  // Enter key on add form
+  ['newClientName','newClientPass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') addClient();
+    });
+  });
+
+  renderClientTable();
+})();
+</script>
+</body>
+</html>

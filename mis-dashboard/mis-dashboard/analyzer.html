@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Credlance MIS · Financial Analyzer</title>
+<script src="js/auth.js"></script>
+<script src="js/financials.js"></script>
+<script src="js/analyzer.js"></script>
+<script src="js/report-export.js" defer></script>
+<style>
+:root {
+  --bg:       #0b0f1a;
+  --surface:  #111827;
+  --surface2: #1a2233;
+  --border:   #1f2d45;
+  --accent:   #00d4aa;
+  --accent2:  #0099ff;
+  --text:     #e2e8f0;
+  --muted:    #6b7280;
+  --red:      #ef4444;
+  --amber:    #f59e0b;
+  --green:    #22c55e;
+  --purple:   #a855f7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+/* ── Layout ─────────────────────────────────────────────── */
+.app-shell { display: flex; height: 100vh; }
+
+/* ── Sidebar ────────────────────────────────────────────── */
+.sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar-logo { padding: 20px 18px 14px; font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -.4px; border-bottom: 1px solid var(--border); }
+.sidebar-logo span { color: var(--muted); font-size: 11px; font-weight: 400; display: block; margin-top: 2px; }
+.nav-group { padding: 10px 0; }
+.nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 6px 18px 4px; letter-spacing: .8px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; color: var(--text); text-decoration: none; font-size: 13px; border-left: 3px solid transparent; transition: background .15s; }
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--surface2); border-left-color: var(--accent); color: var(--accent); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--border); }
+.client-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.client-badge strong { display: block; color: var(--text); font-size: 13px; }
+
+/* ── Main ────────────────────────────────────────────────── */
+.main { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Control Bar ─────────────────────────────────────────── */
+.control-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+.ctrl-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.ctrl-group select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 8px 12px; font-size: 13px; outline: none; }
+.ctrl-group select:focus { border-color: var(--accent); }
+.toggle-ytd { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.toggle-ytd.on { background: var(--accent); border-color: var(--accent); color: #000; }
+.btn-generate { background: linear-gradient(135deg, #00d4aa, #0099ff); color: #000; border: none; border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s; display: flex; align-items: center; gap: 8px; }
+.btn-generate:hover { opacity: .88; }
+.btn-export { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 7px; }
+.btn-export:hover { border-color: var(--accent); color: var(--accent); }
+.btn-export:disabled { opacity: .4; cursor: not-allowed; }
+.ctrl-spacer { flex: 1; }
+.demo-chip { background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.25); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: var(--accent); }
+
+/* ── Empty / Loading States ─────────────────────────────── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; gap: 16px; text-align: center; }
+.empty-state .big-icon { font-size: 56px; }
+.empty-state h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+.empty-state p { font-size: 13px; color: var(--muted); max-width: 420px; line-height: 1.7; }
+.spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Report Container ───────────────────────────────────── */
+#reportOutput { display: none; }
+
+/* ── Executive Summary ───────────────────────────────────── */
+.exec-summary { background: linear-gradient(135deg, rgba(0,212,170,.08), rgba(0,153,255,.06)); border: 1px solid rgba(0,212,170,.25); border-radius: 12px; padding: 22px 24px; }
+.exec-title { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.exec-period { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.exec-bullets { display: flex; flex-wrap: wrap; gap: 10px; }
+.exec-pill { border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.pill-red    { background: rgba(239,68,68,.15);  color: var(--red);   border: 1px solid rgba(239,68,68,.3);  }
+.pill-amber  { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+.pill-adv    { background: rgba(251,146,60,.12); color: #fb923c;      border: 1px solid rgba(251,146,60,.25);}
+.pill-green  { background: rgba(34,197,94,.12);  color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+.exec-text { margin-top: 12px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ── Section Headers ─────────────────────────────────────── */
+.section-hdr { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.section-hdr h3 { font-size: 14px; font-weight: 700; }
+.section-hdr .count-badge { font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; color: var(--muted); }
+.section-hdr::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Finding Cards ───────────────────────────────────────── */
+.finding-card { border-radius: 10px; margin-bottom: 10px; overflow: hidden; border: 1px solid; }
+.finding-card.sev-red    { border-color: rgba(239,68,68,.35);  }
+.finding-card.sev-amber  { border-color: rgba(245,158,11,.35); }
+.finding-card.sev-adv    { border-color: rgba(251,146,60,.25); }
+.finding-card.sev-green  { border-color: rgba(34,197,94,.25);  }
+.finding-card.sev-info   { border-color: var(--border);        }
+
+.finding-header { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
+.finding-header:hover { background: rgba(255,255,255,.02); }
+.sev-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 3px 8px; }
+.badge-red   { background: rgba(239,68,68,.2);  color: var(--red);   }
+.badge-amber { background: rgba(245,158,11,.2); color: var(--amber); }
+.badge-adv   { background: rgba(251,146,60,.15);color: #fb923c;      }
+.badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+.badge-info  { background: var(--surface2);     color: var(--muted); }
+.finding-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); padding-top: 1px; }
+.finding-module { font-size: 10px; color: var(--muted); background: var(--surface2); border-radius: 3px; padding: 2px 7px; flex-shrink: 0; }
+.finding-chevron { color: var(--muted); font-size: 12px; flex-shrink: 0; padding-top: 2px; transition: transform .2s; }
+.finding-card.open .finding-chevron { transform: rotate(180deg); }
+
+.finding-body { display: none; padding: 0 16px 14px; }
+.finding-card.open .finding-body { display: block; }
+.finding-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
+.finding-action { background: var(--surface2); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 12px; color: var(--text); line-height: 1.6; }
+.finding-action::before { content: '💡 Recommended Action: '; font-weight: 700; color: var(--accent); }
+
+/* ── Action Plan ─────────────────────────────────────────── */
+.action-table { width: 100%; border-collapse: collapse; }
+.action-table th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.action-table td { padding: 10px 14px; border-bottom: 1px solid rgba(31,45,69,0.4); font-size: 13px; vertical-align: top; }
+.action-table tr:last-child td { border-bottom: none; }
+.rank-num { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.rank-red   { background: rgba(239,68,68,.2);  color: var(--red);   }
+.rank-amber { background: rgba(245,158,11,.2); color: var(--amber); }
+.rank-adv   { background: rgba(251,146,60,.15);color: #fb923c;      }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { width: 54px; min-width: 54px; }
+  .sidebar-logo, .nav-label, .nav-item span, .client-badge { display: none; }
+  .nav-item { justify-content: center; padding: 10px; }
+}
+@media (max-width: 600px) { .main { padding: 12px; } .control-bar { flex-direction: column; align-items: stretch; } }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">Credlance<span>MIS Dashboard</span></div>
+    <div class="nav-group">
+      <div class="nav-label">Navigation</div>
+      <a class="nav-item" href="index.html"><span class="icon">🏠</span><span>Home</span></a>
+      <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a class="nav-item" href="financials.html"><span class="icon">📋</span><span>Financials</span></a>
+      <a class="nav-item" href="sales.html"><span class="icon">💼</span><span>Sales &amp; AR/AP</span></a>
+      <a class="nav-item active" href="analyzer.html"><span class="icon">🤖</span><span>Analyzer</span></a>
+      <a class="nav-item" href="admin.html"><span class="icon">⚙️</span><span>Admin</span></a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="client-badge">
+        <strong id="sb-client-name">Demo Mode</strong>
+        <span>FY 2025-26</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+      <div class="ctrl-group">
+        <label>Analysis Month</label>
+        <select id="monthSel">
+          <option value="0">Apr 2025</option><option value="1">May 2025</option>
+          <option value="2">Jun 2025</option><option value="3">Jul 2025</option>
+          <option value="4">Aug 2025</option><option value="5" selected>Sep 2025</option>
+          <option value="6">Oct 2025</option><option value="7">Nov 2025</option>
+          <option value="8">Dec 2025</option><option value="9">Jan 2026</option>
+          <option value="10">Feb 2026</option><option value="11">Mar 2026</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label>Mode</label>
+        <button class="toggle-ytd" id="ytdBtn" onclick="toggleYTD()">YTD</button>
+      </div>
+      <button class="btn-generate" onclick="generateAnalysis()">
+        🤖 Generate Analysis
+      </button>
+      <div class="ctrl-spacer"></div>
+      <button class="btn-export" id="exportBtn" onclick="exportReport()" disabled>
+        📄 Export Report
+      </button>
+      <span class="demo-chip" id="demoChip">Demo Data</span>
+    </div>
+
+    <!-- Empty / loading state -->
+    <div class="empty-state" id="emptyState">
+      <div class="big-icon">🤖</div>
+      <h2>AI Financial Analyzer</h2>
+      <p>Select a month, then click <strong>Generate Analysis</strong> to run the 5-module financial analysis engine across your P&amp;L, Balance Sheet, ratios, and working capital — and receive a prioritised action plan.</p>
+    </div>
+
+    <!-- Loading spinner -->
+    <div class="empty-state" id="loadingState" style="display:none">
+      <div class="spinner"></div>
+      <p style="color:var(--muted)">Running analysis…</p>
+    </div>
+
+    <!-- Report output -->
+    <div id="reportOutput">
+
+      <!-- Executive Summary -->
+      <div class="exec-summary" id="execSummary"></div>
+
+      <!-- Red Flags -->
+      <div id="redsSection"></div>
+
+      <!-- Concerns -->
+      <div id="ambersSection"></div>
+
+      <!-- Advisories -->
+      <div id="advisoriesSection"></div>
+
+      <!-- Ratio Commentary -->
+      <div id="ratioSection"></div>
+
+      <!-- Positives -->
+      <div id="positivesSection"></div>
+
+      <!-- Action Plan -->
+      <div id="actionPlanSection"></div>
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;padding:16px 0" id="reportFooter"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+'use strict';
+
+let MONTH    = 5;
+let YTD_MODE = false;
+let DATA     = null;
+let REPORT   = null;
+
+// ── Toggle YTD ────────────────────────────────────────────────────────────
+function toggleYTD() {
+  YTD_MODE = !YTD_MODE;
+  document.getElementById('ytdBtn').classList.toggle('on', YTD_MODE);
+}
+
+// ── Severity helpers ──────────────────────────────────────────────────────
+function sevBadge(sev) {
+  // SEV: RED=0, AMBER=1, ADVISORY=2, POSITIVE=3, INFO=4
+  const map = [
+    ['🔴 Red Flag', 'badge-red'],
+    ['🟠 Concern',  'badge-amber'],
+    ['🟡 Advisory', 'badge-adv'],
+    ['✅ Positive', 'badge-green'],
+    ['📋 Note',     'badge-info'],
+  ];
+  const [label, cls] = map[sev] || map[4];
+  return `<span class="sev-badge ${cls}">${label}</span>`;
+}
+function sevCardClass(sev) {
+  return ['sev-red','sev-amber','sev-adv','sev-green','sev-info'][sev] || 'sev-info';
+}
+function sevRankClass(sev) {
+  return ['rank-red','rank-amber','rank-adv','rank-green',''][sev] || '';
+}
+
+// ── Finding card renderer ─────────────────────────────────────────────────
+function findingCard(f, idx) {
+  const id = `fc-${idx}`;
+  return `
+    <div class="finding-card ${sevCardClass(f.sev)}" id="${id}">
+      <div class="finding-header" onclick="toggleCard('${id}')">
+        ${sevBadge(f.sev)}
+        <div class="finding-title">${f.title}</div>
+        <span class="finding-module">${f.module}</span>
+        <span class="finding-chevron">▼</span>
+      </div>
+      <div class="finding-body">
+        <div class="finding-detail">${f.detail}</div>
+        ${f.action ? `<div class="finding-action">${f.action}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function toggleCard(id) {
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+// ── Section renderer ──────────────────────────────────────────────────────
+function renderSection(containerId, icon, title, findings, autoExpand) {
+  const el = document.getElementById(containerId);
+  if (!findings.length) { el.innerHTML = ''; return; }
+  const cards = findings.map((f, i) => findingCard(f, `${containerId}-${i}`)).join('');
+  el.innerHTML = `
+    <div class="section-hdr">
+      <h3>${icon} ${title}</h3>
+      <span class="count-badge">${findings.length}</span>
+    </div>
+    ${cards}
+  `;
+  // Auto-expand red flags
+  if (autoExpand) {
+    el.querySelectorAll('.finding-card').forEach(c => c.classList.add('open'));
+  }
+}
+
+// ── Executive Summary ─────────────────────────────────────────────────────
+function renderExecSummary(report) {
+  const r = report;
+  const pills = [
+    r.reds.length      ? `<span class="exec-pill pill-red">🔴 ${r.reds.length} Red Flag${r.reds.length>1?'s':''}</span>` : '',
+    r.ambers.length    ? `<span class="exec-pill pill-amber">🟠 ${r.ambers.length} Concern${r.ambers.length>1?'s':''}</span>` : '',
+    r.advisories.length? `<span class="exec-pill pill-adv">🟡 ${r.advisories.length} Advisory${r.advisories.length>1?'ies':''}</span>` : '',
+    r.positives.length ? `<span class="exec-pill pill-green">✅ ${r.positives.length} Positive${r.positives.length>1?'s':''}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const execText = r.reds.length === 0
+    ? `The business is in a healthy overall position for ${r.period}. Key financials are tracking within acceptable parameters.`
+    : `Immediate management attention is required on the ${r.reds.length} critical issue${r.reds.length>1?'s':''} identified. The most pressing concerns are: ${r.reds.slice(0,2).map(f => f.title).join('; ')}.`;
+
+  document.getElementById('execSummary').innerHTML = `
+    <div class="exec-title">📊 Executive Financial Summary</div>
+    <div class="exec-period">Period: ${r.period} · Generated: ${r.generatedAt}</div>
+    <div class="exec-bullets">${pills}</div>
+    <div class="exec-text">${execText}</div>
+  `;
+}
+
+// ── Action Plan ───────────────────────────────────────────────────────────
+function renderActionPlan(report) {
+  const el = document.getElementById('actionPlanSection');
+  const plan = report.actionPlan.slice(0, 10); // top 10
+  if (!plan.length) { el.innerHTML = ''; return; }
+
+  const rows = plan.map(item => {
+    const rankCls = sevRankClass(item.sev);
+    return `<tr>
+      <td><span class="rank-num ${rankCls}">${item.rank}</span></td>
+      <td style="font-weight:600;color:var(--text)">${item.title}</td>
+      <td style="color:var(--muted)">${item.action}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="section-hdr" style="margin-top:8px">
+      <h3>📋 Prioritised Action Plan</h3>
+      <span class="count-badge">Top ${plan.length}</span>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <table class="action-table">
+        <thead><tr><th>#</th><th>Issue</th><th>Recommended Action</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── Main: Generate Analysis ────────────────────────────────────────────────
+function generateAnalysis() {
+  MONTH = parseInt(document.getElementById('monthSel').value);
+
+  // Show spinner
+  document.getElementById('emptyState').style.display   = 'none';
+  document.getElementById('loadingState').style.display = 'flex';
+  document.getElementById('reportOutput').style.display = 'none';
+
+  // Slight delay so spinner is visible
+  setTimeout(() => {
+    try {
+      REPORT = runAnalysis(DATA, MONTH, YTD_MODE);
+
+      renderExecSummary(REPORT);
+
+      // Ratio findings live separately
+      const ratioFindings = REPORT.ambers.filter(f => f.module === 'Ratio Trend')
+        .concat(REPORT.reds.filter(f => f.module === 'Ratio Alert'));
+      const nonRatioReds   = REPORT.reds.filter(f => f.module !== 'Ratio Alert');
+      const nonRatioAmbers = REPORT.ambers.filter(f => f.module !== 'Ratio Trend');
+
+      renderSection('redsSection',      '🔴', 'Red Flags — Immediate Action Required', nonRatioReds, true);
+      renderSection('ambersSection',    '🟠', 'Concerns — Monitor Closely',            nonRatioAmbers, false);
+      renderSection('advisoriesSection','🟡', 'Advisories',                            REPORT.advisories, false);
+      renderSection('ratioSection',     '📊', 'Ratio Commentary',                      ratioFindings, false);
+      renderSection('positivesSection', '✅', 'Positives',                             REPORT.positives, false);
+      renderActionPlan(REPORT);
+
+      document.getElementById('reportFooter').textContent =
+        `Analysis generated by Credlance MIS Analyzer · ${REPORT.generatedAt} · ${REPORT.all.length} findings across 5 modules`;
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('reportOutput').style.display = 'block';
+      document.getElementById('exportBtn').disabled = false;
+
+      // Scroll to top of report
+      document.getElementById('execSummary').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch(e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('emptyState').style.display   = 'flex';
+      document.getElementById('emptyState').querySelector('p').textContent =
+        'Analysis error: ' + e.message;
+      console.error('Analyzer error:', e);
+    }
+  }, 350);
+}
+
+// ── Export Report (calls report-export.js) ────────────────────────────────
+function exportReport() {
+  if (!REPORT) return;
+  if (typeof generateHTMLReport === 'function') {
+    generateHTMLReport(REPORT, DATA);
+  } else {
+    alert('Report export module not loaded. Please check js/report-export.js.');
+  }
+}
+
+// ── Month selector ─────────────────────────────────────────────────────────
+document.getElementById('monthSel').addEventListener('change', function() {
+  MONTH = parseInt(this.value);
+  // Reset report if month changes
+  document.getElementById('reportOutput').style.display = 'none';
+  document.getElementById('emptyState').style.display   = 'flex';
+  document.getElementById('exportBtn').disabled = true;
+  REPORT = null;
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(function init() {
+  if (typeof checkAuth === 'function' && !checkAuth()) {
+    window.location.href = 'index.html'; return;
+  }
+  const client = sessionStorage.getItem('credlance_client')
+               || localStorage.getItem('credlance_active_client') || 'Demo Mode';
+  document.getElementById('sb-client-name').textContent = client;
+
+  DATA = (typeof loadFinancialData === 'function') ? loadFinancialData() : generateDemoData();
+  window._RATIO_DATA = DATA;
+
+  const isDemo = !DATA._mode || DATA._mode === 'demo' || DATA._mode === 'demo_with_data';
+  document.getElementById('demoChip').style.display = isDemo ? 'inline-flex' : 'none';
+})();
+</script>
+</body>
+</html>

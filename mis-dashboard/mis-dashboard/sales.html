@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Credlance MIS · Sales & Receivables</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/financials.js"></script>
+<style>
+:root {
+  --bg:       #0b0f1a;
+  --surface:  #111827;
+  --surface2: #1a2233;
+  --border:   #1f2d45;
+  --accent:   #00d4aa;
+  --accent2:  #0099ff;
+  --text:     #e2e8f0;
+  --muted:    #6b7280;
+  --red:      #ef4444;
+  --amber:    #f59e0b;
+  --green:    #22c55e;
+  --purple:   #a855f7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+/* ── Layout ─────────────────────────────────────────── */
+.app-shell { display: flex; height: 100vh; }
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.sidebar {
+  width: 220px; min-width: 220px; background: var(--surface);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar-logo { padding: 20px 18px 14px; font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -.4px; border-bottom: 1px solid var(--border); }
+.sidebar-logo span { color: var(--muted); font-size: 11px; font-weight: 400; display: block; margin-top: 2px; }
+.nav-group { padding: 10px 0; }
+.nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 6px 18px 4px; letter-spacing: .8px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; color: var(--text); text-decoration: none; font-size: 13px; border-left: 3px solid transparent; transition: background .15s; }
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--surface2); border-left-color: var(--accent); color: var(--accent); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding: 12px 18px; border-top: 1px solid var(--border); }
+.client-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.client-badge strong { display: block; color: var(--text); font-size: 13px; }
+
+/* ── Main ─────────────────────────────────────────────── */
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 700; }
+.page-title span { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 8px; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.controls label { font-size: 12px; color: var(--muted); }
+.controls select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; }
+.controls select:focus { border-color: var(--accent); }
+
+/* ── Demo Banner ──────────────────────────────────────── */
+.demo-banner { background: linear-gradient(90deg,rgba(0,212,170,.12),rgba(0,153,255,.08)); border: 1px solid rgba(0,212,170,.3); border-radius: 8px; padding: 8px 14px; font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+
+/* ── Section Headers ─────────────────────────────────── */
+.section-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 16px; }
+.section-divider h2 { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── KPI Tiles ────────────────────────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; }
+.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.kpi-card.c-teal::before   { background: var(--accent); }
+.kpi-card.c-blue::before   { background: var(--accent2); }
+.kpi-card.c-amber::before  { background: var(--amber); }
+.kpi-card.c-green::before  { background: var(--green); }
+.kpi-card.c-red::before    { background: var(--red); }
+.kpi-card.c-purple::before { background: var(--purple); }
+.kpi-label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: .6px; margin-bottom: 6px; }
+.kpi-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.kpi-value .unit { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+.kpi-sub { margin-top: 5px; font-size: 11px; color: var(--muted); }
+.kpi-sub .g { color: var(--green); } .kpi-sub .r { color: var(--red); } .kpi-sub .a { color: var(--amber); }
+
+/* ── Chart Cards ─────────────────────────────────────── */
+.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: 24px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.chart-card.full { grid-column: 1 / -1; }
+.chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+.chart-title { font-size: 13px; font-weight: 600; }
+.chart-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.chart-body { position: relative; min-height: 220px; }
+.chart-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ── Ageing Tables ────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; padding: 9px 12px; text-align: right; font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+thead th:first-child { text-align: left; }
+tbody tr { border-bottom: 1px solid rgba(31,45,69,0.5); transition: background .1s; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 9px 12px; text-align: right; color: var(--text); white-space: nowrap; }
+tbody td:first-child { text-align: left; color: var(--text); }
+tfoot td { padding: 10px 12px; text-align: right; font-weight: 700; border-top: 1px solid var(--border); color: var(--text); }
+tfoot td:first-child { text-align: left; color: var(--accent); }
+.overdue-30 { color: var(--amber); }
+.overdue-60 { color: #fb923c; }
+.overdue-90 { color: var(--red); }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.badge-green  { background: rgba(34,197,94,.15);  color: var(--green); }
+.badge-amber  { background: rgba(245,158,11,.15); color: var(--amber); }
+.badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+.badge-blue   { background: rgba(0,153,255,.15);  color: var(--accent2); }
+
+/* ── GST / TDS Summary Table ─────────────────────────── */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+
+/* ── Top Clients Bar ─────────────────────────────────── */
+.top-client-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tc-name { width: 130px; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.tc-bar-wrap { flex: 1; background: var(--surface2); border-radius: 3px; height: 16px; overflow: hidden; }
+.tc-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #00d4aa, #00a886); transition: width .4s; }
+.tc-val { width: 65px; text-align: right; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.tc-pct { width: 40px; text-align: right; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+/* ── DPO Alert Banner ────────────────────────────────── */
+.alert-row td { background: rgba(239,68,68,.05); }
+.due-soon td  { background: rgba(245,158,11,.05); }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { width: 54px; min-width: 54px; }
+  .sidebar-logo, .nav-label, .nav-item span, .client-badge { display: none; }
+  .nav-item { justify-content: center; padding: 10px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-card.full { grid-column: 1; }
+  .summary-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) { .main { padding: 12px; } .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">Credlance<span>MIS Dashboard</span></div>
+    <div class="nav-group">
+      <div class="nav-label">Navigation</div>
+      <a class="nav-item" href="index.html"><span class="icon">🏠</span><span>Home</span></a>
+      <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span>Dashboard</span></a>
+      <a class="nav-item" href="financials.html"><span class="icon">📋</span><span>Financials</span></a>
+      <a class="nav-item active" href="sales.html"><span class="icon">💼</span><span>Sales &amp; AR/AP</span></a>
+      <a class="nav-item" href="analyzer.html"><span class="icon">🤖</span><span>Analyzer</span></a>
+      <a class="nav-item" href="admin.html"><span class="icon">⚙️</span><span>Admin</span></a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="client-badge">
+        <strong id="sb-client-name">Demo Mode</strong>
+        <span>FY 2025-26</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">Sales &amp; Receivables / Payables<span id="month-label">· Sep 2025</span></div>
+      </div>
+      <div class="controls">
+        <label for="monthSel">Month</label>
+        <select id="monthSel">
+          <option value="0">Apr 2025</option><option value="1">May 2025</option>
+          <option value="2">Jun 2025</option><option value="3">Jul 2025</option>
+          <option value="4">Aug 2025</option><option value="5" selected>Sep 2025</option>
+          <option value="6">Oct 2025</option><option value="7">Nov 2025</option>
+          <option value="8">Dec 2025</option><option value="9">Jan 2026</option>
+          <option value="10">Feb 2026</option><option value="11">Mar 2026</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="demo-banner">
+      📊 <strong>Demo Mode</strong> — Illustrative data for a mid-size Indian professional services firm. Upload Sales Register, AR Ageing and AP Ageing templates via Home → Upload Templates to use live data.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ SALES ═══ -->
+    <div class="section-divider"><h2>💼 Sales Overview</h2></div>
+
+    <!-- Sales KPIs -->
+    <div class="kpi-grid" id="salesKpiGrid"></div>
+
+    <!-- Charts row -->
+    <div class="charts-grid">
+
+      <!-- Revenue Trend -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Monthly Revenue Trend</div>
+            <div class="chart-sub">Actuals vs Budget (₹ Lakhs)</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>Actual</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0099ff;opacity:.5"></div>Budget</div>
+          </div>
+        </div>
+        <div class="chart-body"><canvas id="revTrendChart"></canvas></div>
+      </div>
+
+      <!-- Top 10 Clients -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Top 10 Clients by Revenue</div>
+            <div class="chart-sub" id="topClientSub">YTD Apr–Sep 2025 (₹ Lakhs)</div>
+          </div>
+        </div>
+        <div id="topClientsBody" style="padding-top:4px"></div>
+      </div>
+
+    </div>
+
+    <!-- GST & TDS Summary -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="chart-title" style="margin-bottom:14px">GST Summary</div>
+        <table>
+          <thead><tr>
+            <th style="text-align:left">Month</th>
+            <th>Taxable (₹L)</th>
+            <th>GST @ 18% (₹L)</th>
+            <th>Total Invoice (₹L)</th>
+          </tr></thead>
+          <tbody id="gstTableBody"></tbody>
+          <tfoot><tr>
+            <td>YTD Total</td>
+            <td id="gstTaxableYTD"></td>
+            <td id="gstAmtYTD"></td>
+            <td id="gstTotalYTD"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="summary-card">
+        <div class="chart-title" style="margin-bottom:14px">TDS Summary</div>
+        <table>
+          <thead><tr>
+            <th style="text-align:left">Month</th>
+            <th>Invoice (₹L)</th>
+            <th>TDS @ 10% (₹L)</th>
+            <th>Net Receipt (₹L)</th>
+          </tr></thead>
+          <tbody id="tdsTableBody"></tbody>
+          <tfoot><tr>
+            <td>YTD Total</td>
+            <td id="tdsTotalYTD"></td>
+            <td id="tdsAmtYTD"></td>
+            <td id="tdsNetYTD"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ AR ════ -->
+    <div class="section-divider"><h2>📥 AR Ageing — Debtors</h2></div>
+
+    <!-- AR KPIs -->
+    <div class="kpi-grid" id="arKpiGrid"></div>
+
+    <!-- AR Ageing Chart + Table -->
+    <div class="charts-grid" style="margin-bottom:18px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">AR Ageing Buckets</div>
+            <div class="chart-sub">Outstanding by age band (₹ Lakhs)</div>
+          </div>
+        </div>
+        <div class="chart-body"><canvas id="arAgeingChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Collection Trend</div>
+            <div class="chart-sub">Monthly AR collected vs invoiced (₹ Lakhs)</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>Invoiced</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Collected</div>
+          </div>
+        </div>
+        <div class="chart-body"><canvas id="collectionChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
+      <div class="chart-header">
+        <div><div class="chart-title">Debtor-wise AR Ageing</div><div class="chart-sub" id="arTableSub">As at Sep 2025</div></div>
+        <div id="arEfficiencyBadge"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Client</th>
+            <th>0–30 Days</th>
+            <th>31–60 Days</th>
+            <th>61–90 Days</th>
+            <th>90+ Days</th>
+            <th>Total O/S</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="arTableBody"></tbody>
+          <tfoot><tr>
+            <td>Total</td>
+            <td id="ar0"></td><td id="ar30"></td><td id="ar60"></td><td id="ar90"></td>
+            <td id="arTotal"></td><td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ AP ════ -->
+    <div class="section-divider"><h2>📤 AP Ageing — Creditors</h2></div>
+
+    <!-- AP KPIs -->
+    <div class="kpi-grid" id="apKpiGrid"></div>
+
+    <!-- AP Ageing Chart + Table -->
+    <div class="charts-grid" style="margin-bottom:18px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">AP Ageing Buckets</div>
+            <div class="chart-sub">Outstanding payables by age band (₹ Lakhs)</div>
+          </div>
+        </div>
+        <div class="chart-body"><canvas id="apAgeingChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Payment Trend</div>
+            <div class="chart-sub">Monthly payables due vs paid (₹ Lakhs)</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Due</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div>Paid</div>
+          </div>
+        </div>
+        <div class="chart-body"><canvas id="paymentChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
+      <div class="chart-header">
+        <div><div class="chart-title">Creditor-wise AP Ageing</div><div class="chart-sub" id="apTableSub">As at Sep 2025</div></div>
+        <div id="apDPOBadge"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Vendor</th>
+            <th>0–30 Days</th>
+            <th>31–60 Days</th>
+            <th>61–90 Days</th>
+            <th>90+ Days</th>
+            <th>Total O/S</th>
+            <th>Alert</th>
+          </tr></thead>
+          <tbody id="apTableBody"></tbody>
+          <tfoot><tr>
+            <td>Total</td>
+            <td id="ap0"></td><td id="ap30"></td><td id="ap60"></td><td id="ap90"></td>
+            <td id="apTotal"></td><td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let MONTH = 5;
+let DATA  = null;
+let charts = {};
+
+// ── Format helpers ────────────────────────────────────────────────────────
+const FY_MONTHS = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+function fyLabel(i) { return FY_MONTHS[i] + '-' + (i >= 9 ? '26' : '25'); }
+function inrL(v, d=1) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  const s   = abs.toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return (v < 0 ? '(' : '') + '₹' + s + 'L' + (v < 0 ? ')' : '');
+}
+function inrNum(v, d=1) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  const s   = abs.toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return v < 0 ? `(${s})` : s;
+}
+function pct(v, d=1) { if (v == null || !isFinite(v)) return '—'; return v.toFixed(d) + '%'; }
+
+// ── Demo Data Generators ──────────────────────────────────────────────────
+
+// Demo sales register: 15 clients, monthly revenue allocation
+function generateDemoSalesData() {
+  const clients = [
+    { name: 'Infosys BPM Ltd',        share: 0.14 },
+    { name: 'HDFC Bank Ltd',           share: 0.12 },
+    { name: 'Tata Consultancy Svcs',   share: 0.10 },
+    { name: 'Wipro Technologies',      share: 0.09 },
+    { name: 'Reliance Industries',     share: 0.08 },
+    { name: 'Mahindra & Mahindra',     share: 0.07 },
+    { name: 'ICICI Bank Ltd',          share: 0.07 },
+    { name: 'Bajaj Finance Ltd',       share: 0.06 },
+    { name: 'L&T Finance Holdings',    share: 0.06 },
+    { name: 'Muthoot Finance',         share: 0.05 },
+    { name: 'Cholamandalam Fin',       share: 0.04 },
+    { name: 'Sundaram Finance',        share: 0.04 },
+    { name: 'Aavas Financiers',        share: 0.03 },
+    { name: 'Home First Finance',      share: 0.03 },
+    { name: 'Others (Misc)',           share: 0.02 },
+  ];
+
+  const rev = DATA.actual.revenue_ops;  // monthly actuals
+
+  // client × month revenue matrix
+  const matrix = clients.map(c => ({
+    name: c.name,
+    monthly: rev.map(r => +(r * c.share).toFixed(2)),
+  }));
+
+  return { clients: matrix };
+}
+
+// Demo AR Ageing: debtor-wise, roughly tied to revenue * DSO assumptions
+function generateDemoARData(monthIdx) {
+  // Use BS trade receivables as total
+  const totalAR = DATA.bs[monthIdx].trade_receivables;
+  // Split into buckets: 55% current, 25% 31-60, 12% 61-90, 8% 90+
+  const buckets = [0.55, 0.25, 0.12, 0.08];
+  const clients = [
+    'Infosys BPM Ltd', 'HDFC Bank Ltd', 'Tata Consultancy Svcs',
+    'Wipro Technologies', 'Reliance Industries', 'Mahindra & Mahindra',
+    'ICICI Bank Ltd', 'Bajaj Finance Ltd', 'L&T Finance Holdings', 'Muthoot Finance'
+  ];
+  const shares = [0.16,0.14,0.12,0.11,0.10,0.09,0.09,0.08,0.07,0.04];
+
+  const rows = clients.map((name, i) => {
+    const tot = +(totalAR * shares[i]).toFixed(2);
+    // vary bucket split per client slightly
+    const seed = (i + 1) * 7 % 5;
+    const b0 = +(tot * Math.min(0.80, buckets[0] + seed * 0.03)).toFixed(2);
+    const b1 = +(tot * Math.max(0.10, buckets[1] - seed * 0.01)).toFixed(2);
+    const b2 = +(tot * buckets[2]).toFixed(2);
+    const b3 = +(tot - b0 - b1 - b2).toFixed(2);
+    return { name, b0, b1, b2, b3, total: tot };
+  });
+
+  return { rows, totalAR };
+}
+
+// Demo AP Ageing
+function generateDemoAPData(monthIdx) {
+  const dc = DATA.actual.direct_costs[monthIdx];
+  // Use BS trade payables
+  const totalAP = DATA.bs[monthIdx].trade_payables;
+  const buckets = [0.60, 0.25, 0.10, 0.05];
+  const vendors = [
+    'Cloud Services Pvt Ltd', 'TechSolve India',  'DataBridge Solutions',
+    'Offshore Analytics', 'Printcraft Systems',
+    'Office Depot India', 'SecureNet Services', 'Swiggy Corporate'
+  ];
+  const shares = [0.22, 0.18, 0.15, 0.14, 0.12, 0.08, 0.07, 0.04];
+
+  const rows = vendors.map((name, i) => {
+    const tot = +(totalAP * shares[i]).toFixed(2);
+    const seed = (i * 3 + 2) % 4;
+    const b0 = +(tot * Math.min(0.85, buckets[0] + seed * 0.04)).toFixed(2);
+    const b1 = +(tot * Math.max(0.08, buckets[1] - seed * 0.02)).toFixed(2);
+    const b2 = +(tot * buckets[2]).toFixed(2);
+    const b3 = +(tot - b0 - b1 - b2).toFixed(2);
+    return { name, b0, b1, b2, b3: Math.max(0, b3), total: tot };
+  });
+
+  return { rows, totalAP };
+}
+
+// ── Chart.js defaults ─────────────────────────────────────────────────────
+Chart.defaults.color       = '#6b7280';
+Chart.defaults.borderColor = '#1f2d45';
+Chart.defaults.font.size   = 12;
+Chart.defaults.plugins.legend.display       = false;
+Chart.defaults.plugins.tooltip.backgroundColor = '#1a2233';
+Chart.defaults.plugins.tooltip.borderColor     = '#1f2d45';
+Chart.defaults.plugins.tooltip.borderWidth     = 1;
+Chart.defaults.plugins.tooltip.padding         = 10;
+Chart.defaults.plugins.tooltip.titleColor      = '#e2e8f0';
+Chart.defaults.plugins.tooltip.bodyColor       = '#9ca3af';
+Chart.defaults.plugins.tooltip.cornerRadius    = 6;
+
+// ── Sales Section ─────────────────────────────────────────────────────────
+function renderSalesKPIs(salesData) {
+  const A = DATA.actual; const B = DATA.budget;
+  const i = MONTH;
+  const ytdRev  = A.revenue_ops.slice(0, i + 1).reduce((s,v)=>s+v,0);
+  const ytdBud  = B.revenue_ops.slice(0, i + 1).reduce((s,v)=>s+v,0);
+  const ytdVsBud = ytdBud > 0 ? (ytdRev - ytdBud) / ytdBud * 100 : null;
+  const gstAmt   = +(ytdRev * 0.18).toFixed(2);
+  const tdsAmt   = +(ytdRev * 0.10).toFixed(2);
+  const netReceipt = +(ytdRev + gstAmt - tdsAmt).toFixed(2);
+
+  // Concentration: top 3 client share of YTD revenue
+  const clientYTD = salesData.clients.map(c => ({ name: c.name, ytd: c.monthly.slice(0, i+1).reduce((s,v)=>s+v,0) }));
+  clientYTD.sort((a,b) => b.ytd - a.ytd);
+  const top3Share = ytdRev > 0 ? clientYTD.slice(0,3).reduce((s,c)=>s+c.ytd,0) / ytdRev * 100 : 0;
+
+  const kpis = [
+    { label: 'YTD Revenue',   value: inrL(ytdRev), sub: `vs Budget: <span class="${ytdVsBud>=0?'g':'r'}">${ytdVsBud!=null?(ytdVsBud>=0?'+':'')+ytdVsBud.toFixed(1)+'%':'—'}</span>`, c: 'c-teal' },
+    { label: 'Current Month', value: inrL(A.revenue_ops[i]), sub: `Budget: ${inrL(B.revenue_ops[i])}`, c: 'c-blue' },
+    { label: 'GST Payable (YTD)', value: inrL(gstAmt), sub: '@ 18% on revenue', c: 'c-amber' },
+    { label: 'TDS Receivable (YTD)', value: inrL(tdsAmt), sub: '@ 10% deducted by clients', c: 'c-green' },
+    { label: 'Active Clients',  value: salesData.clients.length, sub: `Top 3 = <span class="${top3Share>60?'r':'g'}">${pct(top3Share)}</span> of revenue`, c: top3Share>60?'c-red':'c-purple' },
+  ];
+
+  document.getElementById('salesKpiGrid').innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.c}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function buildRevTrendChart() {
+  const A = DATA.actual; const B = DATA.budget;
+  const labels = FY_MONTHS;
+  if (charts.revTrend) charts.revTrend.destroy();
+  const ctx = document.getElementById('revTrendChart').getContext('2d');
+  charts.revTrend = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Budget', type:'line', data: B.revenue_ops, borderColor:'rgba(0,153,255,0.45)', borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false, tension:0.3 },
+        { label:'Actual', data: A.revenue_ops, backgroundColor: A.revenue_ops.map((_,i) => i===MONTH?'#00d4aa':'rgba(0,212,170,0.45)'), borderColor: A.revenue_ops.map((_,i)=>i===MONTH?'#00d4aa':'rgba(0,212,170,0.3)'), borderWidth:1, borderRadius:3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales: {
+        x: { grid:{ color:'rgba(31,45,69,0.6)' } },
+        y: { grid:{ color:'rgba(31,45,69,0.6)' }, ticks:{ callback: v=>'₹'+v+'L' } }
+      },
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{ label: c=>` ${c.dataset.label}: ₹${inrNum(c.parsed.y)}L` } } }
+    }
+  });
+}
+
+function renderTopClients(salesData) {
+  const i = MONTH;
+  const ytds = salesData.clients.map(c => ({ name: c.name, ytd: +(c.monthly.slice(0, i+1).reduce((s,v)=>s+v,0)).toFixed(2) }));
+  ytds.sort((a,b) => b.ytd - a.ytd);
+  const top10   = ytds.slice(0, 10);
+  const maxVal  = top10[0]?.ytd || 1;
+  const total   = ytds.reduce((s,c)=>s+c.ytd,0);
+
+  document.getElementById('topClientSub').textContent = `YTD Apr–${fyLabel(i)} (₹ Lakhs)`;
+
+  document.getElementById('topClientsBody').innerHTML = top10.map((c, idx) => {
+    const share = total > 0 ? (c.ytd / total * 100) : 0;
+    const barW  = (c.ytd / maxVal * 100).toFixed(1);
+    const color = idx < 3 ? '#00d4aa' : idx < 6 ? '#0099ff' : '#6b7280';
+    return `
+      <div class="top-client-row">
+        <div class="tc-name" title="${c.name}">${idx+1}. ${c.name}</div>
+        <div class="tc-bar-wrap"><div class="tc-bar" style="width:${barW}%;background:${color}"></div></div>
+        <div class="tc-val">₹${inrNum(c.ytd)}L</div>
+        <div class="tc-pct">${pct(share)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderGSTTDSTables() {
+  const A = DATA.actual;
+  const months = Array.from({length: MONTH+1}, (_,i) => i);
+  let taxableYTD=0, gstYTD=0, totalYTD=0;
+  let invoiceYTD=0, tdsYTD=0, netYTD=0;
+
+  const gstRows = months.map(i => {
+    const taxable = A.revenue_ops[i];
+    const gst     = +(taxable * 0.18).toFixed(2);
+    const total   = +(taxable + gst).toFixed(2);
+    taxableYTD += taxable; gstYTD += gst; totalYTD += total;
+    return `<tr><td>${fyLabel(i)}</td><td>${inrNum(taxable)}</td><td>${inrNum(gst)}</td><td>${inrNum(total)}</td></tr>`;
+  });
+
+  const tdsRows = months.map(i => {
+    const invoice = A.revenue_ops[i];
+    const tds     = +(invoice * 0.10).toFixed(2);
+    const net     = +(invoice - tds).toFixed(2);
+    invoiceYTD += invoice; tdsYTD += tds; netYTD += net;
+    return `<tr><td>${fyLabel(i)}</td><td>${inrNum(invoice)}</td><td>${inrNum(tds)}</td><td>${inrNum(net)}</td></tr>`;
+  });
+
+  document.getElementById('gstTableBody').innerHTML = gstRows.join('');
+  document.getElementById('gstTaxableYTD').textContent = inrNum(taxableYTD);
+  document.getElementById('gstAmtYTD').textContent     = inrNum(gstYTD);
+  document.getElementById('gstTotalYTD').textContent   = inrNum(totalYTD);
+
+  document.getElementById('tdsTableBody').innerHTML = tdsRows.join('');
+  document.getElementById('tdsTotalYTD').textContent   = inrNum(invoiceYTD);
+  document.getElementById('tdsAmtYTD').textContent     = inrNum(tdsYTD);
+  document.getElementById('tdsNetYTD').textContent     = inrNum(netYTD);
+}
+
+// ── AR Section ────────────────────────────────────────────────────────────
+function renderARKPIs(arData) {
+  const A   = DATA.actual;
+  const bs  = DATA.bs[MONTH];
+  const rev = A.revenue_ops[MONTH];
+  const { totalAR } = arData;
+
+  const dso   = rev > 0 ? (totalAR / rev * 30) : null;
+  const overdue = arData.rows.reduce((s,r) => s + r.b1 + r.b2 + r.b3, 0);
+  const overdueP = totalAR > 0 ? (overdue / totalAR * 100) : 0;
+  // Collection efficiency: collected vs invoiced (simulate: invoiced = rev, collected = rev * 0.92)
+  const invoiced   = A.revenue_ops[MONTH];
+  const collected  = +(invoiced * (0.88 + MONTH * 0.004)).toFixed(2);
+  const collEff    = invoiced > 0 ? (collected / invoiced * 100) : null;
+
+  const kpis = [
+    { label: 'Total AR Outstanding', value: inrL(totalAR), sub: `As at ${fyLabel(MONTH)}`, c: 'c-blue' },
+    { label: 'Debtor Days (DSO)',     value: dso != null ? Math.round(dso)+'d' : '—', sub: dso > 45 ? '<span class="r">Above 45-day threshold</span>' : '<span class="g">Within target</span>', c: dso > 45 ? 'c-red' : 'c-teal' },
+    { label: 'Overdue (>30 Days)',    value: inrL(overdue), sub: `<span class="${overdueP>30?'r':'a'}">${pct(overdueP)}</span> of total AR`, c: overdueP > 30 ? 'c-red' : 'c-amber' },
+    { label: 'Collection Efficiency', value: pct(collEff), sub: 'Current month collected / invoiced', c: collEff >= 90 ? 'c-green' : collEff >= 80 ? 'c-amber' : 'c-red' },
+    { label: 'No. of Debtors',        value: arData.rows.length, sub: 'Active debtor accounts', c: 'c-purple' },
+  ];
+
+  document.getElementById('arKpiGrid').innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.c}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function buildARCharts(arData) {
+  // Ageing bucket chart
+  const bucketLabels = ['0–30 Days', '31–60 Days', '61–90 Days', '90+ Days'];
+  const bucketTotals = [
+    arData.rows.reduce((s,r) => s+r.b0, 0),
+    arData.rows.reduce((s,r) => s+r.b1, 0),
+    arData.rows.reduce((s,r) => s+r.b2, 0),
+    arData.rows.reduce((s,r) => s+r.b3, 0),
+  ];
+
+  if (charts.arAgeing) charts.arAgeing.destroy();
+  const ctx1 = document.getElementById('arAgeingChart').getContext('2d');
+  charts.arAgeing = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: bucketLabels,
+      datasets: [{
+        data: bucketTotals,
+        backgroundColor: ['rgba(0,212,170,0.7)','rgba(245,158,11,0.7)','rgba(251,146,60,0.7)','rgba(239,68,68,0.7)'],
+        borderColor: ['#00d4aa','#f59e0b','#fb923c','#ef4444'],
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: { x:{ grid:{color:'rgba(31,45,69,0.6)'} }, y:{ grid:{color:'rgba(31,45,69,0.6)'}, ticks:{ callback: v=>'₹'+v+'L' } } },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c=>` ₹${inrNum(c.parsed.y)}L` } } }
+    }
+  });
+
+  // Collection trend (last 6 months)
+  const start = Math.max(0, MONTH - 5);
+  const mRange = Array.from({length: MONTH - start + 1}, (_,k) => start+k);
+  const A = DATA.actual;
+  const invoicedArr  = mRange.map(k => A.revenue_ops[k]);
+  const collectedArr = mRange.map((k,j) => +(A.revenue_ops[k] * (0.88 + k*0.004)).toFixed(2));
+
+  if (charts.collection) charts.collection.destroy();
+  const ctx2 = document.getElementById('collectionChart').getContext('2d');
+  charts.collection = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: mRange.map(fyLabel),
+      datasets: [
+        { label:'Invoiced', data: invoicedArr, backgroundColor:'rgba(0,212,170,0.4)', borderColor:'#00d4aa', borderWidth:1, borderRadius:3 },
+        { label:'Collected', data: collectedArr, backgroundColor:'rgba(168,85,247,0.4)', borderColor:'#a855f7', borderWidth:1, borderRadius:3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales: { x:{grid:{color:'rgba(31,45,69,0.6)'}}, y:{grid:{color:'rgba(31,45,69,0.6)'}, ticks:{callback:v=>'₹'+v+'L'}} },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c=>` ${c.dataset.label}: ₹${inrNum(c.parsed.y)}L` } } }
+    }
+  });
+}
+
+function renderARTable(arData) {
+  document.getElementById('arTableSub').textContent = `As at ${fyLabel(MONTH)}`;
+
+  // Collection efficiency badge
+  const A = DATA.actual;
+  const eff = (A.revenue_ops[MONTH] > 0) ? ((A.revenue_ops[MONTH]*0.92)/A.revenue_ops[MONTH]*100) : null;
+  document.getElementById('arEfficiencyBadge').innerHTML =
+    `<span class="badge ${eff>=90?'badge-green':eff>=80?'badge-amber':'badge-red'}">Collection Efficiency: ${pct(eff)}</span>`;
+
+  let sum0=0, sum1=0, sum2=0, sum3=0, sumTot=0;
+  const rows = arData.rows.map(r => {
+    sum0+=r.b0; sum1+=r.b1; sum2+=r.b2; sum3+=r.b3; sumTot+=r.total;
+    const pctOver = r.total > 0 ? ((r.b1+r.b2+r.b3)/r.total*100) : 0;
+    const status  = pctOver > 50 ? '<span class="badge badge-red">High Overdue</span>'
+                  : pctOver > 20 ? '<span class="badge badge-amber">Watch</span>'
+                  : '<span class="badge badge-green">Current</span>';
+    return `<tr>
+      <td>${r.name}</td>
+      <td>${inrNum(r.b0)}</td>
+      <td class="overdue-30">${inrNum(r.b1)}</td>
+      <td class="overdue-60">${inrNum(r.b2)}</td>
+      <td class="overdue-90">${inrNum(r.b3)}</td>
+      <td><strong>${inrNum(r.total)}</strong></td>
+      <td>${status}</td>
+    </tr>`;
+  });
+
+  document.getElementById('arTableBody').innerHTML = rows.join('');
+  document.getElementById('ar0').textContent    = inrNum(sum0);
+  document.getElementById('ar30').textContent   = inrNum(sum1);
+  document.getElementById('ar60').textContent   = inrNum(sum2);
+  document.getElementById('ar90').textContent   = inrNum(sum3);
+  document.getElementById('arTotal').textContent = inrNum(sumTot);
+}
+
+// ── AP Section ────────────────────────────────────────────────────────────
+function renderAPKPIs(apData) {
+  const A   = DATA.actual;
+  const dc  = A.direct_costs[MONTH];
+  const { totalAP } = apData;
+
+  const dpo     = dc > 0 ? (totalAP / dc * 30) : null;
+  const overdue = apData.rows.reduce((s,r) => s + r.b1 + r.b2 + r.b3, 0);
+  const overdueP = totalAP > 0 ? (overdue / totalAP * 100) : 0;
+  const dueSoon  = apData.rows.reduce((s,r) => s + r.b0, 0); // due within 30 days
+
+  const kpis = [
+    { label: 'Total AP Outstanding', value: inrL(totalAP), sub: `As at ${fyLabel(MONTH)}`, c: 'c-amber' },
+    { label: 'Days Payable (DPO)',    value: dpo != null ? Math.round(dpo)+'d' : '—', sub: dpo < 20 ? '<span class="r">Low — paying too early</span>' : '<span class="g">Healthy payment cycle</span>', c: dpo < 20 ? 'c-red' : 'c-teal' },
+    { label: 'Overdue (>30 Days)',    value: inrL(overdue), sub: `<span class="${overdueP>25?'r':'g'}">${pct(overdueP)}</span> of total AP`, c: overdueP > 25 ? 'c-red' : 'c-green' },
+    { label: 'Due Within 30 Days',   value: inrL(dueSoon), sub: 'Payments falling due soon', c: 'c-blue' },
+    { label: 'No. of Creditors',      value: apData.rows.length, sub: 'Active vendor accounts', c: 'c-purple' },
+  ];
+
+  document.getElementById('apKpiGrid').innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.c}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function buildAPCharts(apData) {
+  const bucketLabels = ['0–30 Days', '31–60 Days', '61–90 Days', '90+ Days'];
+  const bucketTotals = [
+    apData.rows.reduce((s,r)=>s+r.b0,0),
+    apData.rows.reduce((s,r)=>s+r.b1,0),
+    apData.rows.reduce((s,r)=>s+r.b2,0),
+    apData.rows.reduce((s,r)=>s+r.b3,0),
+  ];
+
+  if (charts.apAgeing) charts.apAgeing.destroy();
+  const ctx1 = document.getElementById('apAgeingChart').getContext('2d');
+  charts.apAgeing = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: bucketLabels,
+      datasets: [{
+        data: bucketTotals,
+        backgroundColor: ['rgba(245,158,11,0.7)','rgba(251,146,60,0.65)','rgba(239,68,68,0.65)','rgba(185,28,28,0.7)'],
+        borderColor: ['#f59e0b','#fb923c','#ef4444','#b91c1c'],
+        borderWidth:1, borderRadius:4
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: { x:{grid:{color:'rgba(31,45,69,0.6)'}}, y:{grid:{color:'rgba(31,45,69,0.6)'}, ticks:{callback:v=>'₹'+v+'L'}} },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c=>` ₹${inrNum(c.parsed.y)}L` } } }
+    }
+  });
+
+  // Payment trend (last 6 months)
+  const start  = Math.max(0, MONTH - 5);
+  const mRange = Array.from({length: MONTH - start + 1}, (_,k) => start+k);
+  const A      = DATA.actual;
+  const dueArr = mRange.map(k => A.direct_costs[k]);
+  const paidArr = mRange.map(k => +(A.direct_costs[k] * 0.94).toFixed(2));
+
+  if (charts.payment) charts.payment.destroy();
+  const ctx2 = document.getElementById('paymentChart').getContext('2d');
+  charts.payment = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: mRange.map(fyLabel),
+      datasets: [
+        { label:'Due',  data: dueArr,  backgroundColor:'rgba(245,158,11,0.4)', borderColor:'#f59e0b', borderWidth:1, borderRadius:3 },
+        { label:'Paid', data: paidArr, backgroundColor:'rgba(0,212,170,0.4)',  borderColor:'#00d4aa', borderWidth:1, borderRadius:3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      scales: { x:{grid:{color:'rgba(31,45,69,0.6)'}}, y:{grid:{color:'rgba(31,45,69,0.6)'}, ticks:{callback:v=>'₹'+v+'L'}} },
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c=>` ${c.dataset.label}: ₹${inrNum(c.parsed.y)}L` } } }
+    }
+  });
+}
+
+function renderAPTable(apData) {
+  document.getElementById('apTableSub').textContent = `As at ${fyLabel(MONTH)}`;
+
+  const A  = DATA.actual;
+  const dc = A.direct_costs[MONTH];
+  const dpo = dc > 0 ? Math.round(apData.totalAP / dc * 30) : null;
+  document.getElementById('apDPOBadge').innerHTML =
+    `<span class="badge ${dpo >= 20 ? 'badge-green' : 'badge-amber'}">DPO: ${dpo ? dpo+'d' : '—'}</span>`;
+
+  let sum0=0, sum1=0, sum2=0, sum3=0, sumTot=0;
+  const rows = apData.rows.map(r => {
+    sum0+=r.b0; sum1+=r.b1; sum2+=r.b2; sum3+=r.b3; sumTot+=r.total;
+    const overdue = r.b2 + r.b3;
+    const rowClass = r.b3 > 0.5 ? 'alert-row' : r.b2 > 0.5 ? 'due-soon' : '';
+    const alert = r.b3 > 0.5  ? `<span class="badge badge-red">Overdue 90+</span>`
+                : r.b2 > 0.5  ? `<span class="badge badge-amber">Due 61–90d</span>`
+                : r.b1 > 0.5  ? `<span class="badge badge-blue">Due 31–60d</span>`
+                : `<span class="badge badge-green">Current</span>`;
+    return `<tr class="${rowClass}">
+      <td>${r.name}</td>
+      <td>${inrNum(r.b0)}</td>
+      <td class="overdue-30">${inrNum(r.b1)}</td>
+      <td class="overdue-60">${inrNum(r.b2)}</td>
+      <td class="overdue-90">${inrNum(r.b3)}</td>
+      <td><strong>${inrNum(r.total)}</strong></td>
+      <td>${alert}</td>
+    </tr>`;
+  });
+
+  document.getElementById('apTableBody').innerHTML = rows.join('');
+  document.getElementById('ap0').textContent    = inrNum(sum0);
+  document.getElementById('ap30').textContent   = inrNum(sum1);
+  document.getElementById('ap60').textContent   = inrNum(sum2);
+  document.getElementById('ap90').textContent   = inrNum(sum3);
+  document.getElementById('apTotal').textContent = inrNum(sumTot);
+}
+
+// ── Master Refresh ─────────────────────────────────────────────────────────
+function refresh() {
+  document.getElementById('month-label').textContent = '· ' + fyLabel(MONTH);
+  const salesData = generateDemoSalesData();
+  const arData    = generateDemoARData(MONTH);
+  const apData    = generateDemoAPData(MONTH);
+
+  renderSalesKPIs(salesData);
+  buildRevTrendChart();
+  renderTopClients(salesData);
+  renderGSTTDSTables();
+
+  renderARKPIs(arData);
+  buildARCharts(arData);
+  renderARTable(arData);
+
+  renderAPKPIs(apData);
+  buildAPCharts(apData);
+  renderAPTable(apData);
+}
+
+// ── Month selector ────────────────────────────────────────────────────────
+document.getElementById('monthSel').addEventListener('change', function() {
+  MONTH = parseInt(this.value);
+  refresh();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  if (typeof checkAuth === 'function') {
+    if (!checkAuth()) { window.location.href = 'index.html'; return; }
+  }
+  const client = sessionStorage.getItem('credlance_client')
+               || localStorage.getItem('credlance_active_client') || 'Demo Mode';
+  document.getElementById('sb-client-name').textContent = client;
+
+  DATA = (typeof loadFinancialData === 'function') ? loadFinancialData() : generateDemoData();
+  refresh();
+})();
+</script>
+</body>
+</html>
