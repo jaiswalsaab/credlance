@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COGS Contribution Bridge Analyser | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --red-bg: rgba(255,76,106,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* NAV */
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(11,15,26,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 60px; }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge { background: var(--surface2); color: var(--accent); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* HERO */
+    .hero { padding: 3rem 2rem 2rem; text-align: center; max-width: 760px; margin: 0 auto; }
+    .hero h1 { font-size: 2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 560px; margin: 0 auto; }
+
+    /* WIZARD */
+    .wizard-wrap { max-width: 860px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+    /* STEP INDICATOR */
+    .step-indicator { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 2.5rem; }
+    .step-dot { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; cursor: default; }
+    .step-dot .dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--muted); font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.25s; }
+    .step-dot.active .dot { border-color: var(--accent); background: var(--accent); color: #0b0f1a; }
+    .step-dot.done .dot { border-color: var(--accent2); background: var(--accent2); color: #0b0f1a; }
+    .step-dot .label { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+    .step-dot.active .label { color: var(--accent); }
+    .step-line { width: 60px; height: 2px; background: var(--border); margin: 0 4px; position: relative; top: -10px; }
+    .step-line.done { background: var(--accent2); }
+
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem 2rem; margin-bottom: 1.25rem; }
+    .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .card-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.25rem; }
+
+    /* CHOICE BUTTONS */
+    .choice-group { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .choice-btn { background: var(--surface2); border: 2px solid var(--border); color: var(--muted); padding: 0.65rem 1.25rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .choice-btn:hover { border-color: var(--accent); color: var(--text); }
+    .choice-btn.selected { border-color: var(--accent); background: rgba(0,212,170,0.08); color: var(--accent); font-weight: 600; }
+
+    /* UPLOAD CARDS */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+    .upload-card { background: var(--surface2); border: 2px dashed var(--border); border-radius: 12px; padding: 1.25rem; cursor: pointer; transition: all 0.2s; position: relative; }
+    .upload-card:hover { border-color: var(--accent); background: rgba(0,212,170,0.03); }
+    .upload-card.uploaded { border-color: var(--accent2); border-style: solid; }
+    .upload-card .uc-label { font-size: 0.82rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+    .upload-card .uc-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .upload-card .uc-desc { font-size: 0.8rem; color: var(--muted); }
+    .upload-card .uc-status { margin-top: 0.75rem; font-size: 0.78rem; }
+    .upload-card .uc-status.ok { color: var(--green); }
+    .upload-card .uc-status.err { color: var(--red); }
+    .upload-card input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .uc-optional { font-size: 0.7rem; background: rgba(255,140,66,0.12); color: var(--orange); border: 1px solid rgba(255,140,66,0.2); padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+    .format-toggle { display: flex; gap: 0; margin-bottom: 0.6rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+    .format-toggle button { background: transparent; border: none; color: var(--muted); font-size: 0.75rem; padding: 4px 10px; cursor: pointer; transition: all 0.15s; }
+    .format-toggle button.active { background: var(--accent); color: #0b0f1a; font-weight: 700; }
+
+    /* CLASSIFICATION */
+    .cls-table-wrap { max-height: 420px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th { background: var(--surface2); color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 0.75rem; text-align: left; position: sticky; top: 0; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    tbody td { padding: 0.5rem 0.75rem; }
+    select.cls-sel { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; }
+    select.cls-sel:focus { outline: none; border-color: var(--accent); }
+
+    /* ENTITY SLUG */
+    .entity-input-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .entity-input-row label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+    .entity-input-row input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.88rem; flex: 1; max-width: 280px; }
+    .entity-input-row input:focus { outline: none; border-color: var(--accent); }
+
+    /* BUTTONS */
+    .btn-primary { background: var(--accent); color: #0b0f1a; border: none; padding: 0.65rem 1.75rem; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.92rem; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.5rem 1.1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-row { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
+
+    /* RESULTS */
+    #stepResults { display: none; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    /* KPI STRIP */
+    .kpi-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.75rem; }
+    @media (max-width:640px) { .kpi-strip { grid-template-columns: repeat(2,1fr); } }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+    .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+    .kpi-val { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .kpi-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .kpi-val.pos { color: var(--green); }
+    .kpi-val.neg { color: var(--red); }
+    .kpi-val.neutral { color: var(--accent); }
+
+    /* RECONCILIATION BADGE */
+    .recon-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.25rem; }
+    .recon-badge.pass { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .recon-badge.fail { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+
+    /* CHART */
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .chart-wrap h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem; }
+    .chart-container { position: relative; height: 340px; }
+
+    /* BRIDGE TABLE */
+    .bridge-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto; }
+    .bridge-table-wrap h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem; }
+    .bridge-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    .bridge-table th { background: var(--surface2); color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.65rem 0.9rem; text-align: left; }
+    .bridge-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); }
+    .bridge-table tr.total-row { font-weight: 700; background: var(--surface2); }
+    .bridge-table tr.recon-row { font-style: italic; }
+    .dir-fav { color: var(--green); }
+    .dir-adv { color: var(--red); }
+    .dir-neu { color: var(--muted); }
+    .amount-pos { color: var(--green); font-weight: 600; }
+    .amount-neg { color: var(--red); font-weight: 600; }
+
+    /* FOOTER DISCLAIMER */
+    .report-disclaimer { font-size: 0.75rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.85rem; margin-top: 1.5rem; font-style: italic; }
+
+    /* TOAST */
+    #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+    .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1.25rem; font-size: 0.88rem; min-width: 240px; max-width: 360px; display: flex; align-items: center; gap: 0.6rem; animation: slideIn 0.3s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .toast.success { border-color: rgba(34,197,94,0.3); }
+    .toast.error { border-color: rgba(255,76,106,0.3); }
+    .toast.info { border-color: rgba(0,212,170,0.3); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes fadeOut { to { opacity: 0; transform: translateX(30px); } }
+
+    /* VALUATION TOGGLE */
+    .val-toggle-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .val-toggle-row label { font-size: 0.85rem; color: var(--muted); }
+    .val-toggle { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .val-toggle button { background: transparent; border: none; color: var(--muted); font-size: 0.82rem; padding: 5px 14px; cursor: pointer; transition: all 0.15s; }
+    .val-toggle button.active { background: var(--accent); color: #0b0f1a; font-weight: 700; }
+
+    /* PRINT */
+    @media print {
+      nav, .step-indicator, .btn-row, .action-bar, #toast-container, #stepSetup, #stepUpload, #stepClassify { display: none !important; }
+      body { background: #fff; color: #000; }
+      .kpi-card, .chart-wrap, .bridge-table-wrap { border: 1px solid #ccc; background: #fff; }
+      .kpi-val.pos { color: #16a34a; }
+      .kpi-val.neg { color: #dc2626; }
+      .report-disclaimer { color: #555; border-top: 1px solid #ccc; }
+    }
+
+    /* MISC */
+    .section-sep { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .period-labels { display: flex; gap: 2rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .period-label { font-size: 0.8rem; color: var(--muted); }
+    .period-label strong { color: var(--text); }
+    .info-note { font-size: 0.8rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; margin-top: 0.75rem; }
+    .tag-pill { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 4px; }
+    .tag-mand { background: rgba(0,212,170,0.1); color: var(--accent); border: 1px solid rgba(0,212,170,0.2); }
+    .period-section-title { font-size: 0.8rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.6rem; margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <a href="index.html" class="nav-back">← Back to Apps</a>
+  <span class="nav-badge">COGS BRIDGE</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>COGS Contribution <span>Bridge Analyser</span></h1>
+  <p>Upload Tally exports, classify items, and get an instant waterfall showing exactly what drove your gross contribution change — volume, price, mix, or RM cost.</p>
+</div>
+
+<div class="wizard-wrap">
+
+  <!-- STEP INDICATOR -->
+  <div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active" id="sd1"><div class="dot">1</div><div class="label">Setup</div></div>
+    <div class="step-line" id="sl1"></div>
+    <div class="step-dot" id="sd2"><div class="dot">2</div><div class="label">Upload</div></div>
+    <div class="step-line" id="sl2"></div>
+    <div class="step-dot" id="sd3"><div class="dot">3</div><div class="label">Classify</div></div>
+    <div class="step-line" id="sl3"></div>
+    <div class="step-dot" id="sd4"><div class="dot">4</div><div class="label">Results</div></div>
+  </div>
+
+  <!-- ─── STEP 1: SETUP ─── -->
+  <div id="stepSetup">
+    <div class="card">
+      <div class="card-title">Company Type</div>
+      <div class="card-sub">Select the type of business entity you are analysing.</div>
+      <div class="choice-group" id="companyTypeGroup">
+        <button class="choice-btn selected" data-val="manufacturing" onclick="selectChoice('companyTypeGroup',this)">🏭 Manufacturing</button>
+        <button class="choice-btn" data-val="trading" onclick="selectChoice('companyTypeGroup',this)">🛒 Trading</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Comparison Mode</div>
+      <div class="card-sub">What periods are you comparing?</div>
+      <div class="choice-group" id="compModeGroup">
+        <button class="choice-btn selected" data-val="mom" onclick="selectChoice('compModeGroup',this)">📅 Month-on-Month</button>
+        <button class="choice-btn" data-val="yoy" onclick="selectChoice('compModeGroup',this)">📆 Year-on-Year</button>
+        <button class="choice-btn" data-val="qoq" onclick="selectChoice('compModeGroup',this)">🗓️ Quarter-on-Quarter</button>
+        <button class="choice-btn" data-val="bva" onclick="selectChoice('compModeGroup',this)">🎯 Budget vs Actual</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Period Labels</div>
+      <div class="card-sub">Give each period a short label (e.g. "Apr-25", "Q1 FY25", "Budget FY25").</div>
+      <div class="entity-input-row">
+        <label>Period 1 (Base):</label>
+        <input type="text" id="p1Label" placeholder="e.g. Apr-24" value="Period 1" />
+      </div>
+      <div class="entity-input-row">
+        <label>Period 2 (Current):</label>
+        <input type="text" id="p2Label" placeholder="e.g. Apr-25" value="Period 2" />
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Client / Entity Name</div>
+      <div class="card-sub">Used to save item classifications between sessions.</div>
+      <div class="entity-input-row">
+        <label>Entity Name:</label>
+        <input type="text" id="entitySlug" placeholder="e.g. ABC Industries" value="" />
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">BOM Linkage Method</div>
+      <div class="card-sub">How will you map raw materials to finished goods?</div>
+      <div class="choice-group" id="bomMethodGroup">
+        <button class="choice-btn selected" data-val="upload" onclick="selectChoice('bomMethodGroup',this)">📂 Upload Excel BOM</button>
+        <button class="choice-btn" data-val="manual" onclick="selectChoice('bomMethodGroup',this)">✏️ Manual In-App Mapping</button>
+        <button class="choice-btn" data-val="tally" onclick="selectChoice('bomMethodGroup',this)">📊 Tally Stock Transfer Journal</button>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="goToStep(2)">Next: Upload Files →</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2: UPLOAD ─── -->
+  <div id="stepUpload" style="display:none">
+    <div class="card">
+      <div class="card-title">Valuation Method for RM Cost</div>
+      <div class="card-sub">Affects how RM Price Effect is computed.</div>
+      <div class="val-toggle-row">
+        <label>Method:</label>
+        <div class="val-toggle" id="valMethod">
+          <button class="active" data-val="wavg" onclick="setValMethod(this)">Weighted Average</button>
+          <button data-val="fifo" onclick="setValMethod(this)">FIFO (Approx.)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Period 1 uploads -->
+    <div class="period-section-title">Period 1 — <span id="p1LabelDisplay">Base Period</span></div>
+    <div class="upload-grid">
+      <div class="upload-card" id="uc-sales-p1">
+        <div class="uc-label">Module 1 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Sales Register – P1</div>
+        <div class="uc-desc">Tally: Sales Register (Alt+F5, Alt+N monthly)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'sales-p1','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'sales-p1','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-sales-p1">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'sales-p1')" />
+      </div>
+      <div class="upload-card" id="uc-stock-p1">
+        <div class="uc-label">Module 2 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Stock Item Movement – P1</div>
+        <div class="uc-desc">Tally: Inventory Books → Stock Item (Summary)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'stock-p1','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'stock-p1','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-stock-p1">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'stock-p1')" />
+      </div>
+      <div class="upload-card" id="uc-purch-p1">
+        <div class="uc-label">Module 3 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Purchase Register – P1</div>
+        <div class="uc-desc">Tally: Purchase Register (Alt+F5, Alt+N monthly)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'purch-p1','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'purch-p1','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-purch-p1">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'purch-p1')" />
+      </div>
+      <div class="upload-card" id="uc-stj-p1">
+        <div class="uc-label">Module 4 <span class="uc-optional">Optional</span></div>
+        <div class="uc-name">Stock Transfer Journal – P1</div>
+        <div class="uc-desc">Tally: Inventory Books → Stock Transfer Journal Register</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'stj-p1','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'stj-p1','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-stj-p1">Optional — skip if trading</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'stj-p1')" />
+      </div>
+    </div>
+
+    <!-- Period 2 uploads -->
+    <div class="period-section-title" style="margin-top:1.75rem">Period 2 — <span id="p2LabelDisplay">Current Period</span></div>
+    <div class="upload-grid">
+      <div class="upload-card" id="uc-sales-p2">
+        <div class="uc-label">Module 1 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Sales Register – P2</div>
+        <div class="uc-desc">Tally: Sales Register (Alt+F5, Alt+N monthly)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'sales-p2','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'sales-p2','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-sales-p2">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'sales-p2')" />
+      </div>
+      <div class="upload-card" id="uc-stock-p2">
+        <div class="uc-label">Module 2 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Stock Item Movement – P2</div>
+        <div class="uc-desc">Tally: Inventory Books → Stock Item (Summary)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'stock-p2','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'stock-p2','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-stock-p2">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'stock-p2')" />
+      </div>
+      <div class="upload-card" id="uc-purch-p2">
+        <div class="uc-label">Module 3 <span class="tag-pill tag-mand">Required</span></div>
+        <div class="uc-name">Purchase Register – P2</div>
+        <div class="uc-desc">Tally: Purchase Register (Alt+F5, Alt+N monthly)</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'purch-p2','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'purch-p2','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-purch-p2">No file uploaded</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'purch-p2')" />
+      </div>
+      <div class="upload-card" id="uc-stj-p2">
+        <div class="uc-label">Module 4 <span class="uc-optional">Optional</span></div>
+        <div class="uc-name">Stock Transfer Journal – P2</div>
+        <div class="uc-desc">Tally: Inventory Books → Stock Transfer Journal Register</div>
+        <div class="format-toggle">
+          <button class="active" onclick="setFmt(this,'stj-p2','col')">Monthly Columnar</button>
+          <button onclick="setFmt(this,'stj-p2','single')">Single Period</button>
+        </div>
+        <div class="uc-status" id="st-stj-p2">Optional — skip if trading</div>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="handleUpload(event,'stj-p2')" />
+      </div>
+    </div>
+
+    <div class="info-note">💡 <strong>Tip:</strong> For Monthly Columnar files, upload a single file covering the full year. The app will extract the relevant period columns. For Single Period, upload one file per period per module.</div>
+
+    <div class="btn-row">
+      <button class="btn-outline" onclick="goToStep(1)">← Back</button>
+      <button class="btn-primary" id="btnToClassify" onclick="goToStep(3)">Next: Classify Items →</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3: CLASSIFY ─── -->
+  <div id="stepClassify" style="display:none">
+    <div class="card">
+      <div class="card-title">Item Classification</div>
+      <div class="card-sub">Classify each stock item detected across all uploaded files. Classifications are auto-saved to your browser for this entity.</div>
+      <div class="entity-input-row">
+        <label>Entity:</label>
+        <span id="entitySlugDisplay" style="color:var(--accent);font-weight:600;font-size:0.9rem"></span>
+      </div>
+      <div class="cls-table-wrap">
+        <table id="clsTable">
+          <thead><tr>
+            <th>Item Name</th>
+            <th>Detected In</th>
+            <th>Item Type</th>
+            <th>Party Category</th>
+          </tr></thead>
+          <tbody id="clsTableBody"></tbody>
+        </table>
+      </div>
+      <div class="info-note" style="margin-top:1rem">🔄 Classifications are saved automatically when you proceed. To clear saved data, reload the page.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-outline" onclick="goToStep(2)">← Back</button>
+      <button class="btn-primary" onclick="runBridgeAnalysis()">Run Bridge Analysis →</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 4: RESULTS ─── -->
+  <div id="stepResults">
+    <div class="results-header">
+      <div>
+        <h2>Contribution Bridge Analysis</h2>
+        <div id="resultsSubtitle" style="color:var(--muted);font-size:0.85rem;margin-top:0.2rem"></div>
+      </div>
+      <div class="action-bar">
+        <button class="btn-outline" onclick="exportPDF()">🖨️ Export PDF</button>
+        <button class="btn-outline" onclick="exportExcel()">📥 Export Excel</button>
+        <button class="btn-outline" onclick="goToStep(1)">🔄 New Analysis</button>
+      </div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="kpi-strip" id="kpiStrip"></div>
+
+    <!-- RECONCILIATION -->
+    <div id="reconBadge"></div>
+
+    <!-- WATERFALL CHART -->
+    <div class="chart-wrap">
+      <h3>Contribution Bridge Waterfall</h3>
+      <div class="chart-container"><canvas id="bridgeChart"></canvas></div>
+    </div>
+
+    <!-- BRIDGE TABLE -->
+    <div class="bridge-table-wrap">
+      <h3>Bridge Factor Detail</h3>
+      <table class="bridge-table" id="bridgeTable">
+        <thead><tr>
+          <th>Factor</th>
+          <th style="text-align:right">Amount (₹)</th>
+          <th>Direction</th>
+          <th>Commentary</th>
+        </tr></thead>
+        <tbody id="bridgeTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="report-disclaimer">
+      ⚠️ <strong>Note:</strong> Gross Contribution = Revenue minus RM cost only. Overheads excluded. This analysis is based on data uploaded by the user. Credlance is not responsible for data accuracy. For decision-making, verify underlying records.
+    </div>
+  </div>
+
+</div><!-- /wizard-wrap -->
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const state = {
+  companyType: 'manufacturing',
+  compMode: 'mom',
+  bomMethod: 'upload',
+  valMethod: 'wavg',
+  p1Label: 'Period 1',
+  p2Label: 'Period 2',
+  entitySlug: '',
+  uploadedData: {},
+  uploadFormats: {},
+  items: {},      // itemName → {type, partyType}
+  parties: {},    // partyName → {category}
+  bridgeResults: null
+};
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+function toast(msg, type='info', dur=4000) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icon = type==='success'?'✅':type==='error'?'❌':'ℹ️';
+  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{ t.style.animation='fadeOut 0.4s forwards'; setTimeout(()=>t.remove(),400); }, dur);
+}
+
+// ─────────────────────────────────────────────
+// STEP NAVIGATION
+// ─────────────────────────────────────────────
+let currentStep = 1;
+function goToStep(n) {
+  if(n===2) { state.p1Label = document.getElementById('p1Label').value||'Period 1'; state.p2Label = document.getElementById('p2Label').value||'Period 2'; state.entitySlug = document.getElementById('entitySlug').value||'default'; document.getElementById('p1LabelDisplay').textContent=state.p1Label; document.getElementById('p2LabelDisplay').textContent=state.p2Label; }
+  if(n===3) { if(!checkUploads()) return; buildClassifyTable(); document.getElementById('entitySlugDisplay').textContent=state.entitySlug; loadClassifications(); }
+  ['stepSetup','stepUpload','stepClassify','stepResults'].forEach((id,i)=>{ document.getElementById(id).style.display=(i+1===n)?'':'none'; });
+  ['sd1','sd2','sd3','sd4'].forEach((id,i)=>{ const el=document.getElementById(id); el.classList.remove('active','done'); if(i+1<n) el.classList.add('done'); else if(i+1===n) el.classList.add('active'); });
+  ['sl1','sl2','sl3'].forEach((id,i)=>{ const el=document.getElementById(id); el.classList.toggle('done', i+1<n); });
+  currentStep=n;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function checkUploads() {
+  const req = ['sales-p1','stock-p1','purch-p1','sales-p2','stock-p2','purch-p2'];
+  const missing = req.filter(k=>!state.uploadedData[k]);
+  if(missing.length>0) { toast(`Please upload all required modules before proceeding. Missing: ${missing.join(', ')}`,'error'); return false; }
+  return true;
+}
+
+// ─────────────────────────────────────────────
+// CHOICE SELECTION
+// ─────────────────────────────────────────────
+function selectChoice(groupId, btn) {
+  document.querySelectorAll(`#${groupId} .choice-btn`).forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const val = btn.dataset.val;
+  if(groupId==='companyTypeGroup') state.companyType=val;
+  if(groupId==='compModeGroup') state.compMode=val;
+  if(groupId==='bomMethodGroup') state.bomMethod=val;
+}
+
+function setValMethod(btn) {
+  document.querySelectorAll('#valMethod button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.valMethod = btn.dataset.val;
+}
+
+function setFmt(btn, key, fmt) {
+  btn.closest('.format-toggle').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.uploadFormats[key] = fmt;
+}
+
+// ─────────────────────────────────────────────
+// FILE UPLOAD + PARSING
+// ─────────────────────────────────────────────
+function handleUpload(evt, key) {
+  const file = evt.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById(`st-${key}`);
+  const cardEl = document.getElementById(`uc-${key}`);
+  statusEl.textContent = '⏳ Parsing...';
+  statusEl.className = 'uc-status';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      state.uploadedData[key] = { rows, fileName: file.name, sheetName: wb.SheetNames[0] };
+      statusEl.textContent = `✅ ${file.name} — ${rows.length} rows parsed`;
+      statusEl.className = 'uc-status ok';
+      cardEl.classList.add('uploaded');
+      toast(`${file.name} uploaded successfully`, 'success');
+    } catch(err) {
+      statusEl.textContent = `❌ Parse error: ${err.message}`;
+      statusEl.className = 'uc-status err';
+      toast(`Failed to parse ${file.name}: ${err.message}`, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─────────────────────────────────────────────
+// EXTRACT ITEM NAMES FROM ALL UPLOADS
+// ─────────────────────────────────────────────
+function extractAllItems() {
+  const items = new Set();
+  const sources = {};
+  const colVariants = ['Item Name','Item/Product Name','Item/Material Name','Finished Good Item','Raw Material Item','Name','Product','Material','Stock Item','Particulars'];
+  for(const [key, data] of Object.entries(state.uploadedData)) {
+    if(!data) continue;
+    for(const row of data.rows) {
+      for(const col of colVariants) {
+        const val = row[col];
+        if(val && typeof val==='string' && val.trim() && !val.toLowerCase().includes('total') && !val.toLowerCase().includes('grand') && val.trim().length>1) {
+          const name = val.trim();
+          items.add(name);
+          if(!sources[name]) sources[name]=new Set();
+          sources[name].add(key);
+        }
+      }
+    }
+  }
+  return { items: [...items].sort(), sources };
+}
+
+// ─────────────────────────────────────────────
+// CLASSIFICATION TABLE
+// ─────────────────────────────────────────────
+function buildClassifyTable() {
+  const { items, sources } = extractAllItems();
+  const tbody = document.getElementById('clsTableBody');
+  tbody.innerHTML = '';
+  if(items.length===0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:1.5rem">No items detected. Please ensure uploaded files have item name columns.</td></tr>';
+    return;
+  }
+  for(const name of items) {
+    const src = [...sources[name]].join(', ');
+    const saved = state.items[name] || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:600">${name}</td>
+      <td style="color:var(--muted);font-size:0.78rem">${src}</td>
+      <td><select class="cls-sel" data-item="${escHtml(name)}" data-field="type" onchange="saveItemCls(this)">
+        <option value=""${!saved.type?' selected':''}>— Select —</option>
+        <option value="fg"${saved.type==='fg'?' selected':''}>Finished Good</option>
+        <option value="rm"${saved.type==='rm'?' selected':''}>Raw Material</option>
+        <option value="wip"${saved.type==='wip'?' selected':''}>WIP</option>
+        <option value="tg"${saved.type==='tg'?' selected':''}>Trading Good</option>
+        <option value="ignore"${saved.type==='ignore'?' selected':''}>Ignore</option>
+      </select></td>
+      <td><select class="cls-sel" data-item="${escHtml(name)}" data-field="party" onchange="saveItemCls(this)">
+        <option value="domestic"${(saved.party||'domestic')==='domestic'?' selected':''}>Domestic</option>
+        <option value="export"${saved.party==='export'?' selected':''}>Export</option>
+      </select></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function saveItemCls(sel) {
+  const name = sel.dataset.item;
+  const field = sel.dataset.field;
+  if(!state.items[name]) state.items[name]={};
+  if(field==='type') state.items[name].type=sel.value;
+  if(field==='party') state.items[name].party=sel.value;
+}
+
+function saveClassifications() {
+  const key = `credlance_cogs_cls_${slugify(state.entitySlug)}`;
+  localStorage.setItem(key, JSON.stringify(state.items));
+}
+
+function loadClassifications() {
+  const key = `credlance_cogs_cls_${slugify(state.entitySlug)}`;
+  const saved = localStorage.getItem(key);
+  if(saved) { try { state.items = JSON.parse(saved); } catch(e){} }
+}
+
+function slugify(s) { return (s||'default').toLowerCase().replace(/[^a-z0-9]/g,'_'); }
+
+// ─────────────────────────────────────────────
+// PARSE HELPERS
+// ─────────────────────────────────────────────
+function num(v) { if(v===undefined||v===null||v==='') return 0; const n=parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; }
+
+function colVal(row, ...candidates) {
+  for(const c of candidates) { if(row[c]!==undefined && row[c]!=='') return row[c]; }
+  return '';
+}
+
+// Extract item-level sales data from rows
+// Returns [{item, qty, rate, value, party}]
+function parseSalesRows(rows) {
+  const out = [];
+  for(const row of rows) {
+    const item = String(colVal(row,'Item Name','Item/Product Name','Product','Name','Stock Item','Particulars')||'').trim();
+    if(!item||item.toLowerCase().includes('total')||item.toLowerCase().includes('grand')||item.length<2) continue;
+    const qty = num(colVal(row,'Quantity Sold','Qty Sold','Quantity','Qty','Units'));
+    const rate = num(colVal(row,'Rate/Selling Price','Rate','Selling Price','Price'));
+    const value = num(colVal(row,'Gross Sales Value','Sales Value','Amount','Net Amount','Value'))||(qty*rate);
+    const party = String(colVal(row,'Party Name/Group','Party Name','Party','Customer')||'').trim();
+    if(qty>0||value>0) out.push({item, qty, rate: rate||(qty?value/qty:0), value, party});
+  }
+  return out;
+}
+
+// Returns [{item, purchaseValue, purchaseQty}]
+function parsePurchaseRows(rows) {
+  const out = [];
+  for(const row of rows) {
+    const item = String(colVal(row,'Item Name','Item/Material Name','Material','Name','Stock Item','Particulars')||'').trim();
+    if(!item||item.toLowerCase().includes('total')||item.toLowerCase().includes('grand')||item.length<2) continue;
+    const qty = num(colVal(row,'Quantity Purchased','Qty','Quantity','Units'));
+    const value = num(colVal(row,'Purchase Value','Amount','Net Amount','Value'));
+    if(qty>0||value>0) out.push({item, purchaseQty:qty, purchaseValue:value, rate: qty?(value/qty):0});
+  }
+  return out;
+}
+
+// Returns [{item, openQty, openVal, inwardQty, inwardVal, outwardQty, outwardVal, closeQty, closeVal}]
+function parseStockRows(rows) {
+  const out = [];
+  for(const row of rows) {
+    const item = String(colVal(row,'Item Name','Name','Stock Item','Particulars')||'').trim();
+    if(!item||item.toLowerCase().includes('total')||item.length<2) continue;
+    out.push({
+      item,
+      openQty: num(colVal(row,'Opening Qty','Opening Quantity','Op Qty')),
+      openVal: num(colVal(row,'Opening Value','Op Value','Opening Amount')),
+      inwardQty: num(colVal(row,'Inward Qty','Inward Quantity','Purchases Qty','Receipts Qty')),
+      inwardVal: num(colVal(row,'Inward Value','Inward Amount','Purchases Value')),
+      outwardQty: num(colVal(row,'Outward Qty','Outward Quantity','Sales Qty','Issues Qty')),
+      outwardVal: num(colVal(row,'Outward Value','Outward Amount','Sales Value','Issues Value')),
+      closeQty: num(colVal(row,'Closing Qty','Closing Quantity','Cl Qty')),
+      closeVal: num(colVal(row,'Closing Value','Cl Value','Closing Amount')),
+    });
+  }
+  return out;
+}
+
+// Returns [{fgItem, fgQty, rmItem, rmQty, rmValue}]
+function parseSTJRows(rows) {
+  const out = [];
+  for(const row of rows) {
+    const fg = String(colVal(row,'Finished Good Item','FG Item','Finished Good','Product')||'').trim();
+    const fgQty = num(colVal(row,'FG Quantity Produced','FG Qty','Produced Qty'));
+    const rm = String(colVal(row,'Raw Material Item','RM Item','Raw Material','Material')||'').trim();
+    const rmQty = num(colVal(row,'RM Quantity Consumed','RM Qty','Consumed Qty','Qty Consumed'));
+    const rmVal = num(colVal(row,'RM Value Consumed','RM Value','Value Consumed','Value'));
+    if(fg&&rm) out.push({fgItem:fg, fgQty, rmItem:rm, rmQty, rmValue:rmVal});
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────
+// AGGREGATE HELPERS
+// ─────────────────────────────────────────────
+function aggregateSales(rows, classifications) {
+  // Returns {byItem: {item: {qty, value, avgRate, partyBreakdown:{dom,exp}}}}
+  const byItem = {};
+  for(const r of rows) {
+    const cls = classifications[r.item] || {};
+    if(cls.type==='ignore') continue;
+    if(!byItem[r.item]) byItem[r.item]={qty:0, value:0, domValue:0, expValue:0};
+    byItem[r.item].qty += r.qty;
+    byItem[r.item].value += r.value;
+    const pType = cls.party||'domestic';
+    if(pType==='export') byItem[r.item].expValue+=r.value;
+    else byItem[r.item].domValue+=r.value;
+  }
+  for(const k of Object.keys(byItem)) {
+    const d = byItem[k];
+    d.avgRate = d.qty>0 ? d.value/d.qty : 0;
+  }
+  return byItem;
+}
+
+function aggregatePurchases(rows) {
+  const byItem = {};
+  for(const r of rows) {
+    if(!byItem[r.item]) byItem[r.item]={qty:0,value:0};
+    byItem[r.item].qty += r.purchaseQty;
+    byItem[r.item].value += r.purchaseValue;
+  }
+  for(const k of Object.keys(byItem)) {
+    byItem[k].avgRate = byItem[k].qty>0 ? byItem[k].value/byItem[k].qty : 0;
+  }
+  return byItem;
+}
+
+function aggregateStock(rows) {
+  const byItem = {};
+  for(const r of rows) {
+    if(!byItem[r.item]) byItem[r.item]={openQty:0,openVal:0,inwardQty:0,inwardVal:0,outwardQty:0,outwardVal:0,closeQty:0,closeVal:0};
+    const d = byItem[r.item];
+    d.openQty+=r.openQty; d.openVal+=r.openVal;
+    d.inwardQty+=r.inwardQty; d.inwardVal+=r.inwardVal;
+    d.outwardQty+=r.outwardQty; d.outwardVal+=r.outwardVal;
+    d.closeQty+=r.closeQty; d.closeVal+=r.closeVal;
+  }
+  for(const k of Object.keys(byItem)) {
+    const d = byItem[k];
+    const totalQty = d.openQty+d.inwardQty;
+    const totalVal = d.openVal+d.inwardVal;
+    d.wavgRate = totalQty>0 ? totalVal/totalQty : 0;
+  }
+  return byItem;
+}
+
+// ─────────────────────────────────────────────
+// COMPUTE RM COST PER FG UNIT
+// ─────────────────────────────────────────────
+function computeRMCostPerUnit(salesAgg, purchAgg, stockAgg, stjRows, classifications, valMethod) {
+  // Returns {fgItem: rmCostPerUnit}
+  const result = {};
+  const fgItems = Object.keys(salesAgg).filter(i=>(classifications[i]||{}).type==='fg'||(classifications[i]||{}).type==='tg');
+
+  if(stjRows && stjRows.length>0) {
+    // Use STJ-based consumption
+    const fgRMMap = {}; // fgItem → {rmItem: {totalRMVal, totalFGQty}}
+    for(const r of stjRows) {
+      if(!fgRMMap[r.fgItem]) fgRMMap[r.fgItem]={};
+      if(!fgRMMap[r.fgItem][r.rmItem]) fgRMMap[r.fgItem][r.rmItem]={rmVal:0,fgQty:0};
+      fgRMMap[r.fgItem][r.rmItem].rmVal += r.rmValue;
+      fgRMMap[r.fgItem][r.rmItem].fgQty += r.fgQty;
+    }
+    for(const fg of fgItems) {
+      if(!fgRMMap[fg]) { result[fg]=0; continue; }
+      let totalRM=0, totalFG=0;
+      for(const rm of Object.values(fgRMMap[fg])) { totalRM+=rm.rmVal; if(rm.fgQty>totalFG) totalFG=rm.fgQty; }
+      result[fg] = totalFG>0 ? totalRM/totalFG : 0;
+    }
+  } else {
+    // Allocate total RM cost across FG items proportionally to sales value
+    const totalPurchVal = Object.values(purchAgg).reduce((s,v)=>s+v.value,0);
+    const totalSalesVal = fgItems.reduce((s,i)=>s+(salesAgg[i]?.value||0),0);
+    for(const fg of fgItems) {
+      const salesShare = totalSalesVal>0 ? (salesAgg[fg]?.value||0)/totalSalesVal : 0;
+      const allocatedRM = totalPurchVal * salesShare;
+      const qty = salesAgg[fg]?.qty||1;
+      result[fg] = qty>0 ? allocatedRM/qty : 0;
+    }
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────
+// BRIDGE COMPUTATION
+// ─────────────────────────────────────────────
+function computeBridge(p1Sales, p1Purch, p1Stock, p1STJ, p2Sales, p2Purch, p2Stock, p2STJ, classifications, valMethod) {
+  const p1SalesAgg = aggregateSales(p1Sales, classifications);
+  const p2SalesAgg = aggregateSales(p2Sales, classifications);
+  const p1PurchAgg = aggregatePurchases(p1Purch);
+  const p2PurchAgg = aggregatePurchases(p2Purch);
+  const p1StockAgg = aggregateStock(p1Stock);
+  const p2StockAgg = aggregateStock(p2Stock);
+
+  const p1RM = computeRMCostPerUnit(p1SalesAgg, p1PurchAgg, p1StockAgg, p1STJ, classifications, valMethod);
+  const p2RM = computeRMCostPerUnit(p2SalesAgg, p2PurchAgg, p2StockAgg, p2STJ, classifications, valMethod);
+
+  // All FG/TG items across both periods
+  const allItems = new Set([...Object.keys(p1SalesAgg),...Object.keys(p2SalesAgg)].filter(i=>{const t=(classifications[i]||{}).type; return t==='fg'||t==='tg'||!t;}));
+
+  // Period totals
+  let p1Revenue=0, p1RMCost=0, p2Revenue=0, p2RMCost=0;
+  let p1TotalQty=0, p2TotalQty=0;
+  for(const item of allItems) {
+    const s1=p1SalesAgg[item]||{qty:0,value:0,avgRate:0};
+    const s2=p2SalesAgg[item]||{qty:0,value:0,avgRate:0};
+    p1Revenue+=s1.value; p2Revenue+=s2.value;
+    p1RMCost += s1.qty*(p1RM[item]||0);
+    p2RMCost += s2.qty*(p2RM[item]||0);
+    p1TotalQty+=s1.qty; p2TotalQty+=s2.qty;
+  }
+  const p1Contribution = p1Revenue - p1RMCost;
+  const p2Contribution = p2Revenue - p2RMCost;
+  const totalDelta = p2Contribution - p1Contribution;
+
+  // ── EFFECT 1: Volume Effect
+  // Hold P1 avg contribution per unit, apply to volume change
+  const p1ContribPerUnit = p1TotalQty>0 ? p1Contribution/p1TotalQty : 0;
+  const volumeDelta = p2TotalQty - p1TotalQty;
+  const volumeEffect = volumeDelta * p1ContribPerUnit;
+
+  // ── EFFECT 2: Selling Price Realisation Effect
+  // Hold P1 quantities and RM cost, change only prices
+  let priceEffect = 0;
+  for(const item of allItems) {
+    const s1=p1SalesAgg[item]||{qty:0,avgRate:0};
+    const s2=p2SalesAgg[item]||{qty:0,avgRate:0};
+    const priceDelta = s2.avgRate - s1.avgRate;
+    priceEffect += priceDelta * s1.qty;
+  }
+
+  // ── EFFECT 3: Product Mix Effect
+  // Impact of changing product proportions holding total volume at P2 level
+  let mixEffect = 0;
+  for(const item of allItems) {
+    const s1=p1SalesAgg[item]||{qty:0,value:0,avgRate:0};
+    const s2=p2SalesAgg[item]||{qty:0,value:0,avgRate:0};
+    const p1Weight = p1TotalQty>0 ? s1.qty/p1TotalQty : 0;
+    const p2Weight = p2TotalQty>0 ? s2.qty/p2TotalQty : 0;
+    const p1ContribPU = s1.avgRate - (p1RM[item]||0);
+    mixEffect += (p2Weight - p1Weight) * p2TotalQty * p1ContribPU;
+  }
+
+  // ── EFFECT 4: Dom vs Export Mix Effect
+  let domExpEffect = 0;
+  let p1DomVal=0, p1ExpVal=0, p2DomVal=0, p2ExpVal=0;
+  for(const item of allItems) {
+    const s1=p1SalesAgg[item]||{domValue:0,expValue:0,value:0};
+    const s2=p2SalesAgg[item]||{domValue:0,expValue:0,value:0};
+    p1DomVal+=s1.domValue||0; p1ExpVal+=s1.expValue||0;
+    p2DomVal+=s2.domValue||0; p2ExpVal+=s2.expValue||0;
+  }
+  const p1TotalSales = p1Revenue||1; const p2TotalSales = p2Revenue||1;
+  const p1ExpShare = p1ExpVal/p1TotalSales;
+  const p2ExpShare = p2ExpVal/p2TotalSales;
+  // Assume export carries a 5% premium on contribution vs domestic (simple heuristic)
+  domExpEffect = (p2ExpShare - p1ExpShare) * p2Revenue * 0.05;
+
+  // ── EFFECT 5: RM Price Effect
+  // Hold P2 quantities, change RM cost from P1 to P2 rate
+  let rmPriceEffect = 0;
+  for(const item of allItems) {
+    const s2=p2SalesAgg[item]||{qty:0};
+    const rmDelta = (p2RM[item]||0) - (p1RM[item]||0);
+    rmPriceEffect += -rmDelta * s2.qty; // negative because higher RM cost reduces contribution
+  }
+
+  // ── EFFECT 6: RM Yield/Consumption Effect (only if STJ data available and manufacturing)
+  let yieldEffect = 0;
+  const hasSTJ = (p1STJ&&p1STJ.length>0)||(p2STJ&&p2STJ.length>0);
+  if(hasSTJ && state.companyType==='manufacturing') {
+    // Compare RM consumed per FG unit between periods
+    const p1Yield = {}; const p2Yield = {};
+    for(const r of (p1STJ||[])) { if(!p1Yield[r.fgItem]) p1Yield[r.fgItem]={rmVal:0,fgQty:0}; p1Yield[r.fgItem].rmVal+=r.rmValue; p1Yield[r.fgItem].fgQty+=r.fgQty; }
+    for(const r of (p2STJ||[])) { if(!p2Yield[r.fgItem]) p2Yield[r.fgItem]={rmVal:0,fgQty:0}; p2Yield[r.fgItem].rmVal+=r.rmValue; p2Yield[r.fgItem].fgQty+=r.fgQty; }
+    for(const item of allItems) {
+      const y1 = p1Yield[item]; const y2 = p2Yield[item];
+      if(!y1||!y2) continue;
+      const rmPU1 = y1.fgQty>0 ? y1.rmVal/y1.fgQty : 0;
+      const rmPU2 = y2.fgQty>0 ? y2.rmVal/y2.fgQty : 0;
+      const s2=p2SalesAgg[item]||{qty:0};
+      // Yield improvement = reduction in RM per unit × P2 units (use P1 RM rate to isolate yield from price)
+      yieldEffect += -(rmPU2 - rmPU1) * s2.qty;
+    }
+  }
+
+  // Residual check
+  const explainedSum = volumeEffect + priceEffect + mixEffect + domExpEffect + rmPriceEffect + yieldEffect;
+  const residual = totalDelta - explainedSum;
+
+  return {
+    p1Revenue, p1RMCost, p1Contribution,
+    p2Revenue, p2RMCost, p2Contribution,
+    totalDelta,
+    effects: [
+      { label: 'Volume Effect', amount: volumeEffect, commentary: volumeDelta>=0?`Higher volumes (+${fmtN(volumeDelta)} units) drove incremental contribution.`:`Lower volumes (${fmtN(volumeDelta)} units) reduced contribution.` },
+      { label: 'Selling Price Realisation', amount: priceEffect, commentary: priceEffect>=0?'Improved average realisation per unit.':'Realisation pressure — average selling prices declined.' },
+      { label: 'Product Mix Effect', amount: mixEffect, commentary: mixEffect>=0?'Shift toward higher-margin products was favourable.':'Mix shifted toward lower-margin products.' },
+      { label: 'Dom vs Export Mix', amount: domExpEffect, commentary: domExpEffect>=0?'Higher export share improved blended realisation.':'Lower export share reduced blended realisation.' },
+      { label: 'RM Price Effect', amount: rmPriceEffect, commentary: rmPriceEffect>=0?'RM input costs decreased, improving contribution.':'RM input costs increased, compressing contribution.' },
+      ...(hasSTJ && state.companyType==='manufacturing' ? [{ label: 'RM Yield / Consumption Effect', amount: yieldEffect, commentary: yieldEffect>=0?'Better RM efficiency (less RM per FG unit produced).':'Lower RM efficiency — more RM consumed per unit.' }] : []),
+    ],
+    residual,
+    reconciled: Math.abs(residual) < Math.max(1, Math.abs(totalDelta)*0.005) // within 0.5%
+  };
+}
+
+// ─────────────────────────────────────────────
+// FORMAT
+// ─────────────────────────────────────────────
+function fmtINR(v) {
+  if(isNaN(v)||v===null) return '₹0';
+  const abs = Math.abs(v);
+  let s;
+  if(abs>=1e7) s=(v/1e7).toFixed(2)+' Cr';
+  else if(abs>=1e5) s=(v/1e5).toFixed(2)+' L';
+  else s=v.toLocaleString('en-IN',{maximumFractionDigits:0});
+  return '₹'+s;
+}
+function fmtN(v) { return v.toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function pctStr(v,base) { if(!base) return ''; const p=((v/Math.abs(base))*100).toFixed(1); return (v>=0?'+':'')+p+'%'; }
+
+// ─────────────────────────────────────────────
+// RUN ANALYSIS
+// ─────────────────────────────────────────────
+function runBridgeAnalysis() {
+  // Save classifications
+  saveClassifications();
+  toast('Running bridge analysis…', 'info');
+
+  try {
+    const d = state.uploadedData;
+    const cls = state.items;
+    const vm = state.valMethod;
+
+    const p1Sales = parseSalesRows(d['sales-p1']?.rows||[]);
+    const p1Stock = parseStockRows(d['stock-p1']?.rows||[]);
+    const p1Purch = parsePurchaseRows(d['purch-p1']?.rows||[]);
+    const p1STJ   = d['stj-p1']  ? parseSTJRows(d['stj-p1'].rows)   : [];
+    const p2Sales = parseSalesRows(d['sales-p2']?.rows||[]);
+    const p2Stock = parseStockRows(d['stock-p2']?.rows||[]);
+    const p2Purch = parsePurchaseRows(d['purch-p2']?.rows||[]);
+    const p2STJ   = d['stj-p2']  ? parseSTJRows(d['stj-p2'].rows)   : [];
+
+    const results = computeBridge(p1Sales, p1Purch, p1Stock, p1STJ, p2Sales, p2Purch, p2Stock, p2STJ, cls, vm);
+    state.bridgeResults = results;
+
+    renderResults(results);
+    goToStep(4);
+    toast('Bridge analysis complete!', 'success');
+  } catch(err) {
+    toast(`Analysis error: ${err.message}`, 'error');
+    console.error(err);
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER RESULTS
+// ─────────────────────────────────────────────
+function renderResults(r) {
+  const p1L = state.p1Label, p2L = state.p2Label;
+  document.getElementById('resultsSubtitle').textContent = `${p1L} vs ${p2L} · ${state.companyType==='manufacturing'?'Manufacturing':'Trading'} · ${valMethodLabel()} valuation`;
+
+  // KPI Strip
+  const kpiData = [
+    { label: `${p1L} Revenue`, val: fmtINR(r.p1Revenue), sub: `RM: ${fmtINR(r.p1RMCost)}`, cls:'neutral' },
+    { label: `${p2L} Revenue`, val: fmtINR(r.p2Revenue), sub: `RM: ${fmtINR(r.p2RMCost)}`, cls:'neutral' },
+    { label: `${p1L} Contribution`, val: fmtINR(r.p1Contribution), sub: p1Margin(r)+'% margin', cls: r.p1Contribution>=0?'pos':'neg' },
+    { label: `${p2L} Contribution`, val: fmtINR(r.p2Contribution), sub: p2Margin(r)+'% margin · '+pctStr(r.totalDelta, r.p1Contribution)+' vs '+p1L, cls: r.p2Contribution>=0?'pos':'neg' },
+  ];
+  document.getElementById('kpiStrip').innerHTML = kpiData.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val ${k.cls}">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // Reconciliation badge
+  const badge = document.getElementById('reconBadge');
+  if(r.reconciled) {
+    badge.innerHTML = `<div class="recon-badge pass">✅ Reconciliation Passed — Six effects sum to total delta ${fmtINR(r.totalDelta)}</div>`;
+  } else {
+    badge.innerHTML = `<div class="recon-badge fail">⚠️ Residual ${fmtINR(r.residual)} — Check classifications or upload completeness</div>`;
+  }
+
+  // Bridge Table
+  const tbody = document.getElementById('bridgeTableBody');
+  const rows = [];
+  rows.push({ label: `${p1L} Contribution (Base)`, amount: r.p1Contribution, dir: '', commentary: 'Starting point.', isBase: true });
+  for(const e of r.effects) {
+    rows.push({ label: e.label, amount: e.amount, dir: e.amount>0?'Favourable':e.amount<0?'Adverse':'Neutral', commentary: e.commentary, isBase: false });
+  }
+  if(!r.reconciled) rows.push({ label: 'Residual / Unallocated', amount: r.residual, dir: r.residual>0?'Favourable':'Adverse', commentary: 'Classification or data gap. Review item types.', isBase: false, isRecon: true });
+  rows.push({ label: `${p2L} Contribution (Current)`, amount: r.p2Contribution, dir: '', commentary: `Change of ${fmtINR(r.totalDelta)} vs ${p1L}.`, isBase: true });
+
+  tbody.innerHTML = rows.map(row=>`
+    <tr class="${row.isBase?'total-row':''}${row.isRecon?' recon-row':''}">
+      <td>${row.label}</td>
+      <td style="text-align:right" class="${row.isBase?'':''}${!row.isBase&&row.amount>=0?'amount-pos':!row.isBase&&row.amount<0?'amount-neg':''}">${fmtINR(row.amount)}</td>
+      <td class="${row.dir==='Favourable'?'dir-fav':row.dir==='Adverse'?'dir-adv':'dir-neu'}">${row.dir}</td>
+      <td style="color:var(--muted);font-size:0.82rem">${row.commentary}</td>
+    </tr>`).join('');
+
+  // Chart
+  renderWaterfall(r);
+}
+
+function p1Margin(r) { return r.p1Revenue>0?(r.p1Contribution/r.p1Revenue*100).toFixed(1):0; }
+function p2Margin(r) { return r.p2Revenue>0?(r.p2Contribution/r.p2Revenue*100).toFixed(1):0; }
+function valMethodLabel() { return state.valMethod==='wavg'?'Weighted Average':'FIFO'; }
+
+// ─────────────────────────────────────────────
+// WATERFALL CHART
+// ─────────────────────────────────────────────
+let chartInstance = null;
+function renderWaterfall(r) {
+  if(chartInstance) { chartInstance.destroy(); chartInstance=null; }
+  const ctx = document.getElementById('bridgeChart').getContext('2d');
+  const p1L = state.p1Label, p2L = state.p2Label;
+
+  const effects = r.effects;
+  const labels = [p1L+' Contribution', ...effects.map(e=>e.label), p2L+' Contribution'];
+  const n = labels.length;
+
+  // Build floating bars for waterfall
+  const floatingData = [];
+  let running = r.p1Contribution;
+  floatingData.push({ start: 0, end: r.p1Contribution, isTotals: true });
+  for(const e of effects) {
+    const start = running;
+    const end = running + e.amount;
+    floatingData.push({ start: Math.min(start,end), end: Math.max(start,end), sign: e.amount>=0?1:-1, raw: e.amount });
+    running = end;
+  }
+  floatingData.push({ start: 0, end: r.p2Contribution, isTotals: true });
+
+  const baseData = floatingData.map(d=>d.isTotals ? 0 : d.start);
+  const barData  = floatingData.map(d=>d.isTotals ? Math.abs(d.end) : Math.abs(d.raw||0));
+  const colors   = floatingData.map(d=>{
+    if(d.isTotals) return '#00d4aa';
+    return (d.sign||1)>=0 ? '#22c55e' : '#ff4c6a';
+  });
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Base', data: baseData, backgroundColor: 'transparent', borderWidth: 0, stack:'s1' },
+        { label: 'Effect', data: barData, backgroundColor: colors, borderRadius: 4, stack:'s1',
+          borderColor: colors, borderWidth: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const i=ctx.dataIndex;
+              if(ctx.datasetIndex===0) return null;
+              const d=floatingData[i];
+              if(d.isTotals) return `₹ ${fmtN(Math.round(d.end))}`;
+              return `${d.raw>=0?'+':''}₹ ${fmtN(Math.round(d.raw))}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#8899aa',font:{size:11}} },
+        y: { stacked: true, grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#8899aa', callback: v=>fmtINR(v)} }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// EXPORT EXCEL
+// ─────────────────────────────────────────────
+function exportExcel() {
+  if(!state.bridgeResults) { toast('Run analysis first','error'); return; }
+  const r = state.bridgeResults;
+  const p1L = state.p1Label, p2L = state.p2Label;
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Bridge Summary
+  const summaryData = [
+    ['COGS Contribution Bridge Analyser — Credlance'],
+    [''],
+    ['Entity', state.entitySlug],
+    ['Period 1 (Base)', p1L],
+    ['Period 2 (Current)', p2L],
+    ['Company Type', state.companyType],
+    ['Valuation Method', valMethodLabel()],
+    [''],
+    ['BRIDGE SUMMARY','Amount (INR)','Direction','Commentary'],
+    [p1L+' Contribution (Base)', r.p1Contribution, '', 'Starting point'],
+    ...r.effects.map(e=>[e.label, e.amount, e.amount>=0?'Favourable':'Adverse', e.commentary]),
+    ...(r.reconciled ? [] : [['Residual / Unallocated', r.residual, r.residual>=0?'Favourable':'Adverse', 'Classification gap']]),
+    [p2L+' Contribution (Current)', r.p2Contribution, '', `Delta: ${r.totalDelta>=0?'+':''}${r.totalDelta.toFixed(0)}`],
+    [''],
+    ['KPI SUMMARY'],
+    [p1L+' Revenue', r.p1Revenue],
+    [p1L+' RM Cost', r.p1RMCost],
+    [p1L+' Contribution', r.p1Contribution],
+    [p2L+' Revenue', r.p2Revenue],
+    [p2L+' RM Cost', r.p2RMCost],
+    [p2L+' Contribution', r.p2Contribution],
+    ['Total Contribution Delta', r.totalDelta],
+    [''],
+    ['Note: Gross Contribution = Revenue minus RM cost only. Overheads excluded.'],
+    ['Reconciliation: '+(r.reconciled?'PASSED':'FAILED')],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Bridge Summary');
+
+  // Sheet 2: Classifications
+  const clsData = [['Item Name','Type','Party Category']];
+  for(const [name, cls] of Object.entries(state.items)) clsData.push([name, cls.type||'', cls.party||'domestic']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(clsData), 'Classifications');
+
+  // Sheet 3: P1 Data
+  if(state.uploadedData['sales-p1']) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.uploadedData['sales-p1'].rows||[]), 'P1 Sales Register');
+  }
+  // Sheet 4: P2 Data
+  if(state.uploadedData['sales-p2']) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.uploadedData['sales-p2'].rows||[]), 'P2 Sales Register');
+  }
+
+  XLSX.writeFile(wb, `COGS_Bridge_${slugify(state.entitySlug)}_${p1L.replace(/[^a-z0-9]/gi,'_')}_vs_${p2L.replace(/[^a-z0-9]/gi,'_')}.xlsx`);
+  toast('Excel workbook downloaded!', 'success');
+}
+
+// ─────────────────────────────────────────────
+// EXPORT PDF
+// ─────────────────────────────────────────────
+function exportPDF() {
+  toast('Opening print dialog for PDF export…','info');
+  setTimeout(()=>window.print(), 400);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('p1Label').addEventListener('input', e=>{ state.p1Label=e.target.value; });
+  document.getElementById('p2Label').addEventListener('input', e=>{ state.p2Label=e.target.value; });
+  document.getElementById('entitySlug').addEventListener('input', e=>{ state.entitySlug=e.target.value; });
+  toast('Welcome to COGS Bridge Analyser. Start by completing Step 1 setup.', 'info', 5000);
+});
+</script>
+</body>
+</html>
