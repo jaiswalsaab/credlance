@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bank Reconciliation Automator | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --surface: #111827; --surface2: #1a2235; --border: #1f2d42;
+      --accent: #00d4aa; --accent2: #00a884; --text: #e2e8f0; --muted: #8899aa;
+      --red: #ff4c6a; --orange: #ff8c42; --yellow: #f5c518; --green: #22c55e; --blue: #60a5fa;
+      --red-bg: rgba(255,76,106,0.1); --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1); --green-bg: rgba(34,197,94,0.1);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* ── NAV ── */
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(11,15,26,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 60px; }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+    .nav-back:hover { color: var(--accent); }
+    .nav-badge { background: var(--surface2); color: var(--accent); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+    /* ── HERO ── */
+    .hero { padding: 3rem 2rem 2rem; text-align: center; max-width: 760px; margin: 0 auto; }
+    .hero h1 { font-size: 2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.6rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 560px; margin: 0 auto 1.5rem; }
+
+    /* ── STEPPER ── */
+    .stepper { display: flex; align-items: center; justify-content: center; gap: 0; max-width: 640px; margin: 0 auto 2.5rem; padding: 0 1.5rem; }
+    .step-item { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+    .step-item:not(:last-child)::after { content: ''; position: absolute; top: 16px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+    .step-item.done::after { background: var(--accent); }
+    .step-circle { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: var(--muted); z-index: 1; transition: all 0.3s; }
+    .step-item.active .step-circle { border-color: var(--accent); background: rgba(0,212,170,0.15); color: var(--accent); }
+    .step-item.done .step-circle { border-color: var(--accent); background: var(--accent); color: #0b0f1a; }
+    .step-label { font-size: 0.68rem; color: var(--muted); margin-top: 6px; text-align: center; letter-spacing: 0.03em; }
+    .step-item.active .step-label { color: var(--accent); }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-section { max-width: 700px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+    .step-heading { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .step-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.25rem; }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface); position: relative; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+    .upload-zone h3 { font-size: 1rem; margin-bottom: 0.3rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.85rem; }
+    .upload-btn { display: inline-block; margin-top: 1rem; background: var(--accent); color: #0b0f1a; font-weight: 700; font-size: 0.88rem; padding: 0.55rem 1.4rem; border-radius: 8px; border: none; cursor: pointer; }
+    .upload-btn:hover { background: var(--accent2); }
+    .upload-success { display: none; background: var(--green-bg); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 0.85rem 1.25rem; margin-top: 1rem; color: var(--green); font-size: 0.88rem; font-weight: 600; }
+    .format-hint { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1rem; }
+    .format-hint h4 { font-size: 0.78rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.6rem; }
+    .format-hint p { color: var(--muted); font-size: 0.82rem; }
+
+    /* ── BUTTONS ── */
+    .btn-primary { background: var(--accent); color: #0b0f1a; border: none; padding: 0.6rem 1.4rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.55rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; transition: all 0.2s; }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+    /* ── COLUMN MAPPING ── */
+    #step3 { max-width: 700px; margin: 0 auto 3rem; padding: 0 1.5rem; display: none; }
+    .mapping-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+    .mapping-table th { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .mapping-table td { padding: 0.6rem 0.75rem; font-size: 0.88rem; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
+    .mapping-table tr:last-child td { border-bottom: none; }
+    .field-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+    .badge-required { background: rgba(255,76,106,0.12); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .badge-optional { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .mapping-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+    .mapping-select:focus { outline: none; border-color: var(--accent); }
+    .detected-badge { font-size: 0.72rem; color: var(--accent); margin-left: 0.4rem; }
+    .preview-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; overflow-x: auto; }
+    .preview-section h4 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
+    .preview-table th { color: var(--accent); font-weight: 600; padding: 0.3rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .preview-table td { padding: 0.3rem 0.75rem; color: var(--muted); border-bottom: 1px solid rgba(31,45,66,0.5); }
+
+    /* ── PROCESSING ── */
+    #processingSection { display: none; text-align: center; padding: 5rem 2rem; }
+    .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #processingMsg { color: var(--text); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .processing-sub { color: var(--muted); font-size: 0.88rem; }
+
+    /* ── RESULTS ── */
+    #resultsSection { display: none; max-width: 1150px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .results-meta { color: var(--muted); font-size: 0.83rem; }
+    .action-bar { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    @media (max-width: 640px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+    .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; transition: all 0.2s; }
+    .summary-card.clickable { cursor: pointer; }
+    .summary-card.clickable:hover { border-color: var(--accent); }
+    .summary-card.active-green { border-color: var(--green); background: var(--green-bg); }
+    .summary-card.active-red { border-color: var(--red); background: var(--red-bg); }
+    .summary-card.active-orange { border-color: var(--orange); background: var(--orange-bg); }
+    .summary-card.active-yellow { border-color: var(--yellow); background: var(--yellow-bg); }
+    .card-count { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .card-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .count-green { color: var(--green); }
+    .count-red { color: var(--red); }
+    .count-orange { color: var(--orange); }
+    .count-yellow { color: var(--yellow); }
+
+    /* ── TABS ── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+    .tab-btn { padding: 0.65rem 1.25rem; font-size: 0.875rem; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: all 0.2s; font-weight: 500; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+    /* ── DATA TABLES ── */
+    .data-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .data-table th { background: var(--surface2); padding: 0.65rem 0.9rem; text-align: left; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; white-space: nowrap; }
+    .data-table td { padding: 0.6rem 0.9rem; border-top: 1px solid var(--border); vertical-align: middle; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.015); }
+    .amount-pos { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .amount-neg { color: var(--red); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .conf-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+    .conf-exact { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .conf-near { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+    .conf-fuzzy { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .conf-aggr { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+
+    /* side-by-side matched table */
+    .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 780px) { .side-by-side { grid-template-columns: 1fr; } }
+    .side-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .side-panel-header { background: var(--surface2); padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 0.5rem; }
+    .side-panel-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-tally { background: var(--blue); }
+    .dot-bank { background: var(--accent); }
+
+    /* ── UNMATCHED ITEMS ── */
+    .unmatched-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0.9rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .unmatched-item:first-of-type { border-top: none; }
+    .ui-date { font-size: 0.78rem; color: var(--muted); white-space: nowrap; min-width: 75px; }
+    .ui-desc { flex: 1; font-size: 0.83rem; color: var(--text); min-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .ui-amount { font-size: 0.88rem; font-weight: 700; white-space: nowrap; }
+    .ui-actions { display: flex; gap: 0.4rem; margin-left: auto; }
+    .tag-stale { font-size: 0.68rem; font-weight: 600; padding: 2px 6px; border-radius: 10px; background: rgba(255,76,106,0.12); color: var(--red); border: 1px solid rgba(255,76,106,0.25); white-space: nowrap; }
+    .tag-flag { font-size: 0.68rem; font-weight: 600; padding: 2px 6px; border-radius: 10px; background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.25); white-space: nowrap; }
+
+    /* ── BRS STATEMENT ── */
+    .brs-wrap { max-width: 620px; margin: 0 auto; }
+    .brs-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem 2.5rem; }
+    .brs-title { font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.25rem; }
+    .brs-period { color: var(--muted); font-size: 0.83rem; margin-bottom: 1.75rem; }
+    .brs-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.5rem 0; border-bottom: 1px solid rgba(31,45,66,0.6); gap: 1rem; }
+    .brs-row:last-child { border-bottom: none; }
+    .brs-row.total { border-top: 2px solid var(--border); border-bottom: none; padding-top: 0.75rem; margin-top: 0.25rem; }
+    .brs-label { font-size: 0.88rem; color: var(--text); }
+    .brs-sub-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; padding-left: 0.75rem; }
+    .brs-row.indent .brs-label { font-size: 0.83rem; color: var(--muted); padding-left: 1.25rem; }
+    .brs-amount { font-size: 0.92rem; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .brs-amount.pos { color: var(--green); }
+    .brs-amount.neg { color: var(--red); }
+    .brs-amount.neutral { color: var(--text); }
+    .brs-total-value { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+    .brs-section-heading { font-size: 0.74rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; padding: 0.9rem 0 0.4rem; }
+    .brs-tie-ok { display: flex; align-items: center; gap: 0.6rem; background: var(--green-bg); border: 1px solid rgba(34,197,94,0.3); border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1.5rem; color: var(--green); font-size: 0.88rem; font-weight: 600; }
+    .brs-tie-fail { display: flex; align-items: center; gap: 0.6rem; background: var(--red-bg); border: 1px solid rgba(255,76,106,0.3); border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1.5rem; color: var(--red); font-size: 0.88rem; font-weight: 600; }
+    .brs-input-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .brs-input-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 160px; }
+    .brs-input-group label { font-size: 0.78rem; color: var(--muted); }
+    .brs-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.88rem; width: 100%; }
+    .brs-input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── MANUAL MATCH PANEL ── */
+    .manual-match-info { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.83rem; color: var(--muted); display: flex; align-items: center; gap: 0.5rem; }
+    .sel-count-badge { background: var(--accent); color: #0b0f1a; border-radius: 12px; padding: 1px 7px; font-size: 0.75rem; font-weight: 700; }
+    .sel-row td { background: rgba(0,212,170,0.06) !important; }
+
+    /* ── TOAST ── */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; background: var(--accent); color: #0b0f1a; padding: 0.75rem 1.3rem; border-radius: 10px; font-weight: 600; font-size: 0.88rem; box-shadow: 0 8px 32px rgba(0,212,170,0.3); transform: translateY(100px); opacity: 0; transition: all 0.35s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--red); }
+
+    /* ── SCOPE FOOTER ── */
+    .scope-footer { text-align: center; color: #3d5166; font-size: 0.75rem; padding: 2rem; max-width: 760px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── MAIN FOOTER ── */
+    footer { background: var(--surface); border-top: 1px solid var(--border); padding: 2rem 5%; }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    .footer-copy { font-size: 0.82rem; color: var(--muted); }
+    .footer-links { display: flex; gap: 1.5rem; list-style: none; }
+    .footer-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── PRINT ── */
+    @media print {
+      body { background: #fff; color: #000; }
+      nav, .hero, .stepper, #step1, #step2, #step3, #processingSection, .action-bar, .tab-bar, #tabMatched, #tabBooksOnly, #tabBankOnly, .scope-footer, footer { display: none !important; }
+      #resultsSection { display: block !important; padding: 0; }
+      .summary-strip { display: none; }
+      #tabBRS { display: block !important; }
+      .brs-card { border: 1px solid #ccc; color: #000; background: #fff; }
+      .brs-label, .brs-section-heading { color: #333; }
+      .brs-amount.neutral { color: #000; }
+      .brs-total-value { color: #000; }
+    }
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 1.6rem; }
+      .stepper { gap: 0; }
+      .step-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <a class="nav-logo" href="index.html">Cred<span>lance</span></a>
+  <span class="nav-badge">Bank Recon</span>
+  <a class="nav-back" href="index.html">← All Apps</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Bank <span>Reconciliation</span> Automator</h1>
+  <p>Upload your bank statement and Tally bank ledger export. Get instant matching with a fully formatted BRS statement — ready for audit.</p>
+</div>
+
+<!-- Stepper -->
+<div class="stepper" id="stepper">
+  <div class="step-item active" id="si1">
+    <div class="step-circle">1</div>
+    <div class="step-label">Bank Statement</div>
+  </div>
+  <div class="step-item" id="si2">
+    <div class="step-circle">2</div>
+    <div class="step-label">Tally Ledger</div>
+  </div>
+  <div class="step-item" id="si3">
+    <div class="step-circle">3</div>
+    <div class="step-label">Column Mapping</div>
+  </div>
+  <div class="step-item" id="si4">
+    <div class="step-circle">4</div>
+    <div class="step-label">Results</div>
+  </div>
+</div>
+
+<!-- Step 1: Bank Statement Upload -->
+<div class="upload-section" id="step1">
+  <div class="step-heading">Step 1 — Upload Bank Statement</div>
+  <div class="step-sub">Supports SBI, HDFC, ICICI, Axis, Kotak, Yes Bank CSV/Excel exports. Columns are auto-detected.</div>
+  <div class="upload-zone" id="bankZone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleBankDrop(event)">
+    <div class="upload-icon">🏦</div>
+    <h3>Drag &amp; drop your bank statement here</h3>
+    <p>or click to browse — CSV or Excel (.xlsx / .xls)</p>
+    <button class="upload-btn" onclick="document.getElementById('bankFile').click()">Choose File</button>
+    <input type="file" id="bankFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="loadBankFile(this.files[0])">
+  </div>
+  <div class="upload-success" id="bankSuccess">✓ <span id="bankSuccessText"></span></div>
+  <div class="format-hint">
+    <h4>Supported bank formats</h4>
+    <p>SBI · HDFC · ICICI · Axis · Kotak · Yes Bank · Most standard Indian bank statement exports. Date formats dd/mm/yyyy, dd-mm-yyyy, and yyyy-mm-dd are handled automatically.</p>
+  </div>
+  <div style="margin-top:1.5rem; display:flex; justify-content:flex-end;">
+    <button class="btn-primary" id="step1Next" disabled onclick="goToStep2()">Next: Upload Tally Ledger →</button>
+  </div>
+</div>
+
+<!-- Step 2: Tally Ledger Upload -->
+<div class="upload-section" id="step2" style="display:none">
+  <div class="step-heading">Step 2 — Upload Tally Bank Ledger</div>
+  <div class="step-sub">Go to Gateway → Display → Account Books → Cash/Bank Books → select account → F2 period → Alt+E Excel. Columns: Date, Particulars, Vch Type, Vch No, Debit, Credit.</div>
+  <div class="upload-zone" id="tallyZone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleTallyDrop(event)">
+    <div class="upload-icon">📒</div>
+    <h3>Drag &amp; drop your Tally export here</h3>
+    <p>or click to browse — CSV or Excel (.xlsx / .xls)</p>
+    <button class="upload-btn" onclick="document.getElementById('tallyFile').click()">Choose File</button>
+    <input type="file" id="tallyFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="loadTallyFile(this.files[0])">
+  </div>
+  <div class="upload-success" id="tallySuccess">✓ <span id="tallySuccessText"></span></div>
+  <div style="margin-top:1.5rem; display:flex; justify-content:space-between; gap:0.75rem;">
+    <button class="btn-ghost" onclick="goToStep1()">← Back</button>
+    <button class="btn-primary" id="step2Next" disabled onclick="goToStep3()">Next: Review Columns →</button>
+  </div>
+</div>
+
+<!-- Step 3: Column Mapping -->
+<div id="step3">
+  <div class="step-heading">Step 3 — Confirm Column Mapping</div>
+  <div class="step-sub">Auto-detected columns for your bank statement. Adjust if any column is wrong, then run reconciliation.</div>
+  <div class="preview-section">
+    <h4>Bank Statement Preview (first 3 rows)</h4>
+    <div id="bankPreviewWrap" style="overflow-x:auto;"></div>
+  </div>
+  <table class="mapping-table" id="mappingTable">
+    <thead><tr><th>Field</th><th>Required</th><th>Mapped To Column</th></tr></thead>
+    <tbody id="mappingBody"></tbody>
+  </table>
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1.1rem;margin-bottom:1.5rem;font-size:0.83rem;color:var(--muted);">
+    <strong style="color:var(--text);">Sign Convention Note:</strong> Bank Debit = money leaving your account (withdrawal). Bank Credit = money deposited. Tally Debit = money entering the bank account. Tally Credit = money leaving. Both are normalised automatically.
+  </div>
+  <div style="margin-bottom:1.5rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+    <label style="font-size:0.83rem;color:var(--muted);">Bank / Entity Name (for template save):</label>
+    <input type="text" id="bankNameInput" placeholder="e.g. HDFC Current A/c" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:0.4rem 0.75rem;border-radius:8px;font-size:0.85rem;flex:1;min-width:180px;">
+  </div>
+  <div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+    <button class="btn-ghost" onclick="goToStep2()">← Back</button>
+    <div style="display:flex;gap:0.6rem;">
+      <button class="btn-outline" onclick="saveFormatTemplate()">💾 Save Template</button>
+      <button class="btn-primary" onclick="runReconciliation()">🔍 Run Reconciliation</button>
+    </div>
+  </div>
+</div>
+
+<!-- Processing -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Parsing files…</div>
+  <div class="processing-sub">Running 4-pass matching engine</div>
+</div>
+
+<!-- Results -->
+<div id="resultsSection">
+  <div class="results-header">
+    <div>
+      <h2>Reconciliation Results</h2>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="exportExcel()">⬇ Export Excel</button>
+      <button class="btn-outline" onclick="printBRS()">🖨 Print BRS</button>
+      <button class="btn-ghost" onclick="resetApp()">↺ New Reconciliation</button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-strip">
+    <div class="summary-card clickable" onclick="switchTab('matched')" id="cardMatched">
+      <div class="card-count count-green" id="cntMatched">0</div>
+      <div class="card-label">Matched Pairs</div>
+    </div>
+    <div class="summary-card clickable" onclick="switchTab('booksOnly')" id="cardBooksOnly">
+      <div class="card-count count-orange" id="cntBooksOnly">0</div>
+      <div class="card-label">In Books Only</div>
+    </div>
+    <div class="summary-card clickable" onclick="switchTab('bankOnly')" id="cardBankOnly">
+      <div class="card-count count-red" id="cntBankOnly">0</div>
+      <div class="card-label">In Bank Only</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-count count-yellow" id="cntFuzzy">0</div>
+      <div class="card-label">Fuzzy / Review</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtnMatched" onclick="switchTab('matched')">✅ Matched</button>
+    <button class="tab-btn" id="tabBtnBooksOnly" onclick="switchTab('booksOnly')">📒 In Books Only</button>
+    <button class="tab-btn" id="tabBtnBankOnly" onclick="switchTab('bankOnly')">🏦 In Bank Only</button>
+    <button class="tab-btn" id="tabBtnBRS" onclick="switchTab('brs')">📄 BRS Statement</button>
+  </div>
+
+  <!-- Tab: Matched -->
+  <div id="tabMatched">
+    <div class="manual-match-info" id="manualMatchInfo">
+      <span>💡 Review fuzzy and near-date matches below. Click rows to select items for manual override.</span>
+    </div>
+    <div class="side-by-side">
+      <div class="side-panel">
+        <div class="side-panel-header"><div class="dot dot-tally"></div>Tally Bank Ledger</div>
+        <div id="tallyMatchedList"></div>
+      </div>
+      <div class="side-panel">
+        <div class="side-panel-header"><div class="dot dot-bank"></div>Bank Statement</div>
+        <div id="bankMatchedList"></div>
+      </div>
+    </div>
+    <!-- Full matched table -->
+    <div class="data-table-wrap">
+      <table class="data-table" id="matchedTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Confidence</th>
+            <th>Tally Date</th>
+            <th>Tally Particulars</th>
+            <th>Tally Vch</th>
+            <th>Tally Amount</th>
+            <th>Bank Date</th>
+            <th>Bank Narration</th>
+            <th>Bank Amount</th>
+            <th>Day Diff</th>
+          </tr>
+        </thead>
+        <tbody id="matchedTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: In Books Only -->
+  <div id="tabBooksOnly" style="display:none">
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+      These transactions are recorded in Tally but have no corresponding bank entry. They may be cheques issued but not yet presented, or deposits in transit.
+    </div>
+    <div class="data-table-wrap">
+      <table class="data-table" id="booksOnlyTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Particulars</th><th>Vch Type</th><th>Vch No</th>
+            <th>Amount</th><th>Type</th><th>Age (days)</th><th>Flag</th>
+          </tr>
+        </thead>
+        <tbody id="booksOnlyTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: In Bank Only -->
+  <div id="tabBankOnly" style="display:none">
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">
+      These transactions appear in the bank statement but are not in Tally. Likely bank charges, interest credited, direct debits, or standing instructions not yet recorded in books.
+    </div>
+    <div class="data-table-wrap">
+      <table class="data-table" id="bankOnlyTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Narration</th><th>Amount</th><th>Likely Category</th><th>Journal Suggestion</th>
+          </tr>
+        </thead>
+        <tbody id="bankOnlyTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: BRS Statement -->
+  <div id="tabBRS" style="display:none">
+    <div class="brs-wrap">
+      <div class="brs-input-row">
+        <div class="brs-input-group">
+          <label>Bank Closing Balance (₹)</label>
+          <input type="number" class="brs-input" id="brsBank" placeholder="Auto-detected" oninput="renderBRS()">
+        </div>
+        <div class="brs-input-group">
+          <label>Books Closing Balance (₹)</label>
+          <input type="number" class="brs-input" id="brsBooks" placeholder="Enter Tally closing balance" oninput="renderBRS()">
+        </div>
+        <div class="brs-input-group">
+          <label>Period</label>
+          <input type="text" class="brs-input" id="brsPeriod" placeholder="e.g. April 2026">
+        </div>
+      </div>
+      <div id="brsContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Scope Footer -->
+<div class="scope-footer">
+  Bank Reconciliation Automator by Credlance — Automated matches should be reviewed before finalising. Low-confidence and fuzzy matches require human verification. This tool does not store any uploaded data.
+</div>
+
+<!-- Main Footer -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-copy">© 2026 Credlance. All rights reserved.</div>
+    <ul class="footer-links">
+      <li><a href="index.html#about">About</a></li>
+      <li><a href="index.html#apps">Apps</a></li>
+      <li><a href="index.html#contact">Contact</a></li>
+    </ul>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let wizardStep = 1;
+let bankRawData = null;   // array of row arrays
+let tallyRawData = null;
+let bankHeaders = [];
+let bankMapping = {};     // {date, description, debit, credit, balance}
+let bankTxns = [];
+let tallyTxns = [];
+let reconResult = null;   // {matched, tallyOnly, bankOnly}
+let bankFileName = '';
+let tallyFileName = '';
+
+// ============================================================
+// COLUMN DETECTION
+// ============================================================
+const BANK_FIELDS = {
+  date:        ['date','txn date','transaction date','value date','posting date','trans date','tran date','book date'],
+  description: ['narration','description','particulars','remarks','details','transaction details','transaction remarks','txn narration'],
+  debit:       ['debit','withdrawal','dr','debit amount','withdrawal amount','debits','debit(inr)','withdrawal(inr)','amount(dr)'],
+  credit:      ['credit','deposit','cr','credit amount','deposit amount','credits','credit(inr)','deposit(inr)','amount(cr)'],
+  balance:     ['balance','closing balance','running balance','available balance','bal','balance(inr)','closing bal']
+};
+
+function detectBankColumns(headers) {
+  const mapping = {};
+  headers.forEach((h, i) => {
+    const hn = (h || '').toString().toLowerCase().trim().replace(/\(.*?\)/g,'').trim();
+    for (const [field, variants] of Object.entries(BANK_FIELDS)) {
+      if (mapping[field] !== undefined) continue;
+      if (variants.some(v => hn === v || hn.includes(v))) {
+        mapping[field] = i;
+      }
+    }
+  });
+  return mapping;
+}
+
+function detectBankName(headers, filename) {
+  const text = (headers.join(' ') + ' ' + filename).toLowerCase();
+  if (text.includes('sbi') || text.includes('state bank')) return 'SBI';
+  if (text.includes('hdfc')) return 'HDFC';
+  if (text.includes('icici')) return 'ICICI';
+  if (text.includes('axis')) return 'Axis';
+  if (text.includes('kotak')) return 'Kotak';
+  if (text.includes('yes bank') || text.includes('yesbank')) return 'Yes Bank';
+  if (text.includes('indusind')) return 'IndusInd';
+  if (text.includes('pnb') || text.includes('punjab national')) return 'PNB';
+  if (text.includes('canara')) return 'Canara';
+  if (text.includes('union bank')) return 'Union Bank';
+  return '';
+}
+
+// ============================================================
+// DATE / NUMBER PARSERS
+// ============================================================
+function parseDate(val) {
+  if (val === null || val === undefined || val === '') return null;
+  if (typeof val === 'number' && val > 20000 && val < 60000) {
+    try {
+      const info = XLSX.SSF.parse_date_code(val);
+      if (info) return new Date(info.y, info.m - 1, info.d);
+    } catch(e) {}
+  }
+  const s = val.toString().trim();
+  if (!s || s.length < 6) return null;
+
+  // dd/mm/yyyy or dd-mm-yyyy
+  let m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+
+  // yyyy-mm-dd
+  m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+
+  // dd-MMM-yyyy or dd/MMM/yyyy
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  m = s.match(/^(\d{1,2})[\-\/\s]([A-Za-z]{3})[\-\/\s](\d{2,4})$/);
+  if (m) {
+    const mon = months[m[2].toLowerCase()];
+    if (mon !== undefined) {
+      const yr = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+      return new Date(yr, mon, +m[1]);
+    }
+  }
+
+  // dd MMM yyyy (with space)
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})$/);
+  if (m) {
+    const mon = months[m[2].slice(0,3).toLowerCase()];
+    if (mon !== undefined) {
+      const yr = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+      return new Date(yr, mon, +m[1]);
+    }
+  }
+
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function parseNumber(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const s = val.toString().replace(/[,\s₹$\u20B9]/g, '');
+  if (s === '' || s === '-') return 0;
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  return '₹' + Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtSigned(n) {
+  if (!n) return '<span class="amount-pos">₹0.00</span>';
+  const cls = n >= 0 ? 'amount-pos' : 'amount-neg';
+  const sign = n < 0 ? '−' : '+';
+  return `<span class="${cls}">${sign}${fmt(n)}</span>`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+function dateDiff(a, b) {
+  return Math.round(Math.abs(a.getTime() - b.getTime()) / 86400000);
+}
+
+// ============================================================
+// FILE LOADERS
+// ============================================================
+function readFileAsRows(file, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:false});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:true});
+      callback(null, data);
+    } catch(err) { callback(err, null); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findHeaderRow(data) {
+  // Find the row that looks like a header (contains at least 2 keyword matches)
+  const keywords = ['date','narration','debit','credit','balance','particulars','description','withdrawal','deposit'];
+  for (let i = 0; i < Math.min(data.length, 15); i++) {
+    const row = data[i];
+    const text = row.join(' ').toLowerCase();
+    const hits = keywords.filter(k => text.includes(k)).length;
+    if (hits >= 2) return i;
+  }
+  return 0;
+}
+
+function loadBankFile(file) {
+  if (!file) return;
+  bankFileName = file.name;
+  readFileAsRows(file, (err, data) => {
+    if (err) { showToast('Error reading file: ' + err.message, true); return; }
+    const headerIdx = findHeaderRow(data);
+    bankHeaders = (data[headerIdx] || []).map(h => (h||'').toString().trim());
+    bankRawData = data.slice(headerIdx + 1).filter(r => r.some(c => c !== ''));
+    bankMapping = detectBankColumns(bankHeaders);
+
+    // Try to load saved template
+    const detectedBank = detectBankName(bankHeaders, bankFileName);
+    if (detectedBank) {
+      const saved = loadFormatTemplate(detectedBank);
+      if (saved) { bankMapping = saved; showToast(`Loaded saved template for ${detectedBank}`); }
+      document.getElementById('bankNameInput').value = detectedBank;
+    }
+
+    const rowCount = bankRawData.length;
+    document.getElementById('bankSuccessText').textContent = `${file.name} — ${rowCount} rows, ${bankHeaders.length} columns detected`;
+    document.getElementById('bankSuccess').style.display = 'block';
+    document.getElementById('step1Next').disabled = false;
+    showToast(`Bank statement loaded: ${rowCount} rows`);
+  });
+}
+
+function loadTallyFile(file) {
+  if (!file) return;
+  tallyFileName = file.name;
+  readFileAsRows(file, (err, data) => {
+    if (err) { showToast('Error reading file: ' + err.message, true); return; }
+    tallyRawData = data.filter(r => r.some(c => c !== ''));
+    const rowCount = tallyRawData.filter((r,i) => i > 0).length;
+    document.getElementById('tallySuccessText').textContent = `${file.name} — ${rowCount} transaction rows detected`;
+    document.getElementById('tallySuccess').style.display = 'block';
+    document.getElementById('step2Next').disabled = false;
+    showToast(`Tally ledger loaded: ${rowCount} rows`);
+  });
+}
+
+function handleBankDrop(e) {
+  e.preventDefault();
+  document.getElementById('bankZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadBankFile(file);
+}
+
+function handleTallyDrop(e) {
+  e.preventDefault();
+  document.getElementById('tallyZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadTallyFile(file);
+}
+
+// ============================================================
+// WIZARD NAVIGATION
+// ============================================================
+function setStep(n) {
+  wizardStep = n;
+  for (let i = 1; i <= 4; i++) {
+    const si = document.getElementById('si' + i);
+    si.classList.remove('active', 'done');
+    if (i < n) si.classList.add('done');
+    if (i === n) si.classList.add('active');
+  }
+  document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+  document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+  document.getElementById('step3').style.display = n === 3 ? 'block' : 'none';
+  document.getElementById('processingSection').style.display = n === 0 ? 'block' : 'none';
+  document.getElementById('resultsSection').style.display = n === 4 ? 'block' : 'none';
+  document.querySelector('.stepper').style.display = n >= 4 ? 'none' : 'flex';
+}
+
+function goToStep1() { setStep(1); }
+function goToStep2() { if (!bankRawData) { showToast('Please upload a bank statement first', true); return; } setStep(2); }
+
+function goToStep3() {
+  if (!tallyRawData) { showToast('Please upload a Tally ledger first', true); return; }
+  setStep(3);
+  renderMappingUI();
+}
+
+// ============================================================
+// COLUMN MAPPING UI
+// ============================================================
+function renderMappingUI() {
+  // Preview
+  const previewWrap = document.getElementById('bankPreviewWrap');
+  const cols = bankHeaders;
+  const previewRows = bankRawData.slice(0, 3);
+  let html = '<table class="preview-table"><thead><tr>';
+  cols.forEach(h => { html += `<th>${h || '—'}</th>`; });
+  html += '</tr></thead><tbody>';
+  previewRows.forEach(row => {
+    html += '<tr>';
+    cols.forEach((_, i) => { html += `<td>${(row[i]||'').toString().slice(0,30)}</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  previewWrap.innerHTML = html;
+
+  // Mapping table
+  const tbody = document.getElementById('mappingBody');
+  const fieldLabels = { date: 'Date', description: 'Description / Narration', debit: 'Debit / Withdrawal', credit: 'Credit / Deposit', balance: 'Running Balance' };
+  const required = { date: true, description: true, debit: true, credit: true, balance: false };
+  let rows = '';
+  for (const [field, label] of Object.entries(fieldLabels)) {
+    const detectedIdx = bankMapping[field];
+    const det = detectedIdx !== undefined ? ' ✓ auto' : '';
+    rows += `<tr>
+      <td><strong>${label}</strong></td>
+      <td><span class="field-badge ${required[field] ? 'badge-required' : 'badge-optional'}">${required[field] ? 'Required' : 'Optional'}</span></td>
+      <td>
+        <select class="mapping-select" id="map_${field}" onchange="bankMapping['${field}']=parseInt(this.value)">
+          <option value="-1">— Not mapped —</option>
+          ${cols.map((h,i) => `<option value="${i}" ${detectedIdx===i?'selected':''}>${h||'Col '+(i+1)}</option>`).join('')}
+        </select>
+        <span class="detected-badge">${det}</span>
+      </td>
+    </tr>`;
+  }
+  tbody.innerHTML = rows;
+}
+
+// ============================================================
+// PARSERS
+// ============================================================
+function parseBankStatement() {
+  const txns = [];
+  let id = 1;
+  for (const row of bankRawData) {
+    const date = parseDate(row[bankMapping.date]);
+    if (!date) continue;
+    const debit  = parseNumber(row[bankMapping.debit]);
+    const credit = parseNumber(row[bankMapping.credit]);
+    if (debit === 0 && credit === 0) continue;
+    const amount = credit - debit; // +ve = receipt, -ve = payment
+    const balance = bankMapping.balance !== undefined ? parseNumber(row[bankMapping.balance]) : null;
+    txns.push({ id: id++, date, description: (row[bankMapping.description]||'').toString().trim(), amount, runningBalance: balance, debit, credit });
+  }
+  return txns;
+}
+
+function parseTallyLedger() {
+  if (!tallyRawData || tallyRawData.length < 2) return [];
+  const headerRow = tallyRawData[0].map(h => (h||'').toString().toLowerCase().trim());
+
+  let di=-1, pi=-1, vtI=-1, vnI=-1, drI=-1, crI=-1;
+  headerRow.forEach((h,i) => {
+    if (h.includes('date') && di===-1) di=i;
+    else if ((h.includes('particulars')||h.includes('narration')||h==='party name') && pi===-1) pi=i;
+    else if ((h.includes('vch type')||h.includes('voucher type')||h==='type') && vtI===-1) vtI=i;
+    else if ((h.includes('vch no')||h.includes('voucher no')||h==='no.') && vnI===-1) vnI=i;
+    else if ((h==='debit'||h==='dr'||h==='debit amount') && drI===-1) drI=i;
+    else if ((h==='credit'||h==='cr'||h==='credit amount') && crI===-1) crI=i;
+  });
+  // Fallback to standard Tally order
+  if (di===-1) di=0; if (pi===-1) pi=1; if (vtI===-1) vtI=2; if (vnI===-1) vnI=3;
+  if (drI===-1) drI=4; if (crI===-1) crI=5;
+
+  const txns = [];
+  let id = 1;
+  for (let i = 1; i < tallyRawData.length; i++) {
+    const row = tallyRawData[i];
+    const date = parseDate(row[di]);
+    if (!date) continue;
+    const dr = parseNumber(row[drI]);
+    const cr = parseNumber(row[crI]);
+    if (dr === 0 && cr === 0) continue;
+    // Tally bank ledger: Debit = money IN to bank (+), Credit = money OUT of bank (-)
+    const amount = dr - cr;
+    txns.push({
+      id: id++, date,
+      particulars: (row[pi]||'').toString().trim(),
+      vchType: (row[vtI]||'').toString().trim(),
+      vchNo: (row[vnI]||'').toString().trim(),
+      amount, debit: dr, credit: cr
+    });
+  }
+  return txns;
+}
+
+// ============================================================
+// MATCHING ENGINE
+// ============================================================
+function amountsMatch(a, b) { return Math.abs(a - b) < 0.5; } // 50p tolerance
+
+function jaccardSim(a, b) {
+  if (!a || !b) return 0;
+  const tok = s => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(t=>t.length>2));
+  const sa = tok(a), sb = tok(b);
+  if (!sa.size || !sb.size) return 0;
+  let inter = 0;
+  sa.forEach(t => { if (sb.has(t)) inter++; });
+  return inter / (sa.size + sb.size - inter);
+}
+
+function findSubsetSum(items, target, maxK=4) {
+  const n = Math.min(items.length, 8);
+  function combo(start, chosen, sum) {
+    if (chosen.length > 0 && Math.abs(sum - target) < 0.5) return [...chosen];
+    if (chosen.length >= maxK) return null;
+    for (let i=start; i<n; i++) {
+      const r = combo(i+1, [...chosen, items[i]], sum + items[i].amount);
+      if (r) return r;
+    }
+    return null;
+  }
+  return combo(0, [], 0);
+}
+
+function reconcile(bankT, tallyT) {
+  const bankMatched = new Set(), tallyMatched = new Set();
+  const matched = [];
+
+  // Pass 1 — Exact (same date + same amount)
+  for (const t of tallyT) {
+    for (const b of bankT) {
+      if (tallyMatched.has(t.id) || bankMatched.has(b.id)) continue;
+      if (amountsMatch(t.amount, b.amount) && t.date.toDateString() === b.date.toDateString()) {
+        matched.push({ tallyItems:[t], bankItems:[b], confidence:'exact', label:'Exact Match', dayDiff:0 });
+        tallyMatched.add(t.id); bankMatched.add(b.id); break;
+      }
+    }
+  }
+
+  // Pass 2 — Near-date (±3 days, same amount)
+  for (const t of tallyT) {
+    if (tallyMatched.has(t.id)) continue;
+    let best = null, bestDiff = 999;
+    for (const b of bankT) {
+      if (bankMatched.has(b.id)) continue;
+      const diff = dateDiff(t.date, b.date);
+      if (amountsMatch(t.amount, b.amount) && diff <= 3 && diff < bestDiff) {
+        bestDiff = diff; best = b;
+      }
+    }
+    if (best) {
+      matched.push({ tallyItems:[t], bankItems:[best], confidence:'near-date', label:`Near-Date (${bestDiff}d lag)`, dayDiff:bestDiff });
+      tallyMatched.add(t.id); bankMatched.add(best.id);
+    }
+  }
+
+  // Pass 3 — Fuzzy description (amount match + Jaccard > 0.7)
+  for (const t of tallyT) {
+    if (tallyMatched.has(t.id)) continue;
+    let bestScore = 0.70, bestB = null;
+    for (const b of bankT) {
+      if (bankMatched.has(b.id)) continue;
+      if (!amountsMatch(t.amount, b.amount)) continue;
+      const sim = jaccardSim(t.particulars, b.description);
+      if (sim > bestScore) { bestScore = sim; bestB = b; }
+    }
+    if (bestB) {
+      matched.push({ tallyItems:[t], bankItems:[bestB], confidence:'fuzzy', label:`Fuzzy (${Math.round(bestScore*100)}% match)`, dayDiff: dateDiff(t.date, bestB.date) });
+      tallyMatched.add(t.id); bankMatched.add(bestB.id);
+    }
+  }
+
+  // Pass 4 — Aggregation (one Tally entry = sum of multiple bank entries)
+  for (const t of tallyT) {
+    if (tallyMatched.has(t.id)) continue;
+    const nearBank = bankT.filter(b => !bankMatched.has(b.id) && dateDiff(t.date, b.date) <= 5);
+    const subset = findSubsetSum(nearBank, t.amount);
+    if (subset && subset.length > 1) {
+      matched.push({ tallyItems:[t], bankItems:subset, confidence:'aggregation', label:`Aggregation (${subset.length} entries)`, dayDiff:0 });
+      tallyMatched.add(t.id); subset.forEach(b => bankMatched.add(b.id));
+    }
+  }
+
+  const tallyOnly = tallyT.filter(t => !tallyMatched.has(t.id));
+  const bankOnly  = bankT.filter(b => !bankMatched.has(b.id));
+  return { matched, tallyOnly, bankOnly };
+}
+
+// ============================================================
+// CATEGORISATION HELPERS
+// ============================================================
+const THREE_MONTHS_MS = 90 * 86400000;
+
+function isStale(date) { return (Date.now() - date.getTime()) > THREE_MONTHS_MS; }
+
+function categorizeTallyItem(t) {
+  return t.amount < 0 ? 'Cheque / Payment Issued' : 'Deposit in Transit';
+}
+
+function categorizeBankItem(b) {
+  const d = b.description.toLowerCase();
+  if (/interest|int cr|int credit/.test(d)) return 'Bank Interest';
+  if (/charge|fee|chg|commission|service tax|gst/.test(d)) return 'Bank Charges';
+  if (/ecs|nach|si|auto debit|standing/.test(d)) return 'Standing Instruction';
+  if (/neft|rtgs|imps|upi|transfer/.test(d)) return 'Transfer';
+  if (/dividend|div cr/.test(d)) return 'Dividend';
+  if (/refund/.test(d)) return 'Refund';
+  return b.amount < 0 ? 'Bank Debit' : 'Bank Credit';
+}
+
+function journalSuggestion(b) {
+  const cat = categorizeBankItem(b);
+  const sign = b.amount < 0 ? 'Credit' : 'Debit';
+  const contra = b.amount < 0 ? 'Debit' : 'Credit';
+  const acct = { 'Bank Interest':'Interest Income', 'Bank Charges':'Bank Charges A/c', 'Standing Instruction':'Vendor/Expense A/c', 'Transfer':'Transfer A/c', 'Dividend':'Dividend Income', 'Refund':'Refund Receivable' }[cat] || 'Suspense A/c';
+  return `${contra} Bank A/c / ${sign} ${acct}`;
+}
+
+// ============================================================
+// RUN RECONCILIATION
+// ============================================================
+function runReconciliation() {
+  // Validate mapping
+  if (bankMapping.date === undefined || bankMapping.debit === undefined || bankMapping.credit === undefined) {
+    showToast('Please map Date, Debit and Credit columns before proceeding', true); return;
+  }
+  setStep(0);
+  setTimeout(() => {
+    try {
+      document.getElementById('processingMsg').textContent = 'Parsing bank statement…';
+      bankTxns = parseBankStatement();
+      document.getElementById('processingMsg').textContent = 'Parsing Tally ledger…';
+      tallyTxns = parseTallyLedger();
+      document.getElementById('processingMsg').textContent = `Running matching engine on ${bankTxns.length} bank + ${tallyTxns.length} Tally entries…`;
+
+      setTimeout(() => {
+        reconResult = reconcile(bankTxns, tallyTxns);
+        document.getElementById('processingMsg').textContent = 'Generating BRS statement…';
+        setTimeout(() => {
+          renderResults();
+          setStep(4);
+          // Save template if bank name given
+          const bname = document.getElementById('bankNameInput').value.trim();
+          if (bname) saveFormatTemplate(bname, bankMapping);
+        }, 400);
+      }, 300);
+    } catch(e) {
+      showToast('Error during reconciliation: ' + e.message, true);
+      setStep(3);
+    }
+  }, 100);
+}
+
+// ============================================================
+// RENDER RESULTS
+// ============================================================
+function renderResults() {
+  const { matched, tallyOnly, bankOnly } = reconResult;
+  const fuzzy = matched.filter(m => m.confidence === 'fuzzy' || m.confidence === 'near-date').length;
+
+  document.getElementById('cntMatched').textContent = matched.length;
+  document.getElementById('cntBooksOnly').textContent = tallyOnly.length;
+  document.getElementById('cntBankOnly').textContent = bankOnly.length;
+  document.getElementById('cntFuzzy').textContent = fuzzy;
+  document.getElementById('resultsMeta').textContent =
+    `${bankFileName} vs ${tallyFileName} · ${bankTxns.length} bank + ${tallyTxns.length} Tally transactions`;
+
+  renderMatchedTab();
+  renderBooksOnlyTab();
+  renderBankOnlyTab();
+
+  // Auto-populate BRS bank closing balance
+  const lastBal = bankTxns.length ? bankTxns[bankTxns.length-1].runningBalance : null;
+  if (lastBal !== null) document.getElementById('brsBank').value = lastBal;
+  renderBRS();
+}
+
+function renderMatchedTab() {
+  const { matched } = reconResult;
+  const tbody = document.getElementById('matchedTbody');
+  if (!matched.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--muted)">No matched transactions</td></tr>'; return; }
+
+  let rows = '';
+  matched.forEach((m, idx) => {
+    const t = m.tallyItems[0];
+    const b = m.bankItems[0];
+    const confCls = {exact:'conf-exact','near-date':'conf-near',fuzzy:'conf-fuzzy',aggregation:'conf-aggr'}[m.confidence]||'conf-near';
+    const bankDesc = m.bankItems.map(bi=>bi.description).join(' + ').slice(0,50);
+    const bankDate = m.bankItems.length === 1 ? fmtDate(b.date) : m.bankItems.map(bi=>fmtDate(bi.date)).join(', ');
+    const bankAmt  = m.bankItems.reduce((s,bi)=>s+bi.amount,0);
+    rows += `<tr>
+      <td style="color:var(--muted)">${idx+1}</td>
+      <td><span class="conf-badge ${confCls}">${m.label}</span></td>
+      <td>${fmtDate(t.date)}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.particulars}">${t.particulars||'—'}</td>
+      <td style="color:var(--muted);font-size:0.78rem">${t.vchType} ${t.vchNo}</td>
+      <td>${fmtSigned(t.amount)}</td>
+      <td>${bankDate}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${bankDesc}">${bankDesc||'—'}</td>
+      <td>${fmtSigned(bankAmt)}</td>
+      <td style="color:var(--muted)">${m.dayDiff > 0 ? m.dayDiff+'d' : '—'}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+function renderBooksOnlyTab() {
+  const { tallyOnly } = reconResult;
+  const tbody = document.getElementById('booksOnlyTbody');
+  if (!tallyOnly.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted)">✓ All Tally entries matched to bank</td></tr>'; return; }
+
+  let rows = '';
+  tallyOnly.forEach(t => {
+    const cat = categorizeTallyItem(t);
+    const stale = isStale(t.date);
+    const ageDays = Math.round((Date.now() - t.date.getTime()) / 86400000);
+    rows += `<tr>
+      <td>${fmtDate(t.date)}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.particulars}">${t.particulars||'—'}</td>
+      <td style="color:var(--muted);font-size:0.8rem">${t.vchType||'—'}</td>
+      <td style="color:var(--muted);font-size:0.8rem">${t.vchNo||'—'}</td>
+      <td>${fmtSigned(t.amount)}</td>
+      <td><span class="conf-badge ${t.amount<0?'conf-near':'conf-exact'}">${cat}</span></td>
+      <td style="color:${ageDays>90?'var(--red)':'var(--muted)'}">${ageDays}</td>
+      <td>${stale ? '<span class="tag-stale">Stale &gt;90d</span>' : ''}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+function renderBankOnlyTab() {
+  const { bankOnly } = reconResult;
+  const tbody = document.getElementById('bankOnlyTbody');
+  if (!bankOnly.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">✓ All bank entries matched to books</td></tr>'; return; }
+
+  let rows = '';
+  bankOnly.forEach(b => {
+    const cat = categorizeBankItem(b);
+    const jrn = journalSuggestion(b);
+    rows += `<tr>
+      <td>${fmtDate(b.date)}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${b.description}">${b.description||'—'}</td>
+      <td>${fmtSigned(b.amount)}</td>
+      <td><span class="conf-badge ${b.amount<0?'conf-near':'conf-exact'}">${cat}</span></td>
+      <td style="color:var(--muted);font-size:0.8rem">${jrn}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+// ============================================================
+// BRS STATEMENT
+// ============================================================
+function renderBRS() {
+  if (!reconResult) return;
+  const { tallyOnly, bankOnly } = reconResult;
+
+  const bankClosing = parseFloat(document.getElementById('brsBank').value) || 0;
+  const booksClosingInput = parseFloat(document.getElementById('brsBooks').value);
+  const period = document.getElementById('brsPeriod').value || 'Period not specified';
+
+  // Buckets
+  const tallyPayments = tallyOnly.filter(t => t.amount < 0);  // payments in books, not in bank
+  const tallyReceipts = tallyOnly.filter(t => t.amount > 0);  // receipts in books, not in bank
+  const bankCharges   = bankOnly.filter(b => b.amount < 0);   // debits in bank, not in books
+  const bankCredits   = bankOnly.filter(b => b.amount > 0);   // credits in bank, not in books
+
+  const sumAbs = arr => arr.reduce((s,x) => s + Math.abs(x.amount), 0);
+
+  const payAmt = sumAbs(tallyPayments);
+  const recAmt = sumAbs(tallyReceipts);
+  const chgAmt = sumAbs(bankCharges);
+  const criAmt = sumAbs(bankCredits);
+
+  // Books = Bank + tally_only_net - bank_only_net
+  // tally_only_net = tallyReceipts(+) + tallyPayments(-) = recAmt - payAmt
+  // bank_only_net  = bankCredits(+) + bankCharges(-) = criAmt - chgAmt
+  const computedBooks = bankClosing + (recAmt - payAmt) - (criAmt - chgAmt);
+
+  const hasInputBooks = !isNaN(booksClosingInput);
+  const booksBalance = hasInputBooks ? booksClosingInput : computedBooks;
+  const diff = booksBalance - computedBooks;
+  const ties = Math.abs(diff) < 1;
+
+  let html = `
+  <div class="brs-card" id="brsPrintable">
+    <div class="brs-title">Bank Reconciliation Statement</div>
+    <div class="brs-period">${period}</div>
+
+    <div class="brs-row">
+      <span class="brs-label"><strong>Balance as per Bank Statement (Closing)</strong></span>
+      <span class="brs-amount neutral">${fmt(bankClosing)}</span>
+    </div>`;
+
+  if (tallyPayments.length) {
+    html += `<div class="brs-section-heading">Add: Cheques Issued but not Presented to Bank</div>`;
+    tallyPayments.forEach(t => {
+      html += `<div class="brs-row indent">
+        <span class="brs-label">${t.particulars||'—'} <small style="color:var(--muted)">(${fmtDate(t.date)} · ${t.vchType||''} ${t.vchNo||''})</small></span>
+        <span class="brs-amount pos">${fmt(t.amount)}</span>
+      </div>`;
+    });
+    html += `<div class="brs-row"><span class="brs-label" style="font-weight:600">Sub-total</span><span class="brs-amount pos">+ ${fmt(payAmt)}</span></div>`;
+  }
+
+  if (tallyReceipts.length) {
+    html += `<div class="brs-section-heading">Less: Deposits in Transit (in Books, not yet credited by Bank)</div>`;
+    tallyReceipts.forEach(t => {
+      html += `<div class="brs-row indent">
+        <span class="brs-label">${t.particulars||'—'} <small style="color:var(--muted)">(${fmtDate(t.date)})</small></span>
+        <span class="brs-amount neg">− ${fmt(t.amount)}</span>
+      </div>`;
+    });
+    html += `<div class="brs-row"><span class="brs-label" style="font-weight:600">Sub-total</span><span class="brs-amount neg">− ${fmt(recAmt)}</span></div>`;
+  }
+
+  if (bankCredits.length) {
+    html += `<div class="brs-section-heading">Less: Bank Credits not recorded in Books</div>`;
+    bankCredits.forEach(b => {
+      html += `<div class="brs-row indent">
+        <span class="brs-label">${b.description||'—'} <small style="color:var(--muted)">(${fmtDate(b.date)})</small></span>
+        <span class="brs-amount neg">− ${fmt(b.amount)}</span>
+      </div>`;
+    });
+    html += `<div class="brs-row"><span class="brs-label" style="font-weight:600">Sub-total</span><span class="brs-amount neg">− ${fmt(criAmt)}</span></div>`;
+  }
+
+  if (bankCharges.length) {
+    html += `<div class="brs-section-heading">Add: Bank Charges / Debits not recorded in Books</div>`;
+    bankCharges.forEach(b => {
+      html += `<div class="brs-row indent">
+        <span class="brs-label">${b.description||'—'} <small style="color:var(--muted)">(${fmtDate(b.date)})</small></span>
+        <span class="brs-amount pos">${fmt(b.amount)}</span>
+      </div>`;
+    });
+    html += `<div class="brs-row"><span class="brs-label" style="font-weight:600">Sub-total</span><span class="brs-amount pos">+ ${fmt(chgAmt)}</span></div>`;
+  }
+
+  html += `
+    <div class="brs-row total">
+      <span class="brs-label"><strong>Balance as per Books (Computed)</strong></span>
+      <span class="brs-total-value">${fmt(computedBooks)}</span>
+    </div>`;
+
+  if (hasInputBooks) {
+    html += `<div class="brs-row">
+      <span class="brs-label" style="color:var(--muted)">Balance as per Books (Entered)</span>
+      <span class="brs-amount neutral">${fmt(booksBalance)}</span>
+    </div>`;
+  }
+
+  if (ties) {
+    html += `<div class="brs-tie-ok">✅ BRS ties — Computed Books Balance matches${hasInputBooks ? ' entered Tally balance' : ''}.</div>`;
+  } else if (hasInputBooks) {
+    html += `<div class="brs-tie-fail">⚠ Difference: ₹${Math.abs(diff).toLocaleString('en-IN',{minimumFractionDigits:2})} — Check for timing differences or unrecorded entries.</div>`;
+  } else {
+    html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-top:1rem;font-size:0.82rem;color:var(--muted)">💡 Enter your Tally closing balance above to verify whether the BRS ties.</div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('brsContent').innerHTML = html;
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  ['matched','booksOnly','bankOnly','brs'].forEach(t => {
+    const tabEl = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const btn   = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (tabEl) tabEl.style.display = t === tab ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  // Update card highlights
+  ['Matched','BooksOnly','BankOnly'].forEach(t => {
+    const card = document.getElementById('card' + t);
+    if (card) card.classList.remove('active-green','active-orange','active-red');
+  });
+  if (tab === 'matched') document.getElementById('cardMatched').classList.add('active-green');
+  else if (tab === 'booksOnly') document.getElementById('cardBooksOnly').classList.add('active-orange');
+  else if (tab === 'bankOnly') document.getElementById('cardBankOnly').classList.add('active-red');
+
+  if (tab === 'brs') renderBRS();
+}
+
+// ============================================================
+// EXPORT — EXCEL
+// ============================================================
+function exportExcel() {
+  if (!reconResult) { showToast('Run reconciliation first', true); return; }
+  const { matched, tallyOnly, bankOnly } = reconResult;
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Matched
+  const matchedRows = [['#','Confidence','Tally Date','Tally Particulars','Vch Type','Vch No','Tally Amount','Bank Date','Bank Narration','Bank Amount','Day Diff']];
+  matched.forEach((m,i) => {
+    const t = m.tallyItems[0];
+    const b = m.bankItems[0];
+    matchedRows.push([i+1, m.label, fmtDate(t.date), t.particulars, t.vchType, t.vchNo, t.amount, fmtDate(b.date), b.description, m.bankItems.reduce((s,bi)=>s+bi.amount,0), m.dayDiff]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(matchedRows), 'Matched');
+
+  // Sheet 2: In Books Only
+  const booksRows = [['Date','Particulars','Vch Type','Vch No','Amount','Category','Age (Days)','Stale?']];
+  tallyOnly.forEach(t => {
+    booksRows.push([fmtDate(t.date), t.particulars, t.vchType, t.vchNo, t.amount, categorizeTallyItem(t), Math.round((Date.now()-t.date.getTime())/86400000), isStale(t.date)?'Yes':'No']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(booksRows), 'In-Books-Only');
+
+  // Sheet 3: In Bank Only
+  const bankRows = [['Date','Narration','Amount','Category','Journal Suggestion']];
+  bankOnly.forEach(b => {
+    bankRows.push([fmtDate(b.date), b.description, b.amount, categorizeBankItem(b), journalSuggestion(b)]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bankRows), 'In-Bank-Only');
+
+  // Sheet 4: BRS
+  const bankClose = parseFloat(document.getElementById('brsBank').value) || 0;
+  const tallyPayments = tallyOnly.filter(t=>t.amount<0);
+  const tallyReceipts = tallyOnly.filter(t=>t.amount>0);
+  const bankCharges   = bankOnly.filter(b=>b.amount<0);
+  const bankCredits   = bankOnly.filter(b=>b.amount>0);
+  const computedBooks = bankClose + tallyReceipts.reduce((s,t)=>s+Math.abs(t.amount),0) - tallyPayments.reduce((s,t)=>s+Math.abs(t.amount),0) - bankCredits.reduce((s,b)=>s+Math.abs(b.amount),0) + bankCharges.reduce((s,b)=>s+Math.abs(b.amount),0);
+  const brsRows = [
+    ['Bank Reconciliation Statement'],
+    [],
+    ['Balance as per Bank Statement (Closing)', '', bankClose],
+    ['Add: Cheques Issued not Presented', '', tallyPayments.reduce((s,t)=>s+Math.abs(t.amount),0)],
+    ['Less: Deposits in Transit', '', -tallyReceipts.reduce((s,t)=>s+t.amount,0)],
+    ['Less: Bank Credits not in Books', '', -bankCredits.reduce((s,b)=>s+b.amount,0)],
+    ['Add: Bank Charges not in Books', '', bankCharges.reduce((s,b)=>s+Math.abs(b.amount),0)],
+    [],
+    ['Balance as per Books (Computed)', '', computedBooks]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brsRows), 'BRS-Statement');
+
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `BankRecon_${date}.xlsx`);
+  showToast('Excel exported successfully');
+}
+
+// ============================================================
+// PRINT BRS
+// ============================================================
+function printBRS() {
+  switchTab('brs');
+  renderBRS();
+  setTimeout(() => window.print(), 300);
+}
+
+// ============================================================
+// localStorage TEMPLATES
+// ============================================================
+const LS_KEY = 'credlance_bankrecon_formats';
+
+function saveFormatTemplate(name, mapping) {
+  if (!name) name = document.getElementById('bankNameInput').value.trim();
+  if (!name || !mapping) { showToast('Enter a bank/entity name to save template', true); return; }
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    all[name] = mapping;
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+    showToast(`Template saved for ${name}`);
+  } catch(e) { showToast('Could not save template', true); }
+}
+
+function loadFormatTemplate(name) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    return all[name] || null;
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function resetApp() {
+  bankRawData = tallyRawData = null;
+  bankTxns = tallyTxns = [];
+  reconResult = null;
+  bankFileName = tallyFileName = '';
+  bankHeaders = []; bankMapping = {};
+  document.getElementById('bankFile').value = '';
+  document.getElementById('tallyFile').value = '';
+  document.getElementById('bankSuccess').style.display = 'none';
+  document.getElementById('tallySuccess').style.display = 'none';
+  document.getElementById('step1Next').disabled = true;
+  document.getElementById('step2Next').disabled = true;
+  document.getElementById('brsBank').value = '';
+  document.getElementById('brsBooks').value = '';
+  document.getElementById('brsPeriod').value = '';
+  document.getElementById('brsContent').innerHTML = '';
+  setStep(1);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Init
+setStep(1);
+</script>
+</body>
+</html>
