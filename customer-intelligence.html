@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Intelligence Suite | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --red-bg: rgba(255,76,106,0.1);
+      --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+      --blue-bg: rgba(96,165,250,0.1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px;
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge {
+      background: var(--surface2); color: var(--accent);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 3.5rem 2rem 2.5rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 600px; margin: 0 auto; }
+    .hero-insight {
+      background: linear-gradient(135deg, rgba(0,212,170,0.08), rgba(96,165,250,0.05));
+      border: 1px solid rgba(0,212,170,0.2);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin: 1.5rem auto 0;
+      max-width: 680px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .hero-insight strong { color: var(--accent); }
+
+    /* ── UPLOAD SECTION ── */
+    #uploadSection { max-width: 820px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+
+    .config-bar {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem 1.5rem;
+      display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .config-bar label { font-size: 0.85rem; color: var(--muted); }
+    .config-bar input[type=number] {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 0.4rem 0.8rem;
+      font-size: 0.9rem; width: 90px; margin-left: 0.5rem;
+    }
+    .config-bar input[type=number]:focus { outline: none; border-color: var(--accent); }
+    .config-info { font-size: 0.8rem; color: var(--muted); flex: 1; }
+
+    .modules-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    @media (max-width: 600px) { .modules-grid { grid-template-columns: 1fr; } }
+
+    .module-upload {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem;
+      cursor: pointer; transition: all 0.2s;
+      position: relative;
+    }
+    .module-upload:hover { border-color: var(--accent); background: rgba(0,212,170,0.03); }
+    .module-upload.loaded { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+    .module-upload.optional.loaded { border-color: var(--green); background: rgba(34,197,94,0.05); }
+    .module-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .module-icon { font-size: 1.4rem; }
+    .module-title { font-weight: 700; font-size: 0.95rem; }
+    .module-badge {
+      font-size: 0.68rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 10px; letter-spacing: 0.05em;
+    }
+    .badge-required { background: rgba(255,76,106,0.15); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .badge-optional { background: rgba(245,197,24,0.12); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .module-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    .module-status {
+      margin-top: 0.75rem; font-size: 0.8rem; font-weight: 600;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .module-status.waiting { color: var(--muted); }
+    .module-status.loaded { color: var(--accent); }
+    .module-status.loaded-opt { color: var(--green); }
+    .module-file-input { display: none; }
+
+    .analyse-btn {
+      width: 100%; background: var(--accent); color: #0b0f1a;
+      font-size: 1rem; font-weight: 700; padding: 0.9rem;
+      border: none; border-radius: 12px; cursor: pointer;
+      transition: background 0.2s; letter-spacing: 0.03em;
+    }
+    .analyse-btn:hover { background: var(--accent2); }
+    .analyse-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── PROCESSING ── */
+    #processingSection {
+      display: none; text-align: center; padding: 5rem 2rem;
+    }
+    .spinner {
+      width: 52px; height: 52px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #processingMsg { color: var(--text); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .processing-steps { color: var(--muted); font-size: 0.85rem; }
+
+    /* ── RESULTS ── */
+    #resultsSection { display: none; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 5rem; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .results-meta { color: var(--muted); font-size: 0.85rem; }
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent); color: #0b0f1a;
+      border: none; padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+
+    /* ── KPI STRIP ── */
+    .kpi-strip {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    @media (max-width: 800px) { .kpi-strip { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 500px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem;
+    }
+    .kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1.1; }
+    .kpi-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi-sub { font-size: 0.78rem; margin-top: 0.2rem; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 0.9rem; padding: 0.75rem 1.5rem; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all 0.2s; font-weight: 500;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── CHART CONTAINERS ── */
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .chart-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .chart-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .chart-wrap { position: relative; height: 340px; }
+    .chart-wrap-tall { position: relative; height: 440px; }
+    .chart-wrap-bubble { position: relative; height: 480px; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th {
+      background: var(--surface2); color: var(--muted);
+      font-weight: 600; text-transform: uppercase; font-size: 0.72rem;
+      letter-spacing: 0.06em; padding: 0.7rem 0.9rem; text-align: left;
+      white-space: nowrap;
+    }
+    td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(0,212,170,0.03); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .rank-cell { color: var(--muted); font-size: 0.8rem; }
+
+    .tag {
+      font-size: 0.72rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; white-space: nowrap;
+    }
+    .tag-star    { background: rgba(0,212,170,0.15); color: var(--accent); border: 1px solid rgba(0,212,170,0.3); }
+    .tag-workhorse { background: rgba(96,165,250,0.15); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+    .tag-diva    { background: rgba(245,197,24,0.15); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .tag-dog     { background: rgba(255,76,106,0.15); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .tag-prompt  { background: rgba(0,212,170,0.12); color: var(--accent); border: 1px solid rgba(0,212,170,0.25); }
+    .tag-normal  { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+    .tag-slow    { background: rgba(245,197,24,0.12); color: var(--yellow); border: 1px solid rgba(245,197,24,0.25); }
+    .tag-bad     { background: rgba(255,76,106,0.12); color: var(--red); border: 1px solid rgba(255,76,106,0.25); }
+
+    /* ── QUADRANT LEGEND ── */
+    .quadrant-legend {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1rem; margin-top: 1.5rem;
+    }
+    .ql-card {
+      border-radius: 10px; padding: 1rem 1.25rem;
+      border: 1px solid;
+    }
+    .ql-card.star    { border-color: rgba(0,212,170,0.3); background: rgba(0,212,170,0.06); }
+    .ql-card.workhorse { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.06); }
+    .ql-card.diva    { border-color: rgba(245,197,24,0.3); background: rgba(245,197,24,0.06); }
+    .ql-card.dog     { border-color: rgba(255,76,106,0.3); background: rgba(255,76,106,0.06); }
+    .ql-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.25rem; }
+    .ql-action { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .ql-customers { font-size: 0.78rem; color: var(--muted); }
+    .ql-customers span { display: inline-block; margin-right: 0.5rem; }
+
+    /* ── COMMENTARY ── */
+    .commentary-box {
+      background: linear-gradient(135deg, var(--surface2), rgba(0,212,170,0.04));
+      border: 1px solid rgba(0,212,170,0.2);
+      border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem;
+    }
+    .commentary-box h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.75rem; font-weight: 700; }
+    .commentary-box p { font-size: 0.88rem; color: var(--muted); line-height: 1.65; margin-bottom: 0.5rem; }
+    .commentary-box p:last-child { margin-bottom: 0; }
+    .commentary-box strong { color: var(--text); }
+
+    /* ── AGEING TABLE ── */
+    .ageing-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    @media (max-width: 700px) { .ageing-grid { grid-template-columns: repeat(2, 1fr); } }
+    .ageing-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; text-align: center;
+    }
+    .ageing-value { font-size: 1.4rem; font-weight: 800; }
+    .ageing-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--surface2); border: 1px solid var(--accent);
+      color: var(--accent); padding: 0.75rem 1.25rem;
+      border-radius: 10px; font-size: 0.88rem; font-weight: 600;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── FOOTER ── */
+    .scope-footer {
+      text-align: center; font-size: 0.75rem; color: #475569;
+      padding: 2rem 1.5rem; border-top: 1px solid var(--border);
+      max-width: 820px; margin: 2rem auto 0; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Navigation -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <span class="nav-badge">Customer Intelligence Suite</span>
+  <a href="index.html" class="nav-back">← All Apps</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Customer Intelligence <span>Suite</span></h1>
+  <p>Profit, Payment Behaviour, and True Client Value</p>
+  <div class="hero-insight">
+    <strong>The insight most businesses never see:</strong> A 25% margin customer who pays in 150 days
+    may be worth less than a 20% margin customer who pays in 30 days — after your cost of capital.
+    This suite quantifies exactly that.
+  </div>
+</div>
+
+<!-- Upload Section -->
+<div id="uploadSection">
+
+  <!-- Cost of Capital Config -->
+  <div class="config-bar">
+    <div>
+      <label>
+        Cost of Capital:
+        <input type="number" id="cocInput" value="12" min="1" max="50" step="0.5" />
+        <span style="color:var(--muted);font-size:0.85rem;margin-left:4px;">% p.a.</span>
+      </label>
+    </div>
+    <div class="config-info">
+      This is your effective borrowing rate (or opportunity cost). Typical MSME rate: 12–15%.
+      Used to compute working capital cost per customer based on their DSO and outstanding balance.
+    </div>
+  </div>
+
+  <!-- Module Uploads -->
+  <div class="modules-grid">
+
+    <!-- Module A: Sales Register -->
+    <div class="module-upload" id="moduleA" onclick="triggerUpload('fileA')">
+      <input type="file" class="module-file-input" id="fileA" accept=".xlsx,.xls" onchange="handleFile('A', this)" />
+      <div class="module-header">
+        <div class="module-icon">📊</div>
+        <div>
+          <div class="module-title">Sales Register</div>
+          <span class="module-badge badge-required">Required</span>
+        </div>
+      </div>
+      <div class="module-desc">
+        Tally: Gateway → Sales Register → Alt+F5 Detailed → F12 Show Party Details: Yes → Alt+E Excel.<br>
+        Columns: Date, Party Name, Item, Qty, Rate, Gross Sales Value, Invoice No.
+      </div>
+      <div class="module-status waiting" id="statusA">⬜ Waiting for file…</div>
+    </div>
+
+    <!-- Module B: Receipt Voucher Register -->
+    <div class="module-upload" id="moduleB" onclick="triggerUpload('fileB')">
+      <input type="file" class="module-file-input" id="fileB" accept=".xlsx,.xls" onchange="handleFile('B', this)" />
+      <div class="module-header">
+        <div class="module-icon">💰</div>
+        <div>
+          <div class="module-title">Receipt Register</div>
+          <span class="module-badge badge-required">Required</span>
+        </div>
+      </div>
+      <div class="module-desc">
+        Tally: Gateway → Day Book → filter Voucher Type = Receipt → Alt+E Excel.<br>
+        Columns: Date, Party Name, Amount Received, Against Bill/Invoice Reference.
+      </div>
+      <div class="module-status waiting" id="statusB">⬜ Waiting for file…</div>
+    </div>
+
+    <!-- Module C: Credit Note Register -->
+    <div class="module-upload optional" id="moduleC" onclick="triggerUpload('fileC')">
+      <input type="file" class="module-file-input" id="fileC" accept=".xlsx,.xls" onchange="handleFile('C', this)" />
+      <div class="module-header">
+        <div class="module-icon">🔄</div>
+        <div>
+          <div class="module-title">Credit Note Register</div>
+          <span class="module-badge badge-optional">Optional</span>
+        </div>
+      </div>
+      <div class="module-desc">
+        Tally: Sales Register → filter Voucher Type = Credit Note → Alt+E Excel.<br>
+        Used to net out sales returns per customer for accurate revenue.
+      </div>
+      <div class="module-status waiting" id="statusC">⬜ Waiting for file (optional)…</div>
+    </div>
+
+    <!-- Module D: Purchase Register -->
+    <div class="module-upload optional" id="moduleD" onclick="triggerUpload('fileD')">
+      <input type="file" class="module-file-input" id="fileD" accept=".xlsx,.xls" onchange="handleFile('D', this)" />
+      <div class="module-header">
+        <div class="module-icon">🏭</div>
+        <div>
+          <div class="module-title">Purchase Register</div>
+          <span class="module-badge badge-optional">Optional</span>
+        </div>
+      </div>
+      <div class="module-desc">
+        Tally: Purchase Register → Alt+F5 Detailed → Alt+E Excel.<br>
+        Used to allocate RM cost per SKU to each customer for true contribution margin.
+      </div>
+      <div class="module-status waiting" id="statusD">⬜ Waiting for file (optional)…</div>
+    </div>
+  </div>
+
+  <button class="analyse-btn" id="analyseBtn" onclick="runAnalysis()" disabled>
+    Run Customer Intelligence Analysis →
+  </button>
+
+</div>
+
+<!-- Processing -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Parsing sales register…</div>
+  <div class="processing-steps">Please wait — computing profitability and DSO</div>
+</div>
+
+<!-- Results -->
+<div id="resultsSection">
+
+  <!-- Header -->
+  <div class="results-header">
+    <div>
+      <h2 id="resultsTitle">Customer Intelligence Report</h2>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="exportExcel()">⬇ Excel Export</button>
+      <button class="btn-primary" onclick="exportPDF()">📄 PDF Summary</button>
+      <button class="btn-outline" onclick="resetApp()">↩ New Analysis</button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpiCustomers" style="color:var(--accent)">—</div>
+      <div class="kpi-label">Customers Analysed</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpiRevenue" style="color:var(--blue)">—</div>
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-sub" id="kpiRevenueSub" style="color:var(--muted)"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpiContrib" style="color:var(--green)">—</div>
+      <div class="kpi-label">Gross Contribution</div>
+      <div class="kpi-sub" id="kpiContribPct" style="color:var(--muted)"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpiDSO" style="color:var(--yellow)">—</div>
+      <div class="kpi-label">Weighted Avg DSO</div>
+      <div class="kpi-sub" id="kpiDSOSub" style="color:var(--muted)"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpiAdjMargin" style="color:var(--orange)">—</div>
+      <div class="kpi-label">Adjusted Margin</div>
+      <div class="kpi-sub" id="kpiWCCost" style="color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('profitability')">📈 Profitability</button>
+    <button class="tab-btn" onclick="switchTab('collections')">⏱ Collections</button>
+    <button class="tab-btn" onclick="switchTab('quadrant')">🎯 Value Quadrant</button>
+  </div>
+
+  <!-- ── TAB 1: PROFITABILITY ── -->
+  <div class="tab-panel active" id="tab-profitability">
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:1.5rem;" class="chart-row-split">
+      <div class="chart-card">
+        <div class="chart-title">Customer Contribution Pareto</div>
+        <div class="chart-sub">Bars = absolute contribution (₹). Line = cumulative % of total contribution.</div>
+        <div class="chart-wrap-tall"><canvas id="paretoChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top 10 vs Bottom 10</div>
+        <div class="chart-sub">Gross margin % by customer — top 10 contributors highlighted.</div>
+        <div class="chart-wrap-tall"><canvas id="marginBarChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Customer Profitability Table</div>
+      <div class="chart-sub">Ranked by gross contribution (descending). Includes cost of capital adjustment.</div>
+      <div class="table-wrap">
+        <table id="profitTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th class="num">Revenue (₹)</th>
+              <th class="num">Returns (₹)</th>
+              <th class="num">RM Cost (₹)</th>
+              <th class="num">Gross Contrib (₹)</th>
+              <th class="num">Margin %</th>
+              <th class="num">DSO</th>
+              <th class="num">WC Cost (₹)</th>
+              <th class="num">Adj Contrib (₹)</th>
+              <th class="num">Adj Margin %</th>
+              <th>Quadrant</th>
+            </tr>
+          </thead>
+          <tbody id="profitTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB 2: COLLECTIONS ── -->
+  <div class="tab-panel" id="tab-collections">
+
+    <!-- Ageing Summary -->
+    <div class="ageing-grid" id="ageingGrid"></div>
+
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:1.5rem;" class="chart-row-split">
+      <div class="chart-card">
+        <div class="chart-title">DSO by Customer</div>
+        <div class="chart-sub">Weighted average Days Sales Outstanding per customer. Red line = 60-day benchmark.</div>
+        <div class="chart-wrap-tall"><canvas id="dsoBarChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Payment Behaviour Distribution</div>
+        <div class="chart-sub">Customers classified by DSO bucket.</div>
+        <div class="chart-wrap-tall"><canvas id="behaviourChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Collections Detail Table</div>
+      <div class="chart-sub">Per customer: invoices raised, matched receipts, outstanding balance, DSO, and payment behaviour.</div>
+      <div class="table-wrap">
+        <table id="collectionsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th class="num">Invoices (₹)</th>
+              <th class="num">Collected (₹)</th>
+              <th class="num">Outstanding (₹)</th>
+              <th class="num">% Collected</th>
+              <th class="num">Invoices #</th>
+              <th class="num">Matched #</th>
+              <th class="num">Avg DSO</th>
+              <th>Behaviour</th>
+            </tr>
+          </thead>
+          <tbody id="collectionsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB 3: VALUE QUADRANT ── -->
+  <div class="tab-panel" id="tab-quadrant">
+
+    <div class="chart-card">
+      <div class="chart-title">Customer Value Quadrant</div>
+      <div class="chart-sub">X-axis: Gross Margin % · Y-axis: Payment Speed (higher = faster payment) · Bubble size: Revenue. Dividers at median margin and median DSO.</div>
+      <div class="chart-wrap-bubble"><canvas id="quadrantChart"></canvas></div>
+      <div class="quadrant-legend" id="quadrantLegend"></div>
+    </div>
+
+    <div class="commentary-box" id="quadrantCommentary"></div>
+
+    <div class="chart-card" style="margin-top:1.5rem;">
+      <div class="chart-title">Full Customer Value Summary</div>
+      <div class="chart-sub">All customers with profitability, collections, adjusted margin, and quadrant classification.</div>
+      <div class="table-wrap">
+        <table id="fullTable">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th class="num">Revenue</th>
+              <th class="num">Margin %</th>
+              <th class="num">DSO</th>
+              <th class="num">Adj Margin %</th>
+              <th class="num">Outstanding</th>
+              <th class="num">WC Cost</th>
+              <th>Behaviour</th>
+              <th>Quadrant</th>
+            </tr>
+          </thead>
+          <tbody id="fullTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Scope Footer -->
+<div class="scope-footer">
+  Customer Intelligence Suite by Credlance — Working capital adjustment assumes your stated cost of capital.
+  Review credit terms with customers before acting on recommendations.
+  All computations are performed locally in your browser. No data is transmitted or stored.
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    .chart-row-split { grid-template-columns: 1fr !important; }
+  }
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const state = {
+  files: { A: null, B: null, C: null, D: null },
+  data: { sales: [], receipts: [], creditNotes: [], purchases: [] },
+  results: { customers: [], period: '' },
+  charts: {}
+};
+
+// ═══════════════════════════════════════════════════════
+//  UPLOAD HANDLING
+// ═══════════════════════════════════════════════════════
+function triggerUpload(id) { document.getElementById(id).click(); }
+
+function handleFile(module, input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.files[module] = file;
+  const el = document.getElementById('module' + module);
+  const st = document.getElementById('status' + module);
+  el.classList.add('loaded');
+  const isOpt = module === 'C' || module === 'D';
+  st.className = 'module-status ' + (isOpt ? 'loaded-opt' : 'loaded');
+  st.textContent = (isOpt ? '✅' : '✓') + ' ' + file.name;
+  checkReady();
+}
+
+function checkReady() {
+  const ready = state.files.A && state.files.B;
+  document.getElementById('analyseBtn').disabled = !ready;
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXCEL PARSING UTILITIES
+// ═══════════════════════════════════════════════════════
+function readWorkbook(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        resolve(wb);
+      } catch (err) { reject(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function sheetToRows(wb) {
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+}
+
+// Find column index by matching possible names (case-insensitive, partial)
+function findCol(header, ...candidates) {
+  const h = header.map(c => String(c).toLowerCase().trim());
+  for (const cand of candidates) {
+    const cl = cand.toLowerCase();
+    const idx = h.findIndex(x => x.includes(cl));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === 'number') {
+    // Excel serial date
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    return d;
+  }
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    if (!isNaN(d)) return d;
+    // Try DD-MM-YYYY or DD/MM/YYYY
+    const m = val.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);
+    if (m) {
+      let yr = parseInt(m[3]);
+      if (yr < 100) yr += 2000;
+      return new Date(yr, parseInt(m[2]) - 1, parseInt(m[1]));
+    }
+  }
+  return null;
+}
+
+function toNum(val) {
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const n = parseFloat(val.replace(/[₹,\s]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+
+function fmtINR(n, compact = false) {
+  if (compact) {
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1e7) return sign + '₹' + (abs/1e7).toFixed(1) + 'Cr';
+    if (abs >= 1e5) return sign + '₹' + (abs/1e5).toFixed(1) + 'L';
+    if (abs >= 1e3) return sign + '₹' + (abs/1e3).toFixed(0) + 'K';
+    return sign + '₹' + abs.toFixed(0);
+  }
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+}
+
+function fmtPct(n) { return (n * 100).toFixed(1) + '%'; }
+function daysDiff(d1, d2) {
+  if (!d1 || !d2) return null;
+  return Math.round((d2 - d1) / 86400000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE PARSERS
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Module A — Sales Register
+ * Returns: [{ date, party, item, qty, rate, amount, invoiceNo }]
+ */
+function parseSalesRegister(rows) {
+  // Find header row
+  let headerIdx = -1;
+  let hdr = [];
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i].map(c => String(c).toLowerCase().trim());
+    if (row.some(c => c.includes('party') || c.includes('particular') || c.includes('vch'))) {
+      headerIdx = i; hdr = rows[i]; break;
+    }
+  }
+  if (headerIdx < 0) {
+    // Fallback: use first non-empty row as header
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].some(c => c !== '')) { headerIdx = i; hdr = rows[i]; break; }
+    }
+  }
+
+  const colDate    = findCol(hdr, 'date');
+  const colParty   = findCol(hdr, 'party name', 'party', 'name', 'ledger', 'particular');
+  const colItem    = findCol(hdr, 'item', 'stock', 'product', 'goods', 'particulars');
+  const colAmt     = findCol(hdr, 'gross', 'amount', 'value', 'net amount', 'taxable', 'sales');
+  const colInvNo   = findCol(hdr, 'vch no', 'voucher no', 'invoice no', 'ref no', 'vch', 'bill no');
+  const colQty     = findCol(hdr, 'qty', 'quantity');
+  const colRate    = findCol(hdr, 'rate', 'price');
+
+  const sales = [];
+  let currentParty = '';
+
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => c === '')) continue;
+
+    // In Tally detailed exports, party name often appears in a separate row
+    // with items below. Detect party rows by checking if item/amount cols are empty.
+    const rawParty = colParty >= 0 ? String(row[colParty] || '').trim() : '';
+    const rawAmt   = colAmt >= 0 ? row[colAmt] : '';
+    const rawDate  = colDate >= 0 ? row[colDate] : '';
+
+    if (rawParty && !toNum(rawAmt) && !parseDate(rawDate)) {
+      currentParty = rawParty; continue;
+    }
+
+    const party  = rawParty || currentParty;
+    if (!party || party.toLowerCase().includes('total') || party.toLowerCase().includes('grand')) continue;
+
+    const amt = toNum(rawAmt);
+    if (!amt) continue;
+
+    const date    = colDate >= 0 ? parseDate(row[colDate]) : null;
+    const item    = colItem >= 0 ? String(row[colItem] || '').trim() : '';
+    const invNo   = colInvNo >= 0 ? String(row[colInvNo] || '').trim() : '';
+    const qty     = colQty >= 0 ? toNum(row[colQty]) : 0;
+    const rate    = colRate >= 0 ? toNum(row[colRate]) : 0;
+
+    if (party.toLowerCase().includes('total') || party.toLowerCase().includes('subtotal')) continue;
+
+    sales.push({ date, party: party.toUpperCase(), item, qty, rate, amount: amt, invoiceNo: invNo });
+  }
+  return sales;
+}
+
+/**
+ * Module B — Receipt Register
+ * Returns: [{ date, party, amount, invoiceRef }]
+ */
+function parseReceiptRegister(rows) {
+  let headerIdx = -1, hdr = [];
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i].map(c => String(c).toLowerCase().trim());
+    if (row.some(c => c.includes('party') || c.includes('receipt') || c.includes('amount'))) {
+      headerIdx = i; hdr = rows[i]; break;
+    }
+  }
+  if (headerIdx < 0) { headerIdx = 0; hdr = rows[0]; }
+
+  const colDate   = findCol(hdr, 'date');
+  const colParty  = findCol(hdr, 'party name', 'party', 'name', 'particulars', 'ledger');
+  const colAmt    = findCol(hdr, 'receipt', 'amount', 'received', 'credit', 'value');
+  const colRef    = findCol(hdr, 'against bill', 'against', 'bill ref', 'invoice', 'ref no', 'ref', 'bill no');
+
+  const receipts = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => c === '')) continue;
+    const party = colParty >= 0 ? String(row[colParty] || '').trim() : '';
+    const amt   = colAmt >= 0 ? toNum(row[colAmt]) : 0;
+    if (!party || !amt || party.toLowerCase().includes('total')) continue;
+    const date     = colDate >= 0 ? parseDate(row[colDate]) : null;
+    const invoiceRef = colRef >= 0 ? String(row[colRef] || '').trim() : '';
+    receipts.push({ date, party: party.toUpperCase(), amount: amt, invoiceRef });
+  }
+  return receipts;
+}
+
+/**
+ * Module C — Credit Note Register
+ * Returns: [{ date, party, amount }]
+ */
+function parseCreditNotes(rows) {
+  let headerIdx = -1, hdr = [];
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const row = rows[i].map(c => String(c).toLowerCase().trim());
+    if (row.some(c => c.includes('party') || c.includes('amount'))) {
+      headerIdx = i; hdr = rows[i]; break;
+    }
+  }
+  if (headerIdx < 0) { headerIdx = 0; hdr = rows[0]; }
+
+  const colParty = findCol(hdr, 'party name', 'party', 'name', 'particulars');
+  const colAmt   = findCol(hdr, 'gross', 'amount', 'value', 'credit');
+  const colDate  = findCol(hdr, 'date');
+
+  const notes = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => c === '')) continue;
+    const party = colParty >= 0 ? String(row[colParty] || '').trim() : '';
+    const amt   = colAmt >= 0 ? Math.abs(toNum(row[colAmt])) : 0;
+    if (!party || !amt || party.toLowerCase().includes('total')) continue;
+    const date = colDate >= 0 ? parseDate(row[colDate]) : null;
+    notes.push({ date, party: party.toUpperCase(), amount: amt });
+  }
+  return notes;
+}
+
+/**
+ * Module D — Purchase Register → RM cost per item
+ * Returns: Map<item, avgCostPerUnit>
+ */
+function parsePurchaseRegister(rows) {
+  let headerIdx = -1, hdr = [];
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i].map(c => String(c).toLowerCase().trim());
+    if (row.some(c => c.includes('item') || c.includes('stock') || c.includes('qty'))) {
+      headerIdx = i; hdr = rows[i]; break;
+    }
+  }
+  if (headerIdx < 0) { headerIdx = 0; hdr = rows[0]; }
+
+  const colItem = findCol(hdr, 'item', 'stock', 'product', 'goods', 'particulars', 'description');
+  const colAmt  = findCol(hdr, 'amount', 'value', 'net amount', 'purchase', 'gross');
+  const colQty  = findCol(hdr, 'qty', 'quantity');
+
+  const itemData = {};
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => c === '')) continue;
+    const item = colItem >= 0 ? String(row[colItem] || '').trim() : '';
+    const amt  = colAmt >= 0 ? toNum(row[colAmt]) : 0;
+    const qty  = colQty >= 0 ? toNum(row[colQty]) : 0;
+    if (!item || !amt || item.toLowerCase().includes('total')) continue;
+    if (!itemData[item.toUpperCase()]) itemData[item.toUpperCase()] = { totalAmt: 0, totalQty: 0 };
+    itemData[item.toUpperCase()].totalAmt += amt;
+    itemData[item.toUpperCase()].totalQty += qty;
+  }
+
+  const costPerUnit = {};
+  for (const [item, d] of Object.entries(itemData)) {
+    costPerUnit[item] = d.totalQty > 0 ? d.totalAmt / d.totalQty : d.totalAmt;
+  }
+  return costPerUnit;
+}
+
+// ═══════════════════════════════════════════════════════
+//  COMPUTATION ENGINE
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Match receipts to invoices per customer.
+ * Strategy:
+ *   1. If receipt has invoiceRef matching an invoice number → direct match
+ *   2. Remaining receipts applied FIFO (oldest invoice first)
+ * Returns: per-customer { invoices: [{...}], dso, outstanding, collected }
+ */
+function matchReceiptsToInvoices(sales, receipts) {
+  // Group sales into invoices per customer
+  const invoiceMap = {}; // party → { invoiceNo: { date, amount, remaining } }
+  for (const s of sales) {
+    if (!invoiceMap[s.party]) invoiceMap[s.party] = {};
+    const key = s.invoiceNo || `__NO_REF_${s.date}_${s.amount}`;
+    if (!invoiceMap[s.party][key]) {
+      invoiceMap[s.party][key] = { date: s.date, amount: s.amount, remaining: s.amount, invoiceNo: s.invoiceNo, matchedDays: [] };
+    } else {
+      invoiceMap[s.party][key].amount += s.amount;
+      invoiceMap[s.party][key].remaining += s.amount;
+    }
+  }
+
+  // Group receipts by customer
+  const receiptMap = {}; // party → [{ date, amount, invoiceRef, remaining }]
+  for (const r of receipts) {
+    if (!receiptMap[r.party]) receiptMap[r.party] = [];
+    receiptMap[r.party].push({ ...r, remaining: r.amount });
+  }
+
+  const result = {};
+
+  for (const [party, invs] of Object.entries(invoiceMap)) {
+    const invList = Object.values(invs).sort((a, b) => (a.date || 0) - (b.date || 0));
+    const recList = (receiptMap[party] || []).sort((a, b) => (a.date || 0) - (b.date || 0));
+
+    // Pass 1: Direct reference matching
+    for (const rec of recList) {
+      if (!rec.invoiceRef) continue;
+      const inv = invList.find(i => i.invoiceNo && rec.invoiceRef &&
+        (i.invoiceNo.toLowerCase().includes(rec.invoiceRef.toLowerCase()) ||
+         rec.invoiceRef.toLowerCase().includes(i.invoiceNo.toLowerCase())));
+      if (inv && inv.remaining > 0) {
+        const applied = Math.min(rec.remaining, inv.remaining);
+        if (applied > 0 && inv.date && rec.date) {
+          const days = daysDiff(inv.date, rec.date);
+          if (days !== null && days >= 0) {
+            inv.matchedDays.push({ days, amount: applied });
+          }
+        }
+        inv.remaining -= applied;
+        rec.remaining -= applied;
+      }
+    }
+
+    // Pass 2: FIFO for unmatched receipts
+    for (const rec of recList) {
+      if (rec.remaining <= 0) continue;
+      for (const inv of invList) {
+        if (inv.remaining <= 0 || rec.remaining <= 0) continue;
+        const applied = Math.min(rec.remaining, inv.remaining);
+        if (applied > 0 && inv.date && rec.date) {
+          const days = daysDiff(inv.date, rec.date);
+          if (days !== null && days >= 0) {
+            inv.matchedDays.push({ days, amount: applied });
+          }
+        }
+        inv.remaining -= applied;
+        rec.remaining -= applied;
+      }
+    }
+
+    // Compute DSO: weighted avg days across all matched amounts
+    let totalMatchedAmt = 0, weightedDays = 0;
+    for (const inv of invList) {
+      for (const m of inv.matchedDays) {
+        weightedDays += m.days * m.amount;
+        totalMatchedAmt += m.amount;
+      }
+    }
+    const dso = totalMatchedAmt > 0 ? weightedDays / totalMatchedAmt : null;
+
+    const outstanding = invList.reduce((s, i) => s + Math.max(i.remaining, 0), 0);
+    const totalInv = invList.reduce((s, i) => s + i.amount, 0);
+    const collected = totalInv - outstanding;
+    const invoiceCount = invList.length;
+    const matchedCount = invList.filter(i => i.matchedDays.length > 0 || i.remaining < i.amount).length;
+
+    result[party] = { dso, outstanding, collected, totalInv, invoiceCount, matchedCount };
+  }
+  return result;
+}
+
+function classifyBehaviour(dso) {
+  if (dso === null) return 'unknown';
+  if (dso < 30) return 'prompt';
+  if (dso < 60) return 'normal';
+  if (dso < 90) return 'slow';
+  return 'bad';
+}
+
+function computeCustomers(salesData, receiptsData, creditData, purchaseData, coc) {
+  // Step 1: Revenue per customer (party-wise gross)
+  const revMap = {};
+  for (const s of salesData) {
+    if (!revMap[s.party]) revMap[s.party] = 0;
+    revMap[s.party] += s.amount;
+  }
+
+  // Step 2: Credit notes (returns) per customer
+  const returnMap = {};
+  for (const c of creditData) {
+    if (!returnMap[c.party]) returnMap[c.party] = 0;
+    returnMap[c.party] += c.amount;
+  }
+
+  // Step 3: RM cost per customer (item-wise allocation)
+  const rmMap = {};
+  const costPerUnit = purchaseData;
+  for (const s of salesData) {
+    const itemKey = s.item.toUpperCase();
+    const cpu = costPerUnit[itemKey] || 0;
+    const rmCost = s.qty > 0 ? cpu * s.qty : (cpu > 0 && s.rate > 0 ? (cpu / s.rate) * s.amount : 0);
+    if (!rmMap[s.party]) rmMap[s.party] = 0;
+    rmMap[s.party] += rmCost;
+  }
+
+  // Step 4: Invoice-receipt matching
+  const collectionResult = matchReceiptsToInvoices(salesData, receiptsData);
+
+  // Step 5: Build customer records
+  const customers = [];
+  for (const party of Object.keys(revMap)) {
+    const revenue   = revMap[party] || 0;
+    const returns   = returnMap[party] || 0;
+    const rmCost    = rmMap[party] || 0;
+    const netRev    = revenue - returns;
+    const grossContrib = netRev - rmCost;
+    const grossMarginPct = netRev > 0 ? grossContrib / netRev : 0;
+
+    const coll = collectionResult[party] || { dso: null, outstanding: revenue, collected: 0, totalInv: revenue, invoiceCount: 1, matchedCount: 0 };
+    const dso = coll.dso;
+    const outstanding = coll.outstanding;
+
+    // Working capital cost = outstanding × COC × (DSO/365)
+    const effectiveDSO = dso !== null ? dso : 90; // assume 90 days if no receipts
+    const wcCost = outstanding * (coc / 100) * (effectiveDSO / 365);
+    const adjContrib = grossContrib - wcCost;
+    const adjMarginPct = netRev > 0 ? adjContrib / netRev : 0;
+
+    const behaviour = classifyBehaviour(dso);
+
+    customers.push({
+      party, revenue, returns, rmCost, netRev, grossContrib, grossMarginPct,
+      dso, outstanding, collected: coll.collected, totalInv: coll.totalInv,
+      invoiceCount: coll.invoiceCount, matchedCount: coll.matchedCount,
+      wcCost, adjContrib, adjMarginPct, behaviour
+    });
+  }
+
+  // Step 6: Quadrant classification
+  const validMargins = customers.map(c => c.grossMarginPct).filter(m => isFinite(m));
+  const validDSOs = customers.filter(c => c.dso !== null).map(c => c.dso);
+  const medianMargin = validMargins.length > 0 ? median(validMargins) : 0;
+  const medianDSO    = validDSOs.length > 0 ? median(validDSOs) : 60;
+
+  for (const c of customers) {
+    const highMargin = c.grossMarginPct >= medianMargin;
+    const fastPay    = (c.dso !== null ? c.dso : 999) <= medianDSO;
+    if (highMargin && fastPay)   c.quadrant = 'star';
+    else if (!highMargin && fastPay) c.quadrant = 'workhorse';
+    else if (highMargin && !fastPay) c.quadrant = 'diva';
+    else c.quadrant = 'dog';
+  }
+
+  customers.sort((a, b) => b.grossContrib - a.grossContrib);
+
+  return { customers, medianMargin, medianDSO };
+}
+
+function median(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? (s[m-1] + s[m]) / 2 : s[m];
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAIN ANALYSIS RUNNER
+// ═══════════════════════════════════════════════════════
+async function runAnalysis() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+
+  const steps = [
+    'Parsing sales register…',
+    'Parsing receipt vouchers…',
+    'Matching invoices to receipts…',
+    'Computing contribution margins…',
+    'Calculating DSO and working capital costs…',
+    'Classifying customer quadrants…',
+    'Rendering charts…'
+  ];
+  let stepIdx = 0;
+  const msgEl = document.getElementById('processingMsg');
+  const iv = setInterval(() => {
+    stepIdx = (stepIdx + 1) % steps.length;
+    msgEl.textContent = steps[stepIdx];
+  }, 500);
+
+  try {
+    const coc = parseFloat(document.getElementById('cocInput').value) || 12;
+
+    // Read files
+    const [wbA, wbB] = await Promise.all([
+      readWorkbook(state.files.A),
+      readWorkbook(state.files.B)
+    ]);
+    const rowsA = sheetToRows(wbA);
+    const rowsB = sheetToRows(wbB);
+
+    let rowsC = [], rowsD = [];
+    if (state.files.C) rowsC = sheetToRows(await readWorkbook(state.files.C));
+    if (state.files.D) rowsD = sheetToRows(await readWorkbook(state.files.D));
+
+    // Parse
+    const salesData    = parseSalesRegister(rowsA);
+    const receiptsData = parseReceiptRegister(rowsB);
+    const creditData   = parseCreditNotes(rowsC);
+    const purchaseData = parsePurchaseRegister(rowsD);
+
+    if (!salesData.length) throw new Error('No sales data found. Check that Sales Register columns include Party Name, Amount, and Invoice No.');
+    if (!receiptsData.length) throw new Error('No receipt data found. Check Receipt Register columns.');
+
+    // Compute
+    const { customers, medianMargin, medianDSO } = computeCustomers(
+      salesData, receiptsData, creditData, purchaseData, coc
+    );
+
+    // Determine period from sales dates
+    const dates = salesData.map(s => s.date).filter(Boolean);
+    let period = '';
+    if (dates.length) {
+      const minD = new Date(Math.min(...dates));
+      const maxD = new Date(Math.max(...dates));
+      period = `${minD.toLocaleDateString('en-IN', {month:'short',year:'numeric'})} – ${maxD.toLocaleDateString('en-IN', {month:'short',year:'numeric'})}`;
+    }
+
+    state.results = { customers, medianMargin, medianDSO, coc, period };
+
+    clearInterval(iv);
+    await new Promise(r => setTimeout(r, 400));
+    renderResults();
+
+  } catch (err) {
+    clearInterval(iv);
+    document.getElementById('processingSection').style.display = 'none';
+    document.getElementById('uploadSection').style.display = '';
+    alert('Analysis error: ' + err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════
+function renderResults() {
+  document.getElementById('processingSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display = '';
+
+  const { customers, medianMargin, medianDSO, coc, period } = state.results;
+
+  // ── KPIs ──
+  const totalRev  = customers.reduce((s, c) => s + c.revenue, 0);
+  const totalContrib = customers.reduce((s, c) => s + c.grossContrib, 0);
+  const totalWC   = customers.reduce((s, c) => s + c.wcCost, 0);
+  const totalAdj  = customers.reduce((s, c) => s + c.adjContrib, 0);
+  const totalRec  = customers.reduce((s, c) => s + c.revenue, 0);
+  const wtdDSO    = (() => {
+    let wNum = 0, wDen = 0;
+    for (const c of customers) {
+      if (c.dso !== null) { wNum += c.dso * c.revenue; wDen += c.revenue; }
+    }
+    return wDen > 0 ? wNum / wDen : null;
+  })();
+
+  document.getElementById('resultsTitle').textContent = 'Customer Intelligence Report' + (period ? ' · ' + period : '');
+  document.getElementById('resultsMeta').textContent = `${customers.length} customers · Cost of capital: ${coc}%`;
+  document.getElementById('kpiCustomers').textContent = customers.length;
+  document.getElementById('kpiRevenue').textContent = fmtINR(totalRev, true);
+  document.getElementById('kpiRevenueSub').textContent = fmtINR(totalRev);
+  document.getElementById('kpiContrib').textContent = fmtINR(totalContrib, true);
+  document.getElementById('kpiContribPct').textContent = fmtPct(totalRev > 0 ? totalContrib/totalRev : 0) + ' margin';
+  document.getElementById('kpiDSO').textContent = wtdDSO !== null ? Math.round(wtdDSO) + ' days' : 'N/A';
+  document.getElementById('kpiDSOSub').textContent = wtdDSO !== null ? (wtdDSO < 60 ? 'Good collection' : 'Slow collection') : '';
+  document.getElementById('kpiAdjMargin').textContent = fmtPct(totalRev > 0 ? totalAdj/totalRev : 0);
+  document.getElementById('kpiWCCost').textContent = 'WC cost: ' + fmtINR(totalWC, true);
+
+  // ── PROFITABILITY TABLE ──
+  renderProfitTable(customers);
+
+  // ── PARETO CHART ──
+  renderParetoChart(customers);
+
+  // ── MARGIN BAR CHART ──
+  renderMarginBarChart(customers);
+
+  // ── AGEING / COLLECTIONS ──
+  renderAgeing(customers);
+  renderDSOBar(customers);
+  renderBehaviourChart(customers);
+  renderCollectionsTable(customers);
+
+  // ── QUADRANT ──
+  renderQuadrantChart(customers, medianMargin, medianDSO);
+  renderQuadrantLegend(customers);
+  renderCommentary(customers, medianMargin, medianDSO, coc, period);
+  renderFullTable(customers);
+}
+
+function renderProfitTable(customers) {
+  const tbody = document.getElementById('profitTableBody');
+  tbody.innerHTML = '';
+  customers.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    const qTag = quadrantTag(c.quadrant);
+    tr.innerHTML = `
+      <td class="rank-cell">${i+1}</td>
+      <td style="font-weight:600">${c.party}</td>
+      <td class="num">${fmtINR(c.revenue)}</td>
+      <td class="num" style="color:var(--red)">${c.returns > 0 ? fmtINR(c.returns) : '—'}</td>
+      <td class="num">${c.rmCost > 0 ? fmtINR(c.rmCost) : '—'}</td>
+      <td class="num" style="color:var(--green)">${fmtINR(c.grossContrib)}</td>
+      <td class="num">${fmtPct(c.grossMarginPct)}</td>
+      <td class="num">${c.dso !== null ? Math.round(c.dso) : '—'}</td>
+      <td class="num" style="color:var(--orange)">${fmtINR(c.wcCost)}</td>
+      <td class="num" style="color:${c.adjContrib >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtINR(c.adjContrib)}</td>
+      <td class="num">${fmtPct(c.adjMarginPct)}</td>
+      <td>${qTag}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function quadrantTag(q) {
+  const map = {
+    star:      '<span class="tag tag-star">⭐ Star</span>',
+    workhorse: '<span class="tag tag-workhorse">🔵 Workhorse</span>',
+    diva:      '<span class="tag tag-diva">⚠️ Diva</span>',
+    dog:       '<span class="tag tag-dog">🔴 Dog</span>'
+  };
+  return map[q] || '—';
+}
+
+function behaviourTag(b) {
+  const map = {
+    prompt: '<span class="tag tag-prompt">Prompt</span>',
+    normal: '<span class="tag tag-normal">Normal</span>',
+    slow:   '<span class="tag tag-slow">Slow</span>',
+    bad:    '<span class="tag tag-bad">Bad</span>',
+    unknown:'<span class="tag" style="color:var(--muted)">No data</span>'
+  };
+  return map[b] || '—';
+}
+
+function renderParetoChart(customers) {
+  const top = customers.slice(0, Math.min(20, customers.length));
+  const labels = top.map(c => c.party.length > 16 ? c.party.slice(0, 14) + '…' : c.party);
+  const values = top.map(c => c.grossContrib);
+  const total  = values.reduce((s, v) => s + v, 0);
+  const cumPct = [];
+  let running = 0;
+  for (const v of values) { running += Math.max(v, 0); cumPct.push(total > 0 ? (running / total) * 100 : 0); }
+
+  destroyChart('paretoChart');
+  const ctx = document.getElementById('paretoChart').getContext('2d');
+  state.charts.pareto = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Gross Contribution (₹)',
+          data: values,
+          backgroundColor: values.map(v => v < 0 ? 'rgba(255,76,106,0.7)' : 'rgba(0,212,170,0.7)'),
+          borderColor: values.map(v => v < 0 ? '#ff4c6a' : '#00d4aa'),
+          borderWidth: 1, borderRadius: 4, yAxisID: 'y'
+        },
+        {
+          label: 'Cumulative %',
+          data: cumPct, type: 'line',
+          borderColor: '#f5c518', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 3, yAxisID: 'y2', tension: 0.3
+        }
+      ]
+    },
+    options: chartDefaults({
+      scales: {
+        y:  { position: 'left',  ticks: { callback: v => fmtINR(v, true), color: '#8899aa', font: {size:10} }, grid: { color: '#1f2d42' } },
+        y2: { position: 'right', ticks: { callback: v => v + '%', color: '#f5c518', font: {size:10} }, grid: { drawOnChartArea: false }, max: 100 },
+        x:  { ticks: { color: '#8899aa', font: {size:9}, maxRotation: 40 }, grid: { color: '#1f2d42' } }
+      }
+    })
+  });
+}
+
+function renderMarginBarChart(customers) {
+  const sorted = [...customers].sort((a, b) => b.grossMarginPct - a.grossMarginPct);
+  const top10 = sorted.slice(0, 10);
+  const labels = top10.map(c => c.party.length > 14 ? c.party.slice(0,12)+'…' : c.party);
+  const margins = top10.map(c => (c.grossMarginPct * 100).toFixed(1));
+  const adjMargins = top10.map(c => (c.adjMarginPct * 100).toFixed(1));
+
+  destroyChart('marginBarChart');
+  const ctx = document.getElementById('marginBarChart').getContext('2d');
+  state.charts.marginBar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Gross Margin %', data: margins, backgroundColor: 'rgba(0,212,170,0.7)', borderRadius: 4 },
+        { label: 'Adj Margin %', data: adjMargins, backgroundColor: 'rgba(255,140,66,0.6)', borderRadius: 4 }
+      ]
+    },
+    options: chartDefaults({
+      scales: {
+        y: { ticks: { callback: v => v+'%', color:'#8899aa', font:{size:10} }, grid: { color:'#1f2d42' } },
+        x: { ticks: { color:'#8899aa', font:{size:9}, maxRotation:40 }, grid: { color:'#1f2d42' } }
+      }
+    })
+  });
+}
+
+function renderAgeing(customers) {
+  const outstanding = customers.reduce((s, c) => s + c.outstanding, 0);
+  const behaviourCounts = { prompt: 0, normal: 0, slow: 0, bad: 0, unknown: 0 };
+  const behaviourAmts   = { prompt: 0, normal: 0, slow: 0, bad: 0, unknown: 0 };
+  for (const c of customers) {
+    behaviourCounts[c.behaviour]++;
+    behaviourAmts[c.behaviour] += c.outstanding;
+  }
+
+  const grid = document.getElementById('ageingGrid');
+  grid.innerHTML = `
+    <div class="ageing-card">
+      <div class="ageing-value" style="color:var(--blue)">${fmtINR(outstanding, true)}</div>
+      <div class="ageing-label">Total Outstanding</div>
+    </div>
+    <div class="ageing-card">
+      <div class="ageing-value" style="color:var(--accent)">${behaviourCounts.prompt}</div>
+      <div class="ageing-label">Prompt Payers (&lt;30d)</div>
+    </div>
+    <div class="ageing-card">
+      <div class="ageing-value" style="color:var(--blue)">${behaviourCounts.normal}</div>
+      <div class="ageing-label">Normal Payers (30-60d)</div>
+    </div>
+    <div class="ageing-card">
+      <div class="ageing-value" style="color:var(--yellow)">${behaviourCounts.slow}</div>
+      <div class="ageing-label">Slow Payers (60-90d)</div>
+    </div>
+    <div class="ageing-card">
+      <div class="ageing-value" style="color:var(--red)">${behaviourCounts.bad}</div>
+      <div class="ageing-label">Bad Payers (&gt;90d)</div>
+    </div>
+  `;
+}
+
+function renderDSOBar(customers) {
+  const sorted = [...customers].filter(c => c.dso !== null).sort((a,b) => b.dso - a.dso).slice(0, 20);
+  const labels = sorted.map(c => c.party.length > 14 ? c.party.slice(0,12)+'…' : c.party);
+  const dsos   = sorted.map(c => Math.round(c.dso));
+  const colors = sorted.map(c => {
+    if (c.dso < 30) return 'rgba(0,212,170,0.7)';
+    if (c.dso < 60) return 'rgba(96,165,250,0.7)';
+    if (c.dso < 90) return 'rgba(245,197,24,0.7)';
+    return 'rgba(255,76,106,0.7)';
+  });
+
+  destroyChart('dsoBarChart');
+  const ctx = document.getElementById('dsoBarChart').getContext('2d');
+  state.charts.dsoBar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'DSO (days)',
+        data: dsos,
+        backgroundColor: colors,
+        borderRadius: 4
+      }]
+    },
+    options: chartDefaults({
+      indexAxis: 'y',
+      scales: {
+        x: {
+          ticks: { callback: v => v+'d', color:'#8899aa', font:{size:10} },
+          grid: { color:'#1f2d42' },
+          max: Math.max(...dsos, 120) + 20
+        },
+        y: { ticks: { color:'#8899aa', font:{size:9} }, grid: { color:'#1f2d42' } }
+      },
+      plugins: {
+        annotation: {
+          annotations: { line60: {
+            type: 'line', xMin: 60, xMax: 60,
+            borderColor: '#ff4c6a', borderWidth: 1.5, borderDash: [4,4]
+          }}
+        }
+      }
+    })
+  });
+}
+
+function renderBehaviourChart(customers) {
+  const counts = { prompt: 0, normal: 0, slow: 0, bad: 0 };
+  for (const c of customers) {
+    if (counts[c.behaviour] !== undefined) counts[c.behaviour]++;
+  }
+
+  destroyChart('behaviourChart');
+  const ctx = document.getElementById('behaviourChart').getContext('2d');
+  state.charts.behaviour = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Prompt (<30d)', 'Normal (30-60d)', 'Slow (60-90d)', 'Bad (>90d)'],
+      datasets: [{
+        data: [counts.prompt, counts.normal, counts.slow, counts.bad],
+        backgroundColor: ['rgba(0,212,170,0.75)', 'rgba(96,165,250,0.75)', 'rgba(245,197,24,0.75)', 'rgba(255,76,106,0.75)'],
+        borderColor: ['#00d4aa', '#60a5fa', '#f5c518', '#ff4c6a'],
+        borderWidth: 1.5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8899aa', font:{size:11}, padding: 16 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} customers` } }
+      }
+    }
+  });
+}
+
+function renderCollectionsTable(customers) {
+  const sorted = [...customers].sort((a,b) => (b.dso||0) - (a.dso||0));
+  const tbody = document.getElementById('collectionsTableBody');
+  tbody.innerHTML = '';
+  sorted.forEach((c, i) => {
+    const pctCollected = c.totalInv > 0 ? ((c.collected / c.totalInv) * 100).toFixed(0) + '%' : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="rank-cell">${i+1}</td>
+      <td style="font-weight:600">${c.party}</td>
+      <td class="num">${fmtINR(c.totalInv)}</td>
+      <td class="num" style="color:var(--accent)">${fmtINR(c.collected)}</td>
+      <td class="num" style="color:${c.outstanding>0?'var(--red)':'var(--green)'}">${fmtINR(c.outstanding)}</td>
+      <td class="num">${pctCollected}</td>
+      <td class="num">${c.invoiceCount}</td>
+      <td class="num">${c.matchedCount}</td>
+      <td class="num" style="color:${c.dso===null?'var(--muted)':c.dso>90?'var(--red)':c.dso>60?'var(--yellow)':'var(--accent)'}">${c.dso !== null ? Math.round(c.dso) + 'd' : '—'}</td>
+      <td>${behaviourTag(c.behaviour)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderQuadrantChart(customers, medianMargin, medianDSO) {
+  // Bubble chart: x=margin%, y=payment speed (inverted DSO), r=revenue
+  const validCustomers = customers.filter(c => c.dso !== null);
+  const allCustomers   = customers; // include those with null DSO, assign default DSO
+
+  const maxRev = Math.max(...customers.map(c => c.revenue));
+
+  const quadColors = {
+    star:      { bg: 'rgba(0,212,170,0.55)', border: '#00d4aa' },
+    workhorse: { bg: 'rgba(96,165,250,0.55)', border: '#60a5fa' },
+    diva:      { bg: 'rgba(245,197,24,0.55)', border: '#f5c518' },
+    dog:       { bg: 'rgba(255,76,106,0.55)', border: '#ff4c6a' }
+  };
+
+  // Group into datasets by quadrant
+  const datasets = {};
+  for (const q of ['star', 'workhorse', 'diva', 'dog']) {
+    const qCustomers = customers.filter(c => c.quadrant === q);
+    datasets[q] = {
+      label: { star:'⭐ Stars', workhorse:'🔵 Workhorses', diva:'⚠️ Diva Customers', dog:'🔴 Dogs' }[q],
+      data: qCustomers.map(c => ({
+        x: +(c.grossMarginPct * 100).toFixed(1),
+        y: c.dso !== null ? Math.round(c.dso) : 100,
+        r: Math.max(6, Math.sqrt(c.revenue / maxRev) * 30),
+        label: c.party,
+        customer: c
+      })),
+      backgroundColor: quadColors[q].bg,
+      borderColor:     quadColors[q].border,
+      borderWidth: 1.5
+    };
+  }
+
+  const maxDSO = Math.max(...customers.map(c => c.dso || 0), medianDSO * 2, 120);
+
+  destroyChart('quadrantChart');
+  const ctx = document.getElementById('quadrantChart').getContext('2d');
+  state.charts.quadrant = new Chart(ctx, {
+    type: 'bubble',
+    data: { datasets: Object.values(datasets) },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#8899aa', font:{size:11}, padding:16 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              if (!d.customer) return '';
+              const c = d.customer;
+              return [
+                c.party,
+                `Revenue: ${fmtINR(c.revenue)}`,
+                `Gross Margin: ${fmtPct(c.grossMarginPct)}`,
+                `DSO: ${c.dso !== null ? Math.round(c.dso)+'d' : 'N/A'}`,
+                `Adj Margin: ${fmtPct(c.adjMarginPct)}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Gross Margin %', color: '#8899aa', font:{size:11} },
+          ticks: { callback: v => v+'%', color:'#8899aa', font:{size:10} },
+          grid: { color:'#1f2d42' }
+        },
+        y: {
+          title: { display: true, text: 'DSO (days) — Lower is better', color: '#8899aa', font:{size:11} },
+          ticks: { callback: v => v+'d', color:'#8899aa', font:{size:10} },
+          grid: { color:'#1f2d42' },
+          min: 0, max: maxDSO + 10
+        }
+      }
+    },
+    plugins: [{
+      id: 'quadrantLines',
+      afterDraw(chart) {
+        const { ctx, scales: { x, y } } = chart;
+        const medX = x.getPixelForValue(medianMargin * 100);
+        const medY = y.getPixelForValue(medianDSO);
+        ctx.save();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(medX, chart.chartArea.top); ctx.lineTo(medX, chart.chartArea.bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(chart.chartArea.left, medY); ctx.lineTo(chart.chartArea.right, medY); ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function renderQuadrantLegend(customers) {
+  const quadInfo = {
+    star:      { cls: 'star',      emoji: '⭐', title: 'Stars — Grow These',         action: 'High margin, fast payment. Priority: invest in these relationships, offer better credit terms.' },
+    workhorse: { cls: 'workhorse', emoji: '🔵', title: 'Workhorses — Maintain',      action: 'Lower margin but fast payment. Acceptable. Focus on volume growth and upselling.' },
+    diva:      { cls: 'diva',      emoji: '⚠️', title: 'Diva Customers — Renegotiate', action: 'High margin but slow payment. Renegotiate credit terms or add interest on delayed payments.' },
+    dog:       { cls: 'dog',       emoji: '🔴', title: 'Dogs — Review or Exit',      action: 'Low margin + slow payment. Consider price increases, stricter credit terms, or graceful exit.' }
+  };
+
+  const legend = document.getElementById('quadrantLegend');
+  legend.innerHTML = '';
+  for (const [q, info] of Object.entries(quadInfo)) {
+    const qCustomers = customers.filter(c => c.quadrant === q);
+    const div = document.createElement('div');
+    div.className = `ql-card ${info.cls}`;
+    div.innerHTML = `
+      <div class="ql-title">${info.emoji} ${info.title}</div>
+      <div class="ql-action">${info.action}</div>
+      <div class="ql-customers">${qCustomers.length > 0
+        ? qCustomers.slice(0,4).map(c => `<span>· ${c.party}</span>`).join('') + (qCustomers.length > 4 ? `<span>+${qCustomers.length-4} more</span>` : '')
+        : '<span style="color:var(--muted)">No customers in this quadrant</span>'}</div>
+    `;
+    legend.appendChild(div);
+  }
+}
+
+function renderCommentary(customers, medianMargin, medianDSO, coc, period) {
+  const stars      = customers.filter(c => c.quadrant === 'star');
+  const divas      = customers.filter(c => c.quadrant === 'diva');
+  const dogs       = customers.filter(c => c.quadrant === 'dog');
+  const total      = customers.length;
+  const totalRev   = customers.reduce((s,c) => s+c.revenue, 0);
+  const totalWC    = customers.reduce((s,c) => s+c.wcCost, 0);
+  const topDiva    = [...divas].sort((a,b) => b.grossContrib - a.grossContrib)[0];
+  const topDog     = [...dogs].sort((a,b) => b.revenue - a.revenue)[0];
+  const topStar    = [...stars].sort((a,b) => b.grossContrib - a.grossContrib)[0];
+  const margin     = customers.reduce((s,c) => s+c.grossContrib, 0);
+  const adjMargin  = customers.reduce((s,c) => s+c.adjContrib, 0);
+  const erosion    = totalRev > 0 ? ((margin - adjMargin) / totalRev) * 100 : 0;
+
+  const box = document.getElementById('quadrantCommentary');
+  box.innerHTML = `<h4>🔍 Auto-Generated Intelligence Commentary</h4>`;
+
+  let html = '';
+
+  html += `<p>Your portfolio of <strong>${total} customers</strong> generates <strong>${fmtINR(totalRev)}</strong> in gross revenue${period ? ' over ' + period : ''}. After applying a ${coc}% cost of capital, working capital consumed by slow-paying customers costs you <strong>${fmtINR(totalWC)}</strong> — eroding your reported margin by <strong>${erosion.toFixed(1)} percentage points</strong>.</p>`;
+
+  if (topStar) {
+    html += `<p><strong>Best performer:</strong> ${topStar.party} delivers <strong>${fmtPct(topStar.grossMarginPct)} gross margin</strong> with a DSO of ${topStar.dso !== null ? Math.round(topStar.dso) + ' days' : 'N/A'}. This is your ideal customer profile — prioritise retaining and growing this relationship.</p>`;
+  }
+
+  if (topDiva) {
+    html += `<p><strong>Hidden risk — Diva customer:</strong> ${topDiva.party} contributes <strong>${fmtPct(topDiva.grossMarginPct)} gross margin</strong> but takes <strong>${topDiva.dso !== null ? Math.round(topDiva.dso) + ' days' : 'N/A'}</strong> to pay. After working capital cost, their effective margin drops to <strong>${fmtPct(topDiva.adjMarginPct)}</strong>. Consider renegotiating credit terms or applying interest on delays.</p>`;
+  }
+
+  if (dogs.length > 0) {
+    html += `<p><strong>Value destroyers:</strong> ${dogs.length} customer${dogs.length > 1 ? 's' : ''} sit in the "Dog" quadrant — combining below-median margins with slow payment. ${topDog ? topDog.party + ' is the largest by revenue (' + fmtINR(topDog.revenue) + ').' : ''} These accounts require immediate commercial action: price increases, revised credit terms, or planned disengagement.</p>`;
+  }
+
+  if (divas.length > 1) {
+    const totalDivaWC = divas.reduce((s,c) => s+c.wcCost, 0);
+    html += `<p><strong>Working capital trapped in Diva customers:</strong> ${fmtINR(totalDivaWC)} in annualised working capital cost is locked in your ${divas.length} Diva customers. Even a reduction of their DSO by 30 days would recover approximately ${fmtINR(totalDivaWC * 30 / 365 / (divas.reduce((s,c) => s + (c.dso||90), 0) / divas.length / 365))} in annual interest cost.</p>`;
+  }
+
+  box.innerHTML += html;
+}
+
+function renderFullTable(customers) {
+  const tbody = document.getElementById('fullTableBody');
+  tbody.innerHTML = '';
+  customers.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:600">${c.party}</td>
+      <td class="num">${fmtINR(c.revenue)}</td>
+      <td class="num">${fmtPct(c.grossMarginPct)}</td>
+      <td class="num">${c.dso !== null ? Math.round(c.dso) + 'd' : '—'}</td>
+      <td class="num" style="color:${c.adjMarginPct >= c.grossMarginPct * 0.8 ? 'var(--green)' : 'var(--orange)'}">${fmtPct(c.adjMarginPct)}</td>
+      <td class="num" style="color:${c.outstanding > 0 ? 'var(--red)' : 'var(--accent)'}">${fmtINR(c.outstanding)}</td>
+      <td class="num" style="color:var(--orange)">${fmtINR(c.wcCost)}</td>
+      <td>${behaviourTag(c.behaviour)}</td>
+      <td>${quadrantTag(c.quadrant)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHART HELPERS
+// ═══════════════════════════════════════════════════════
+function chartDefaults(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { color: '#8899aa', font:{size:11}, padding:16 } },
+      tooltip: { mode: 'index', intersect: false, backgroundColor:'#1a2235', borderColor:'#1f2d42', borderWidth:1, titleColor:'#e2e8f0', bodyColor:'#8899aa' }
+    },
+    ...extra
+  };
+}
+
+function destroyChart(id) {
+  const key = Object.keys(state.charts).find(k => {
+    const c = state.charts[k];
+    return c && c.canvas && c.canvas.id === id;
+  });
+  if (key) { state.charts[key].destroy(); delete state.charts[key]; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPORT — EXCEL
+// ═══════════════════════════════════════════════════════
+function exportExcel() {
+  const { customers, coc, period } = state.results;
+  if (!customers) return;
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Full Customer Summary
+  const header = ['Customer','Revenue (₹)','Returns (₹)','RM Cost (₹)','Net Revenue (₹)','Gross Contribution (₹)','Gross Margin %','DSO (Days)','Outstanding (₹)','WC Cost (₹)','Adj Contribution (₹)','Adj Margin %','Behaviour','Quadrant'];
+  const rows = [
+    [`Customer Intelligence Suite — ${period} | Cost of Capital: ${coc}%`],
+    [],
+    header,
+    ...customers.map(c => [
+      c.party,
+      Math.round(c.revenue), Math.round(c.returns), Math.round(c.rmCost),
+      Math.round(c.netRev), Math.round(c.grossContrib),
+      (c.grossMarginPct * 100).toFixed(1) + '%',
+      c.dso !== null ? Math.round(c.dso) : 'N/A',
+      Math.round(c.outstanding), Math.round(c.wcCost),
+      Math.round(c.adjContrib), (c.adjMarginPct * 100).toFixed(1) + '%',
+      c.behaviour, c.quadrant
+    ])
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1['!cols'] = [{ wch: 30 }, ...Array(13).fill({ wch: 16 })];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Customer Intelligence');
+
+  // Sheet 2: Quadrant Summary
+  const q2rows = [
+    ['Quadrant Summary'],
+    ['Quadrant','# Customers','Total Revenue (₹)','Total Contrib (₹)','Avg Margin %','Avg DSO'],
+  ];
+  for (const q of ['star','workhorse','diva','dog']) {
+    const qc = customers.filter(c => c.quadrant === q);
+    const rev = qc.reduce((s,c) => s+c.revenue, 0);
+    const cont = qc.reduce((s,c) => s+c.grossContrib, 0);
+    const avgM = qc.length > 0 ? qc.reduce((s,c) => s+c.grossMarginPct, 0) / qc.length : 0;
+    const avgD = qc.filter(c=>c.dso!==null).length > 0 ? qc.filter(c=>c.dso!==null).reduce((s,c) => s+c.dso, 0) / qc.filter(c=>c.dso!==null).length : null;
+    q2rows.push([{ star:'⭐ Stars', workhorse:'🔵 Workhorses', diva:'⚠️ Diva Customers', dog:'🔴 Dogs' }[q], qc.length, Math.round(rev), Math.round(cont), (avgM*100).toFixed(1)+'%', avgD !== null ? Math.round(avgD) : 'N/A']);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(q2rows);
+  ws2['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Quadrant Summary');
+
+  const slug = period.replace(/[^a-zA-Z0-9]/g, '_');
+  XLSX.writeFile(wb, `Credlance_CustomerIntelligence_${slug}.xlsx`);
+  showToast('Excel report downloaded ✓');
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPORT — PDF
+// ═══════════════════════════════════════════════════════
+function exportPDF() {
+  const { customers, coc, period } = state.results;
+  if (!customers || !window.jspdf) { showToast('PDF generation unavailable'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const MARGIN = 15;
+
+  // Background
+  doc.setFillColor(11, 15, 26);
+  doc.rect(0, 0, W, H, 'F');
+
+  // Header bar
+  doc.setFillColor(17, 24, 39);
+  doc.rect(0, 0, W, 20, 'F');
+
+  doc.setTextColor(0, 212, 170);
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('Customer Value Analysis', MARGIN, 13);
+
+  doc.setTextColor(136, 153, 170);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text(period || '', W / 2, 13, { align: 'center' });
+  doc.text(`Cost of Capital: ${coc}%`, W - MARGIN, 13, { align: 'right' });
+
+  // KPIs
+  const totalRev = customers.reduce((s,c) => s+c.revenue, 0);
+  const totalC   = customers.reduce((s,c) => s+c.grossContrib, 0);
+  const totalWC  = customers.reduce((s,c) => s+c.wcCost, 0);
+  const totalAdj = customers.reduce((s,c) => s+c.adjContrib, 0);
+  const quadCounts = { star:0, workhorse:0, diva:0, dog:0 };
+  for (const c of customers) quadCounts[c.quadrant]++;
+
+  const kpis = [
+    { label: 'Customers', value: customers.length.toString(), color: [0,212,170] },
+    { label: 'Total Revenue', value: fmtINR(totalRev, true), color: [96,165,250] },
+    { label: 'Gross Contribution', value: fmtINR(totalC, true), color: [34,197,94] },
+    { label: 'WC Cost', value: fmtINR(totalWC, true), color: [255,140,66] },
+    { label: 'Adj Contribution', value: fmtINR(totalAdj, true), color: [245,197,24] }
+  ];
+
+  const kpiW = (W - MARGIN * 2) / 5;
+  kpis.forEach((k, i) => {
+    const x = MARGIN + i * kpiW;
+    doc.setFillColor(26, 34, 53);
+    doc.roundedRect(x, 24, kpiW - 3, 20, 2, 2, 'F');
+    doc.setTextColor(...k.color);
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text(k.value, x + (kpiW-3)/2, 32, { align: 'center' });
+    doc.setTextColor(136,153,170);
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.text(k.label, x + (kpiW-3)/2, 38, { align: 'center' });
+  });
+
+  // Quadrant table
+  let y = 50;
+  doc.setTextColor(0,212,170);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text('Customer Value Quadrant Summary', MARGIN, y); y += 6;
+
+  const qData = [
+    ['⭐ Stars', quadCounts.star, 'High Margin + Fast Payment', 'GROW'],
+    ['🔵 Workhorses', quadCounts.workhorse, 'Low Margin + Fast Payment', 'MAINTAIN'],
+    ['⚠️ Diva Customers', quadCounts.diva, 'High Margin + Slow Payment', 'RENEGOTIATE'],
+    ['🔴 Dogs', quadCounts.dog, 'Low Margin + Slow Payment', 'REVIEW/EXIT']
+  ];
+
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(136,153,170);
+  ['Quadrant','Count','Profile','Action'].forEach((h, i) => {
+    doc.text(h, MARGIN + [0,40,60,180][i], y);
+  });
+  y += 2;
+  doc.setDrawColor(31,45,66);
+  doc.line(MARGIN, y, W - MARGIN, y); y += 4;
+
+  const qColors = { '⭐ Stars': [0,212,170], '🔵 Workhorses': [96,165,250], '⚠️ Diva Customers': [245,197,24], '🔴 Dogs': [255,76,106] };
+  for (const [label, cnt, profile, action] of qData) {
+    doc.setTextColor(...(qColors[label] || [226,232,240]));
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, MARGIN, y);
+    doc.setTextColor(226,232,240);
+    doc.text(cnt.toString(), MARGIN + 40, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(136,153,170);
+    doc.text(profile, MARGIN + 60, y);
+    doc.setTextColor(...(qColors[label] || [226,232,240]));
+    doc.text(action, MARGIN + 180, y);
+    y += 6;
+  }
+
+  y += 4;
+  // Top customers table
+  doc.setTextColor(0,212,170);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text('Top Customers by Adjusted Contribution', MARGIN, y); y += 6;
+
+  const topC = [...customers].sort((a,b) => b.adjContrib - a.adjContrib).slice(0, 8);
+  const cols = ['Customer','Revenue','Gross Margin%','DSO','WC Cost','Adj Margin%','Quadrant'];
+  const colX = [MARGIN, MARGIN+55, MARGIN+105, MARGIN+135, MARGIN+162, MARGIN+190, MARGIN+220];
+
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(136,153,170);
+  cols.forEach((h, i) => doc.text(h, colX[i], y));
+  y += 2;
+  doc.line(MARGIN, y, W-MARGIN, y); y += 4;
+
+  doc.setFont('helvetica', 'normal');
+  for (const c of topC) {
+    const qColor = { star:[0,212,170], workhorse:[96,165,250], diva:[245,197,24], dog:[255,76,106] }[c.quadrant];
+    doc.setTextColor(226,232,240);
+    doc.text(c.party.slice(0,22), colX[0], y);
+    doc.text(fmtINR(c.revenue, true), colX[1], y);
+    doc.text(fmtPct(c.grossMarginPct), colX[2], y);
+    doc.text(c.dso !== null ? Math.round(c.dso)+'d' : '—', colX[3], y);
+    doc.text(fmtINR(c.wcCost, true), colX[4], y);
+    doc.setTextColor(...(qColor || [226,232,240]));
+    doc.text(fmtPct(c.adjMarginPct), colX[5], y);
+    doc.text(c.quadrant.toUpperCase(), colX[6], y);
+    doc.setTextColor(226,232,240);
+    y += 6;
+  }
+
+  // Footer
+  doc.setFillColor(17,24,39);
+  doc.rect(0, H-12, W, 12, 'F');
+  doc.setTextColor(71,85,105);
+  doc.setFontSize(7);
+  doc.text('Customer Intelligence Suite by Credlance — Working capital adjustment assumes stated cost of capital. Review credit terms before acting on recommendations.', W/2, H-5, { align:'center' });
+
+  const slug = period.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`Credlance_CustomerValue_${slug}.pdf`);
+  showToast('PDF downloaded ✓');
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════════
+function resetApp() {
+  state.files = { A: null, B: null, C: null, D: null };
+  state.results = { customers: [], period: '' };
+  Object.values(state.charts).forEach(c => { if(c) c.destroy(); });
+  state.charts = {};
+  ['A','B','C','D'].forEach(m => {
+    document.getElementById('module'+m).classList.remove('loaded');
+    const st = document.getElementById('status'+m);
+    st.className = 'module-status waiting';
+    st.textContent = (m==='C'||m==='D') ? '⬜ Waiting for file (optional)…' : '⬜ Waiting for file…';
+    document.getElementById('file'+m).value = '';
+  });
+  document.getElementById('analyseBtn').disabled = true;
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('uploadSection').style.display = '';
+  switchTab('profitability');
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
