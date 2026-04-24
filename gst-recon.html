@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GST Reconciliation Checker | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --surface: #111827; --surface2: #1a2235; --border: #1f2d42;
+      --accent: #00d4aa; --accent2: #00a884; --text: #e2e8f0; --muted: #8899aa;
+      --red: #ff4c6a; --orange: #ff8c42; --yellow: #f5c518; --green: #22c55e; --blue: #60a5fa;
+      --red-bg: rgba(255,76,106,0.1); --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1); --green-bg: rgba(34,197,94,0.1); --blue-bg: rgba(96,165,250,0.1);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* ── NAV ── */
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(11,15,26,0.97); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 60px; }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+    .nav-back:hover { color: var(--accent); }
+    .nav-badge { background: var(--surface2); color: var(--accent); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+
+    /* ── HERO ── */
+    .hero { padding: 3rem 2rem 2rem; text-align: center; max-width: 760px; margin: 0 auto; }
+    .hero h1 { font-size: 2.1rem; font-weight: 800; line-height: 1.2; margin-bottom: 0.6rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 580px; margin: 0 auto 1.5rem; }
+
+    /* ── STEPPER ── */
+    .stepper { display: flex; align-items: center; justify-content: center; max-width: 640px; margin: 0 auto 2.5rem; padding: 0 1.5rem; }
+    .step-item { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+    .step-item:not(:last-child)::after { content: ''; position: absolute; top: 16px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+    .step-item.done::after { background: var(--accent); }
+    .step-circle { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: var(--muted); z-index: 1; transition: all 0.3s; }
+    .step-item.active .step-circle { border-color: var(--accent); background: rgba(0,212,170,0.15); color: var(--accent); }
+    .step-item.done .step-circle { border-color: var(--accent); background: var(--accent); color: #0b0f1a; }
+    .step-label { font-size: 0.65rem; color: var(--muted); margin-top: 6px; text-align: center; letter-spacing: 0.03em; white-space: nowrap; }
+    .step-item.active .step-label { color: var(--accent); }
+
+    /* ── UPLOAD SECTION ── */
+    #step1 { max-width: 880px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+    .step-heading { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .step-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+    .upload-slot { background: var(--surface); border: 2px dashed var(--border); border-radius: 14px; padding: 1.5rem; cursor: pointer; transition: all 0.25s; text-align: center; position: relative; }
+    .upload-slot:hover, .upload-slot.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+    .upload-slot.loaded { border-style: solid; border-color: var(--accent); background: rgba(0,212,170,0.05); cursor: default; }
+    .slot-icon { font-size: 1.8rem; margin-bottom: 0.6rem; }
+    .slot-side { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.2rem; }
+    .slot-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .slot-desc { color: var(--muted); font-size: 0.8rem; line-height: 1.5; margin-bottom: 0.75rem; }
+    .slot-btn { background: var(--accent); color: #0b0f1a; border: none; font-weight: 700; font-size: 0.82rem; padding: 0.45rem 1.2rem; border-radius: 7px; cursor: pointer; }
+    .slot-btn:hover { background: var(--accent2); }
+    .slot-loaded-badge { display: none; align-items: center; gap: 0.4rem; color: var(--green); font-size: 0.82rem; font-weight: 600; justify-content: center; margin-top: 0.5rem; }
+    .upload-slot.loaded .slot-loaded-badge { display: flex; }
+    .upload-slot.loaded .slot-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .upload-slot.loaded .slot-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .slot-optional { font-size: 0.65rem; background: var(--surface2); color: var(--muted); padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); margin-left: 0.4rem; }
+    .run-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .run-hint { font-size: 0.82rem; color: var(--muted); }
+
+    /* ── PERIOD CONFIRM ── */
+    #step2 { display: none; max-width: 600px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+    .period-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; text-align: center; }
+    .period-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .period-card p { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+    .period-detected { font-size: 1.6rem; font-weight: 800; color: var(--accent); margin-bottom: 1.5rem; }
+    .period-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
+    .period-input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── PROCESSING ── */
+    #processingSection { display: none; text-align: center; padding: 5rem 2rem; }
+    .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #processingMsg { color: var(--text); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .processing-sub { color: var(--muted); font-size: 0.88rem; }
+
+    /* ── RESULTS ── */
+    #resultsSection { display: none; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .results-meta { color: var(--muted); font-size: 0.83rem; }
+    .action-bar { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    /* ── SECTION DIVIDER ── */
+    .recon-section { margin-bottom: 3rem; }
+    .recon-section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .recon-section-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .icon-outward { background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.3); }
+    .icon-inward { background: rgba(0,212,170,0.12); border: 1px solid rgba(0,212,170,0.25); }
+    .recon-section-title { font-size: 1.1rem; font-weight: 700; }
+    .recon-section-sub { color: var(--muted); font-size: 0.82rem; }
+
+    /* ── SUMMARY CARDS ── */
+    .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 700px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+    .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    .kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+    .kpi-sub { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+    .kv-green { color: var(--green); }
+    .kv-red { color: var(--red); }
+    .kv-orange { color: var(--orange); }
+    .kv-yellow { color: var(--yellow); }
+    .kv-accent { color: var(--accent); }
+    .kv-blue { color: var(--blue); }
+
+    /* ── TABS ── */
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; gap: 0; }
+    .tab-btn { padding: 0.65rem 1.2rem; font-size: 0.875rem; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: all 0.2s; font-weight: 500; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-count { font-size: 0.68rem; background: var(--surface2); padding: 1px 6px; border-radius: 10px; margin-left: 4px; }
+    .tab-btn.active .tab-count { background: rgba(0,212,170,0.15); color: var(--accent); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── DATA TABLES ── */
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .data-table th { background: var(--surface2); padding: 0.6rem 0.85rem; text-align: left; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+    .data-table th:hover { color: var(--text); }
+    .data-table td { padding: 0.55rem 0.85rem; border-top: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.015); }
+    .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .amt-pos { color: var(--green); }
+    .amt-neg { color: var(--red); }
+    .match-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+    .mb-clean { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .mb-warn { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .mb-books { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+    .mb-portal { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+    .mb-risk { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .mb-excess { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+    .warn-tag { font-size: 0.65rem; color: var(--yellow); background: var(--yellow-bg); border: 1px solid rgba(245,197,24,0.3); padding: 1px 6px; border-radius: 8px; margin-left: 4px; white-space: nowrap; }
+    .ignore-btn { font-size: 0.68rem; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 2px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .ignore-btn:hover { border-color: var(--orange); color: var(--orange); }
+    .ignore-btn.ignored { border-color: var(--border); color: var(--muted); opacity: 0.4; text-decoration: line-through; }
+
+    /* ── CERTIFICATE ── */
+    .cert-card { background: var(--surface); border: 1px solid var(--accent); border-radius: 14px; padding: 2rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+    .cert-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(0,212,170,0.08), transparent 70%); border-radius: 50%; pointer-events: none; }
+    .cert-label { font-size: 0.72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+    .cert-body { font-size: 0.95rem; line-height: 1.85; color: var(--text); }
+    .cert-highlight { color: var(--accent); font-weight: 700; }
+    .cert-risk { color: var(--red); font-weight: 700; }
+
+    /* ── RULE 36 ALERT ── */
+    .rule36-alert { background: var(--red-bg); border: 1px solid rgba(255,76,106,0.35); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start; }
+    .rule36-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .rule36-title { font-weight: 700; color: var(--red); margin-bottom: 0.25rem; font-size: 0.95rem; }
+    .rule36-body { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── EMPTY ── */
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── BUTTONS ── */
+    .btn-primary { background: var(--accent); color: #0b0f1a; border: none; padding: 0.6rem 1.4rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.55rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── TOAST ── */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; background: var(--accent); color: #0b0f1a; padding: 0.75rem 1.4rem; border-radius: 10px; font-weight: 600; font-size: 0.88rem; box-shadow: 0 8px 32px rgba(0,212,170,0.3); transform: translateY(100px); opacity: 0; transition: all 0.35s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--red); box-shadow: 0 8px 32px rgba(255,76,106,0.3); color: #fff; }
+
+    /* ── FOOTER ── */
+    .app-footer { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; border-top: 1px solid var(--border); font-size: 0.78rem; color: #475569; line-height: 1.6; }
+
+    /* ── PRINT ── */
+    @media print {
+      nav, .action-bar, .ignore-btn, .tab-bar, .run-bar, #step1, #step2, #processingSection { display: none !important; }
+      body { background: #fff; color: #000; }
+      .cert-card { border: 1px solid #ccc; }
+      .data-table th, .data-table td { border: 1px solid #ddd; }
+      .kpi-card { border: 1px solid #ccc; }
+      #resultsSection { display: block !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <span class="nav-badge">GST RECON</span>
+  <a href="index.html" class="nav-back">← Back to Apps</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>GST <span>Reconciliation</span> Checker</h1>
+  <p>Compare Tally books against GSTR-1 and GSTR-2B portal downloads. Flag mismatches, compute ITC-at-risk, and generate your reconciliation certificate — before filing.</p>
+</div>
+
+<!-- STEPPER -->
+<div class="stepper">
+  <div class="step-item active" id="si1"><div class="step-circle">1</div><div class="step-label">Upload Files</div></div>
+  <div class="step-item" id="si2"><div class="step-circle">2</div><div class="step-label">Confirm Period</div></div>
+  <div class="step-item" id="si3"><div class="step-circle">3</div><div class="step-label">Results</div></div>
+  <div class="step-item" id="si4"><div class="step-circle">4</div><div class="step-label">Export</div></div>
+</div>
+
+<!-- STEP 1 · UPLOAD -->
+<div id="step1">
+  <div class="step-heading">Upload Your Files</div>
+  <p class="step-sub">You can run outward-only (Tally Sales + GSTR-1) or inward-only (Tally Purchases + GSTR-2B) — or both. Upload what you have.</p>
+  <div class="upload-grid">
+
+    <div class="upload-slot" id="slot-tally-sales" onclick="triggerInput('inp-tally-sales')">
+      <div class="slot-icon">📊</div>
+      <div class="slot-side">Outward Side</div>
+      <div class="slot-title">Tally Sales Register</div>
+      <div class="slot-desc">Export via: Display → Account Books → Sales Register → Alt+F5 → F12 (Show GSTIN: Yes) → Alt+E Excel</div>
+      <button class="slot-btn" onclick="event.stopPropagation(); triggerInput('inp-tally-sales')">Choose File</button>
+      <div class="slot-loaded-badge">✓ <span id="fn-tally-sales"></span></div>
+    </div>
+
+    <div class="upload-slot" id="slot-gstr1" onclick="triggerInput('inp-gstr1')">
+      <div class="slot-icon">🌐</div>
+      <div class="slot-side">Outward Side</div>
+      <div class="slot-title">GSTR-1 Download</div>
+      <div class="slot-desc">Download from GST Portal → Returns Dashboard → GSTR-1 → Download (JSON-to-Excel or offline utility format)</div>
+      <button class="slot-btn" onclick="event.stopPropagation(); triggerInput('inp-gstr1')">Choose File</button>
+      <div class="slot-loaded-badge">✓ <span id="fn-gstr1"></span></div>
+    </div>
+
+    <div class="upload-slot" id="slot-tally-purchases" onclick="triggerInput('inp-tally-purchases')">
+      <div class="slot-icon">📋</div>
+      <div class="slot-side">Inward Side</div>
+      <div class="slot-title">Tally Purchase Register</div>
+      <div class="slot-desc">Export via: Display → Account Books → Purchase Register → Alt+F5 → F12 (Show GSTIN: Yes) → Alt+E Excel</div>
+      <button class="slot-btn" onclick="event.stopPropagation(); triggerInput('inp-tally-purchases')">Choose File</button>
+      <div class="slot-loaded-badge">✓ <span id="fn-tally-purchases"></span></div>
+    </div>
+
+    <div class="upload-slot" id="slot-gstr2b" onclick="triggerInput('inp-gstr2b')">
+      <div class="slot-icon">🛡️</div>
+      <div class="slot-side">Inward Side</div>
+      <div class="slot-title">GSTR-2B Download</div>
+      <div class="slot-desc">Download from GST Portal → Returns Dashboard → GSTR-2B → Download Excel. Accepts B2B, B2BA, CDNR sheets.</div>
+      <button class="slot-btn" onclick="event.stopPropagation(); triggerInput('inp-gstr2b')">Choose File</button>
+      <div class="slot-loaded-badge">✓ <span id="fn-gstr2b"></span></div>
+    </div>
+
+  </div>
+
+  <input type="file" id="inp-tally-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this,'tally-sales')" />
+  <input type="file" id="inp-gstr1" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this,'gstr1')" />
+  <input type="file" id="inp-tally-purchases" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this,'tally-purchases')" />
+  <input type="file" id="inp-gstr2b" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this,'gstr2b')" />
+
+  <div class="run-bar">
+    <button class="btn-primary" id="runBtn" onclick="proceed()" disabled>Run Reconciliation →</button>
+    <span class="run-hint" id="runHint">Upload at least one pair of files (Sales + GSTR-1, or Purchases + GSTR-2B) to continue</span>
+  </div>
+</div>
+
+<!-- STEP 2 · PERIOD CONFIRM -->
+<div id="step2">
+  <div class="period-card">
+    <h3>Confirm Filing Period</h3>
+    <p>We detected the following period from your files. Please confirm or correct it before running the reconciliation.</p>
+    <div class="period-detected" id="detectedPeriod">—</div>
+    <div style="display:flex;gap:0.75rem;justify-content:center;align-items:center;flex-wrap:wrap;">
+      <input type="text" class="period-input" id="periodInput" placeholder="e.g. April 2026" />
+      <button class="btn-primary" onclick="runRecon()">Confirm &amp; Reconcile →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROCESSING -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Parsing files…</div>
+  <div class="processing-sub">Running 3-pass matching engine</div>
+</div>
+
+<!-- RESULTS -->
+<div id="resultsSection">
+  <div class="results-header">
+    <div>
+      <h2>Reconciliation Results</h2>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="exportExcel()">⬇ Excel Export</button>
+      <button class="btn-outline" onclick="exportPDF()">🖨 PDF / Print</button>
+      <button class="btn-outline" onclick="startOver()">↺ Start Over</button>
+    </div>
+  </div>
+
+  <!-- OUTWARD SECTION -->
+  <div class="recon-section" id="outwardSection">
+    <div class="recon-section-header">
+      <div class="recon-section-icon icon-outward">📤</div>
+      <div>
+        <div class="recon-section-title">Outward Reconciliation — Sales vs GSTR-1</div>
+        <div class="recon-section-sub">Tally Sales Register compared against GSTR-1 filed on the portal</div>
+      </div>
+    </div>
+
+    <div class="kpi-strip" id="outwardKPIs"></div>
+
+    <div class="tab-bar" id="outwardTabs"></div>
+    <div id="outwardTabContent"></div>
+  </div>
+
+  <!-- INWARD SECTION -->
+  <div class="recon-section" id="inwardSection">
+    <div class="recon-section-header">
+      <div class="recon-section-icon icon-inward">📥</div>
+      <div>
+        <div class="recon-section-title">Inward Reconciliation — Purchases vs GSTR-2B</div>
+        <div class="recon-section-sub">Tally Purchase Register compared against GSTR-2B auto-populated ITC</div>
+      </div>
+    </div>
+
+    <div id="rule36Container"></div>
+    <div class="kpi-strip" id="inwardKPIs"></div>
+    <div class="tab-bar" id="inwardTabs"></div>
+    <div id="inwardTabContent"></div>
+  </div>
+
+  <!-- CERTIFICATE -->
+  <div class="recon-section">
+    <div class="recon-section-header">
+      <div class="recon-section-icon" style="background:rgba(0,212,170,0.12);border:1px solid rgba(0,212,170,0.25);">📜</div>
+      <div>
+        <div class="recon-section-title">Reconciliation Certificate</div>
+        <div class="recon-section-sub">Auto-generated summary for CA workpapers and client review</div>
+      </div>
+    </div>
+    <div class="cert-card" id="certCard">
+      <div class="cert-label">📜 GST Reconciliation Certificate</div>
+      <div class="cert-body" id="certBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="app-footer">
+  GST Reconciliation Checker by Credlance — Based on uploaded data. Authoritative GST filing decisions must be made by a qualified GST practitioner. GSTR data from portal downloads; ensure latest version is used. All processing happens locally in your browser — no data is uploaded to any server.
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+const S = {
+  files: { 'tally-sales': null, 'gstr1': null, 'tally-purchases': null, 'gstr2b': null },
+  data:  { tallySales: [], gstr1: [], tallyPurchases: [], gstr2b: [] },
+  results: { outward: null, inward: null },
+  period: '',
+  gstin: ''
+};
+
+// ══════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════
+const fmt = n => isNaN(n) ? '—' : '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtN = n => isNaN(n) ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const pct = (a, b) => b === 0 ? '0%' : (a / b * 100).toFixed(1) + '%';
+
+function normInv(s) {
+  if (!s) return '';
+  return String(s).trim().toUpperCase().replace(/[\s\-\/\\,\.]/g, '').replace(/^0+/, '');
+}
+function normGSTIN(s) {
+  if (!s) return '';
+  return String(s).trim().toUpperCase().replace(/\s/g, '');
+}
+function normAmt(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(/[,₹\s]/g, ''));
+  return isNaN(n) ? 0 : Math.round(n * 100) / 100;
+}
+function getIgnoreKey(gstin) {
+  return 'credlance_gstrecon_' + (gstin || 'na') + '_ignore';
+}
+function loadIgnores(gstin) {
+  try { return JSON.parse(localStorage.getItem(getIgnoreKey(gstin)) || '{}'); } catch(e) { return {}; }
+}
+function saveIgnore(gstin, key, val) {
+  const d = loadIgnores(gstin);
+  if (val) d[key] = true; else delete d[key];
+  localStorage.setItem(getIgnoreKey(gstin), JSON.stringify(d));
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+
+function triggerInput(id) {
+  document.getElementById(id).click();
+}
+
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('si' + i);
+    el.className = 'step-item' + (i < n ? ' done' : i === n ? ' active' : '');
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  FILE HANDLING
+// ══════════════════════════════════════════════════
+function handleFile(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  S.files[type] = file;
+  document.getElementById('slot-' + type).classList.add('loaded');
+  const fnEl = document.getElementById('fn-' + type);
+  fnEl.textContent = file.name.length > 28 ? file.name.substring(0, 26) + '…' : file.name;
+  checkRunnable();
+}
+
+function checkRunnable() {
+  const hasOutward = S.files['tally-sales'] && S.files['gstr1'];
+  const hasInward  = S.files['tally-purchases'] && S.files['gstr2b'];
+  const canRun = hasOutward || hasInward;
+  document.getElementById('runBtn').disabled = !canRun;
+  if (canRun) {
+    document.getElementById('runHint').textContent =
+      (hasOutward && hasInward) ? 'Ready to run full reconciliation (both outward and inward)' :
+      hasOutward ? 'Ready for outward reconciliation only. Add purchase files for inward too.' :
+      'Ready for inward reconciliation only. Add sales files for outward too.';
+  }
+}
+
+// Drag and drop
+['tally-sales','gstr1','tally-purchases','gstr2b'].forEach(type => {
+  const slot = document.getElementById('slot-' + type);
+  if (!slot) return;
+  slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+  slot.addEventListener('drop', e => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      S.files[type] = file;
+      slot.classList.add('loaded');
+      document.getElementById('fn-' + type).textContent = file.name.length > 28 ? file.name.substring(0,26)+'…' : file.name;
+      checkRunnable();
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════
+//  EXCEL PARSING — generic sheet-to-rows
+// ══════════════════════════════════════════════════
+function readWorkbook(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+        res(wb);
+      } catch(err) { rej(err); }
+    };
+    reader.onerror = rej;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function sheetToRows(sheet) {
+  const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  return data.filter(r => r.some(c => c !== ''));
+}
+
+// Find header row: first row with >= 4 non-empty cells and contains a keyword
+function findHeaderRow(rows, keywords) {
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const r = rows[i];
+    const rStr = r.map(c => String(c).toLowerCase()).join(' ');
+    const nonEmpty = r.filter(c => c !== '').length;
+    if (nonEmpty >= 3 && keywords.some(k => rStr.includes(k))) return i;
+  }
+  return 0;
+}
+
+// Flexible column finder
+function findCol(headers, patterns) {
+  for (const pat of patterns) {
+    const idx = headers.findIndex(h => String(h).toLowerCase().includes(pat.toLowerCase()));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+// ── Parse Tally Sales Register ──
+async function parseTallySales(file) {
+  const wb = await readWorkbook(file);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = sheetToRows(ws);
+  const hIdx = findHeaderRow(rows, ['invoice','voucher','date','gstin','taxable']);
+  const headers = rows[hIdx].map(c => String(c).trim());
+
+  const ci = {
+    date:     findCol(headers, ['date','invoice date','voucher date']),
+    invNo:    findCol(headers, ['invoice no','voucher no','inv no','bill no','number']),
+    party:    findCol(headers, ['party','customer','name','ledger']),
+    gstin:    findCol(headers, ['gstin','gst in','gst no','party gstin','gstin of recipient']),
+    taxable:  findCol(headers, ['taxable value','taxable','assessable']),
+    cgst:     findCol(headers, ['cgst']),
+    sgst:     findCol(headers, ['sgst']),
+    igst:     findCol(headers, ['igst']),
+    cess:     findCol(headers, ['cess']),
+    total:    findCol(headers, ['total','invoice value','bill amount','grand total']),
+    pos:      findCol(headers, ['place of supply','pos','state']),
+  };
+
+  const records = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const invNo = ci.invNo >= 0 ? String(r[ci.invNo] || '').trim() : '';
+    if (!invNo || invNo.toLowerCase().includes('total') || invNo.toLowerCase() === '') continue;
+    records.push({
+      date:    ci.date >= 0 ? r[ci.date] : '',
+      invNo,
+      party:   ci.party >= 0 ? r[ci.party] : '',
+      gstin:   normGSTIN(ci.gstin >= 0 ? r[ci.gstin] : ''),
+      taxable: normAmt(ci.taxable >= 0 ? r[ci.taxable] : 0),
+      cgst:    normAmt(ci.cgst >= 0 ? r[ci.cgst] : 0),
+      sgst:    normAmt(ci.sgst >= 0 ? r[ci.sgst] : 0),
+      igst:    normAmt(ci.igst >= 0 ? r[ci.igst] : 0),
+      cess:    normAmt(ci.cess >= 0 ? r[ci.cess] : 0),
+      total:   normAmt(ci.total >= 0 ? r[ci.total] : 0),
+      pos:     ci.pos >= 0 ? r[ci.pos] : '',
+      _raw:    r
+    });
+  }
+  return records;
+}
+
+// ── Parse GSTR-1 (B2B sheet) ──
+async function parseGSTR1(file) {
+  const wb = await readWorkbook(file);
+  // Try to find B2B sheet
+  const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes('B2B')) || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = sheetToRows(ws);
+  const hIdx = findHeaderRow(rows, ['gstin','invoice','date','taxable','value','recipient']);
+  const headers = rows[hIdx].map(c => String(c).trim());
+
+  const ci = {
+    gstin:    findCol(headers, ['gstin of recipient','gstin','gst in','receiver gstin']),
+    invNo:    findCol(headers, ['invoice number','invoice no','inv no','number']),
+    date:     findCol(headers, ['invoice date','date']),
+    value:    findCol(headers, ['invoice value','total invoice value','invoice total']),
+    taxable:  findCol(headers, ['taxable value','taxable']),
+    cgst:     findCol(headers, ['central tax','cgst','central gst']),
+    sgst:     findCol(headers, ['state tax','sgst','state gst']),
+    igst:     findCol(headers, ['integrated tax','igst','integrated gst']),
+    cess:     findCol(headers, ['cess']),
+    pos:      findCol(headers, ['place of supply','pos']),
+    rate:     findCol(headers, ['rate','tax rate']),
+  };
+
+  const records = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const invNo = ci.invNo >= 0 ? String(r[ci.invNo] || '').trim() : '';
+    const gstin = normGSTIN(ci.gstin >= 0 ? r[ci.gstin] : '');
+    if (!invNo || invNo.toLowerCase().includes('total')) continue;
+    records.push({
+      gstin,
+      invNo,
+      date:    ci.date >= 0 ? r[ci.date] : '',
+      taxable: normAmt(ci.taxable >= 0 ? r[ci.taxable] : 0),
+      cgst:    normAmt(ci.cgst >= 0 ? r[ci.cgst] : 0),
+      sgst:    normAmt(ci.sgst >= 0 ? r[ci.sgst] : 0),
+      igst:    normAmt(ci.igst >= 0 ? r[ci.igst] : 0),
+      cess:    normAmt(ci.cess >= 0 ? r[ci.cess] : 0),
+      total:   normAmt(ci.value >= 0 ? r[ci.value] : 0),
+      pos:     ci.pos >= 0 ? r[ci.pos] : '',
+      rate:    ci.rate >= 0 ? r[ci.rate] : '',
+      _raw:    r
+    });
+  }
+
+  // Also try to extract GSTIN of the taxpayer from header rows
+  for (let i = 0; i < hIdx; i++) {
+    const rStr = rows[i].join(' ');
+    const m = rStr.match(/[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/);
+    if (m && !S.gstin) S.gstin = m[0];
+  }
+
+  return records;
+}
+
+// ── Parse Tally Purchase Register ──
+async function parseTallyPurchases(file) {
+  const wb = await readWorkbook(file);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = sheetToRows(ws);
+  const hIdx = findHeaderRow(rows, ['bill','invoice','date','gstin','taxable','supplier']);
+  const headers = rows[hIdx].map(c => String(c).trim());
+
+  const ci = {
+    date:     findCol(headers, ['date','bill date','invoice date']),
+    invNo:    findCol(headers, ['bill no','invoice no','voucher no','number']),
+    party:    findCol(headers, ['party','supplier','vendor','name','ledger']),
+    gstin:    findCol(headers, ['gstin','gst in','supplier gstin','party gstin']),
+    taxable:  findCol(headers, ['taxable value','taxable','assessable']),
+    cgst:     findCol(headers, ['cgst']),
+    sgst:     findCol(headers, ['sgst']),
+    igst:     findCol(headers, ['igst']),
+    cess:     findCol(headers, ['cess']),
+    total:    findCol(headers, ['total','bill amount','invoice value','grand total']),
+    itcCGST:  findCol(headers, ['itc cgst','input cgst']),
+    itcSGST:  findCol(headers, ['itc sgst','input sgst']),
+    itcIGST:  findCol(headers, ['itc igst','input igst']),
+  };
+
+  const records = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const invNo = ci.invNo >= 0 ? String(r[ci.invNo] || '').trim() : '';
+    if (!invNo || invNo.toLowerCase().includes('total')) continue;
+    const cgst = normAmt(ci.cgst >= 0 ? r[ci.cgst] : (ci.itcCGST >= 0 ? r[ci.itcCGST] : 0));
+    const sgst = normAmt(ci.sgst >= 0 ? r[ci.sgst] : (ci.itcSGST >= 0 ? r[ci.itcSGST] : 0));
+    const igst = normAmt(ci.igst >= 0 ? r[ci.igst] : (ci.itcIGST >= 0 ? r[ci.itcIGST] : 0));
+    records.push({
+      date:    ci.date >= 0 ? r[ci.date] : '',
+      invNo,
+      party:   ci.party >= 0 ? r[ci.party] : '',
+      gstin:   normGSTIN(ci.gstin >= 0 ? r[ci.gstin] : ''),
+      taxable: normAmt(ci.taxable >= 0 ? r[ci.taxable] : 0),
+      cgst, sgst, igst,
+      cess:    normAmt(ci.cess >= 0 ? r[ci.cess] : 0),
+      total:   normAmt(ci.total >= 0 ? r[ci.total] : 0),
+      itc:     cgst + sgst + igst,
+      _raw:    r
+    });
+  }
+  return records;
+}
+
+// ── Parse GSTR-2B ──
+async function parseGSTR2B(file) {
+  const wb = await readWorkbook(file);
+  const records = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const upper = sheetName.toUpperCase();
+    if (!upper.includes('B2B') && !upper.includes('CDNR')) continue;
+    const ws = wb.Sheets[sheetName];
+    const rows = sheetToRows(ws);
+    const hIdx = findHeaderRow(rows, ['gstin','invoice','date','taxable','itc','supplier']);
+    if (hIdx < 0) continue;
+    const headers = rows[hIdx].map(c => String(c).trim());
+
+    const ci = {
+      gstin:    findCol(headers, ['gstin of supplier','supplier gstin','gstin']),
+      name:     findCol(headers, ['trade/legal name','supplier name','trade name','name']),
+      invNo:    findCol(headers, ['invoice number','invoice no','note number']),
+      date:     findCol(headers, ['invoice date','document date','date']),
+      taxable:  findCol(headers, ['taxable value']),
+      cgst:     findCol(headers, ['central tax','cgst']),
+      sgst:     findCol(headers, ['state/ut tax','sgst','state tax']),
+      igst:     findCol(headers, ['integrated tax','igst']),
+      cess:     findCol(headers, ['cess']),
+      itcAvail: findCol(headers, ['itc availability','itc available']),
+      reason:   findCol(headers, ['reason']),
+      total:    findCol(headers, ['invoice value','total']),
+    };
+
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const gstin = normGSTIN(ci.gstin >= 0 ? r[ci.gstin] : '');
+      const invNo = ci.invNo >= 0 ? String(r[ci.invNo] || '').trim() : '';
+      if (!invNo || invNo.toLowerCase().includes('total')) continue;
+      const cgst = normAmt(ci.cgst >= 0 ? r[ci.cgst] : 0);
+      const sgst = normAmt(ci.sgst >= 0 ? r[ci.sgst] : 0);
+      const igst = normAmt(ci.igst >= 0 ? r[ci.igst] : 0);
+      records.push({
+        gstin, invNo,
+        name:     ci.name >= 0 ? r[ci.name] : '',
+        date:     ci.date >= 0 ? r[ci.date] : '',
+        taxable:  normAmt(ci.taxable >= 0 ? r[ci.taxable] : 0),
+        cgst, sgst, igst,
+        cess:     normAmt(ci.cess >= 0 ? r[ci.cess] : 0),
+        total:    normAmt(ci.total >= 0 ? r[ci.total] : 0),
+        itc:      cgst + sgst + igst,
+        itcAvail: ci.itcAvail >= 0 ? r[ci.itcAvail] : '',
+        reason:   ci.reason >= 0 ? r[ci.reason] : '',
+        sheet:    sheetName,
+        _raw:     r
+      });
+    }
+  }
+  return records;
+}
+
+// Detect period from data
+function detectPeriod(records) {
+  for (const r of records) {
+    if (!r.date) continue;
+    const d = new Date(r.date);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    }
+    const s = String(r.date);
+    const m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4}|\d{2})/);
+    if (m) {
+      const yr = m[3].length === 2 ? '20' + m[3] : m[3];
+      const mo = parseInt(m[2]) > 12 ? parseInt(m[1]) : parseInt(m[2]);
+      return new Date(parseInt(yr), mo - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    }
+  }
+  return '';
+}
+
+// ══════════════════════════════════════════════════
+//  MATCHING ENGINE
+// ══════════════════════════════════════════════════
+function runMatching(books, portal) {
+  const matched   = [];  // Clean match
+  const warnings  = [];  // Match with issues
+  const onlyBooks = [];  // In books, not portal
+  const onlyPortal = []; // In portal, not books
+
+  const usedPortal = new Set();
+  const usedBooks  = new Set();
+
+  // ── Pass 1: Invoice No + GSTIN exact ──
+  for (let bi = 0; bi < books.length; bi++) {
+    const b = books[bi];
+    const bKey = normInv(b.invNo) + '|' + normGSTIN(b.gstin);
+    for (let pi = 0; pi < portal.length; pi++) {
+      if (usedPortal.has(pi)) continue;
+      const p = portal[pi];
+      const pKey = normInv(p.invNo) + '|' + normGSTIN(p.gstin);
+      if (bKey === pKey && bKey !== '|') {
+        const taxDiff = Math.abs((b.taxable || 0) - (p.taxable || 0));
+        const taxOk = taxDiff <= 1;
+        const totalTaxBooks  = (b.cgst || 0) + (b.sgst || 0) + (b.igst || 0);
+        const totalTaxPortal = (p.cgst || 0) + (p.sgst || 0) + (p.igst || 0);
+        const taxAmtDiff = Math.abs(totalTaxBooks - totalTaxPortal);
+        const taxAmtOk = taxAmtDiff <= 1;
+
+        const warns = [];
+        if (!taxOk) warns.push('Taxable value diff ₹' + taxDiff.toFixed(0));
+        if (!taxAmtOk) warns.push('Tax amount diff ₹' + taxAmtDiff.toFixed(0));
+        if (b.pos && p.pos && String(b.pos).trim() !== String(p.pos).trim()) warns.push('POS mismatch');
+
+        if (warns.length === 0) {
+          matched.push({ b, p, matchType: 'exact' });
+        } else {
+          warnings.push({ b, p, matchType: 'value-diff', warns });
+        }
+        usedPortal.add(pi);
+        usedBooks.add(bi);
+        break;
+      }
+    }
+  }
+
+  // ── Pass 2: Invoice No only (GSTIN mismatch) ──
+  for (let bi = 0; bi < books.length; bi++) {
+    if (usedBooks.has(bi)) continue;
+    const b = books[bi];
+    const bInv = normInv(b.invNo);
+    for (let pi = 0; pi < portal.length; pi++) {
+      if (usedPortal.has(pi)) continue;
+      const p = portal[pi];
+      if (bInv === normInv(p.invNo) && bInv !== '') {
+        warnings.push({ b, p, matchType: 'gstin-mismatch', warns: ['GSTIN mismatch: Books=' + (b.gstin||'—') + ' Portal=' + (p.gstin||'—')] });
+        usedPortal.add(pi);
+        usedBooks.add(bi);
+        break;
+      }
+    }
+  }
+
+  // ── Pass 3: GSTIN + Taxable Value match (invoice number typo) ──
+  for (let bi = 0; bi < books.length; bi++) {
+    if (usedBooks.has(bi)) continue;
+    const b = books[bi];
+    if (!b.gstin) continue;
+    for (let pi = 0; pi < portal.length; pi++) {
+      if (usedPortal.has(pi)) continue;
+      const p = portal[pi];
+      if (normGSTIN(b.gstin) === normGSTIN(p.gstin) && b.gstin !== '') {
+        const taxDiff = Math.abs((b.taxable || 0) - (p.taxable || 0));
+        if (taxDiff <= 1) {
+          warnings.push({ b, p, matchType: 'invno-typo', warns: ['Invoice No mismatch: Books=' + b.invNo + ' Portal=' + p.invNo] });
+          usedPortal.add(pi);
+          usedBooks.add(bi);
+          break;
+        }
+      }
+    }
+  }
+
+  // Remaining unmatched
+  for (let bi = 0; bi < books.length; bi++) {
+    if (!usedBooks.has(bi)) onlyBooks.push(books[bi]);
+  }
+  for (let pi = 0; pi < portal.length; pi++) {
+    if (!usedPortal.has(pi)) onlyPortal.push(portal[pi]);
+  }
+
+  return { matched, warnings, onlyBooks, onlyPortal };
+}
+
+// ── ITC Analysis ──
+function analyzeITC(purchases, gstr2b) {
+  const recon = runMatching(purchases, gstr2b);
+  const itcRisk    = recon.onlyBooks.reduce((s, r) => s + (r.itc || 0), 0);
+  const itcExcess  = recon.warnings.filter(w => w.matchType === 'value-diff').reduce((s, w) => {
+    const diff = (w.b.itc || 0) - (w.p.itc || 0);
+    return s + (diff > 0 ? diff : 0);
+  }, 0);
+  const itcOpportunity = recon.onlyPortal.reduce((s, r) => s + (r.itc || 0), 0);
+  const totalITCBooks  = purchases.reduce((s, r) => s + (r.itc || 0), 0);
+  const totalITC2B     = gstr2b.reduce((s, r) => s + (r.itc || 0), 0);
+  const rule36Breach   = totalITCBooks > totalITC2B;
+  return { ...recon, itcRisk, itcExcess, itcOpportunity, totalITCBooks, totalITC2B, rule36Breach };
+}
+
+// ══════════════════════════════════════════════════
+//  FLOW
+// ══════════════════════════════════════════════════
+async function proceed() {
+  document.getElementById('step1').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+  document.getElementById('processingMsg').textContent = 'Parsing files…';
+  setStep(2);
+
+  await new Promise(r => setTimeout(r, 80));
+
+  try {
+    if (S.files['tally-sales'])     S.data.tallySales     = await parseTallySales(S.files['tally-sales']);
+    if (S.files['gstr1'])           S.data.gstr1          = await parseGSTR1(S.files['gstr1']);
+    if (S.files['tally-purchases']) S.data.tallyPurchases = await parseTallyPurchases(S.files['tally-purchases']);
+    if (S.files['gstr2b'])          S.data.gstr2b         = await parseGSTR2B(S.files['gstr2b']);
+  } catch(err) {
+    document.getElementById('processingSection').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
+    showToast('File parse error: ' + err.message, 'error');
+    setStep(1);
+    return;
+  }
+
+  // Detect period
+  const allRecords = [...S.data.tallySales, ...S.data.gstr1, ...S.data.tallyPurchases, ...S.data.gstr2b];
+  S.period = detectPeriod(allRecords) || 'Current Period';
+  document.getElementById('detectedPeriod').textContent = S.period;
+  document.getElementById('periodInput').value = S.period;
+
+  document.getElementById('processingSection').style.display = 'none';
+  document.getElementById('step2').style.display = 'block';
+  setStep(2);
+}
+
+async function runRecon() {
+  S.period = document.getElementById('periodInput').value.trim() || S.period;
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+  document.getElementById('processingMsg').textContent = 'Running matching engine…';
+  setStep(3);
+
+  await new Promise(r => setTimeout(r, 120));
+
+  try {
+    if (S.data.tallySales.length && S.data.gstr1.length) {
+      S.results.outward = runMatching(S.data.tallySales, S.data.gstr1);
+    }
+    if (S.data.tallyPurchases.length && S.data.gstr2b.length) {
+      S.results.inward = analyzeITC(S.data.tallyPurchases, S.data.gstr2b);
+    }
+  } catch(err) {
+    document.getElementById('processingSection').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
+    showToast('Matching error: ' + err.message, 'error');
+    setStep(1);
+    return;
+  }
+
+  document.getElementById('processingSection').style.display = 'none';
+  renderResults();
+  document.getElementById('resultsSection').style.display = 'block';
+  setStep(4);
+}
+
+// ══════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════
+function renderResults() {
+  const meta = [];
+  if (S.gstin) meta.push('GSTIN: ' + S.gstin);
+  meta.push('Period: ' + S.period);
+  meta.push('Generated: ' + new Date().toLocaleDateString('en-IN'));
+  document.getElementById('resultsMeta').textContent = meta.join('  ·  ');
+
+  if (S.results.outward) {
+    renderOutward(S.results.outward);
+    document.getElementById('outwardSection').style.display = 'block';
+  } else {
+    document.getElementById('outwardSection').style.display = 'none';
+  }
+
+  if (S.results.inward) {
+    renderInward(S.results.inward);
+    document.getElementById('inwardSection').style.display = 'block';
+  } else {
+    document.getElementById('inwardSection').style.display = 'none';
+  }
+
+  renderCertificate();
+}
+
+function renderOutward(r) {
+  const totalBooks  = S.data.tallySales.length;
+  const totalPortal = S.data.gstr1.length;
+  const matchedCount = r.matched.length + r.warnings.length;
+  const matchPct = totalBooks > 0 ? (matchedCount / totalBooks * 100).toFixed(1) : 0;
+
+  const taxBooks  = S.data.tallySales.reduce((s, x) => s + x.cgst + x.sgst + x.igst, 0);
+  const taxPortal = S.data.gstr1.reduce((s, x) => s + x.cgst + x.sgst + x.igst, 0);
+  const taxDiff   = taxBooks - taxPortal;
+
+  const taxValBooks  = S.data.tallySales.reduce((s, x) => s + x.taxable, 0);
+  const taxValPortal = S.data.gstr1.reduce((s, x) => s + x.taxable, 0);
+
+  // KPIs
+  document.getElementById('outwardKPIs').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Invoices in Books</div>
+      <div class="kpi-value kv-blue">${fmtN(totalBooks)}</div>
+      <div class="kpi-sub">${fmt(taxValBooks)} taxable value</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Invoices in GSTR-1</div>
+      <div class="kpi-value kv-accent">${fmtN(totalPortal)}</div>
+      <div class="kpi-sub">${fmt(taxValPortal)} taxable value</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Match Rate</div>
+      <div class="kpi-value ${matchPct >= 95 ? 'kv-green' : matchPct >= 80 ? 'kv-yellow' : 'kv-red'}">${matchPct}%</div>
+      <div class="kpi-sub">${matchedCount} of ${totalBooks} invoices matched</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Tax Liability Diff</div>
+      <div class="kpi-value ${Math.abs(taxDiff) < 100 ? 'kv-green' : 'kv-red'}">${fmt(taxDiff)}</div>
+      <div class="kpi-sub">Books ${taxDiff >= 0 ? '>' : '<'} Portal by ${fmt(Math.abs(taxDiff))}</div>
+    </div>
+  `;
+
+  // Tabs
+  const tabs = [
+    { id: 'ow-clean',   label: 'Matched Cleanly',     count: r.matched.length,   color: 'green' },
+    { id: 'ow-warn',    label: 'Matched w/ Warnings',  count: r.warnings.length,  color: 'yellow' },
+    { id: 'ow-books',   label: 'In Books, Not GSTR-1', count: r.onlyBooks.length, color: 'orange' },
+    { id: 'ow-portal',  label: 'In GSTR-1, Not Books', count: r.onlyPortal.length, color: 'blue' },
+  ];
+
+  document.getElementById('outwardTabs').innerHTML = tabs.map((t, i) =>
+    `<button class="tab-btn ${i===0?'active':''}" onclick="switchTab(this,'${t.id}','outwardTabContent')">
+      ${t.label}<span class="tab-count">${t.count}</span>
+    </button>`
+  ).join('');
+
+  const ignores = loadIgnores(S.gstin);
+
+  document.getElementById('outwardTabContent').innerHTML = `
+    <div id="ow-clean" class="tab-pane active">${renderMatchedTable(r.matched, ignores)}</div>
+    <div id="ow-warn"  class="tab-pane">${renderWarnTable(r.warnings, ignores)}</div>
+    <div id="ow-books" class="tab-pane">${renderSingleTable(r.onlyBooks, 'Books', ignores)}</div>
+    <div id="ow-portal" class="tab-pane">${renderSingleTable(r.onlyPortal, 'Portal', ignores)}</div>
+  `;
+}
+
+function renderInward(r) {
+  const totalBooks  = S.data.tallyPurchases.length;
+  const totalPortal = S.data.gstr2b.length;
+  const matchedCount = r.matched.length + r.warnings.length;
+  const matchPct = totalBooks > 0 ? (matchedCount / totalBooks * 100).toFixed(1) : 0;
+
+  // Rule 36(4)
+  if (r.rule36Breach) {
+    document.getElementById('rule36Container').innerHTML = `
+      <div class="rule36-alert">
+        <div class="rule36-icon">⚠️</div>
+        <div>
+          <div class="rule36-title">Rule 36(4) Breach — ITC Claimed Exceeds GSTR-2B</div>
+          <div class="rule36-body">Books ITC: <strong>${fmt(r.totalITCBooks)}</strong> &nbsp;|&nbsp;
+          2B ITC: <strong>${fmt(r.totalITC2B)}</strong> &nbsp;|&nbsp;
+          Excess: <strong style="color:var(--red)">${fmt(r.totalITCBooks - r.totalITC2B)}</strong><br/>
+          Since October 2022, ITC claimed cannot exceed ITC reflected in GSTR-2B. Reverse the excess or defer the claim.</div>
+        </div>
+      </div>`;
+  } else {
+    document.getElementById('rule36Container').innerHTML = '';
+  }
+
+  // KPIs
+  document.getElementById('inwardKPIs').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Bills in Books</div>
+      <div class="kpi-value kv-blue">${fmtN(totalBooks)}</div>
+      <div class="kpi-sub">${fmt(r.totalITCBooks)} ITC in books</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Entries in GSTR-2B</div>
+      <div class="kpi-value kv-accent">${fmtN(totalPortal)}</div>
+      <div class="kpi-sub">${fmt(r.totalITC2B)} ITC available</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">ITC At Risk ⚠</div>
+      <div class="kpi-value ${r.itcRisk > 0 ? 'kv-red' : 'kv-green'}">${fmt(r.itcRisk)}</div>
+      <div class="kpi-sub">ITC claimed but not in 2B — follow up with supplier</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">ITC Opportunity</div>
+      <div class="kpi-value kv-accent">${fmt(r.itcOpportunity)}</div>
+      <div class="kpi-sub">Supplier filed in 2B — not yet in books</div>
+    </div>
+  `;
+
+  const ignores = loadIgnores(S.gstin);
+  const tabs = [
+    { id: 'iw-clean',  label: 'Matched Cleanly',    count: r.matched.length,    color: 'green' },
+    { id: 'iw-warn',   label: 'Matched w/ Warnings', count: r.warnings.length,   color: 'yellow' },
+    { id: 'iw-risk',   label: 'ITC At Risk',          count: r.onlyBooks.length,  color: 'red' },
+    { id: 'iw-opp',   label: 'ITC Opportunity',       count: r.onlyPortal.length, color: 'blue' },
+  ];
+
+  document.getElementById('inwardTabs').innerHTML = tabs.map((t, i) =>
+    `<button class="tab-btn ${i===0?'active':''}" onclick="switchTab(this,'${t.id}','inwardTabContent')">
+      ${t.label}<span class="tab-count">${t.count}</span>
+    </button>`
+  ).join('');
+
+  document.getElementById('inwardTabContent').innerHTML = `
+    <div id="iw-clean" class="tab-pane active">${renderMatchedTable(r.matched, ignores, true)}</div>
+    <div id="iw-warn"  class="tab-pane">${renderWarnTable(r.warnings, ignores, true)}</div>
+    <div id="iw-risk"  class="tab-pane">${renderITCRiskTable(r.onlyBooks, ignores)}</div>
+    <div id="iw-opp"   class="tab-pane">${renderSingleTable(r.onlyPortal, '2B', ignores, true)}</div>
+  `;
+}
+
+function renderMatchedTable(rows, ignores, isInward=false) {
+  if (!rows.length) return emptyState('No clean matches. Check warnings and unmatched tabs.');
+  const hdr = isInward
+    ? ['Supplier GSTIN','Inv No','Date','Party','Taxable Value','ITC Books','ITC 2B','Actions']
+    : ['Recipient GSTIN','Inv No','Date','Party','Taxable Value','Tax Books','Tax Portal','Actions'];
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>${hdr.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map(({ b, p }) => {
+      const key = normInv(b.invNo) + '|' + normGSTIN(b.gstin);
+      const ignored = ignores[key];
+      const bTax = b.cgst + b.sgst + b.igst;
+      const pTax = p.cgst + p.sgst + p.igst;
+      return `<tr class="${ignored ? 'ignored-row' : ''}">
+        <td>${b.gstin || p.gstin || '—'}</td>
+        <td>${b.invNo}</td>
+        <td>${b.date || p.date || '—'}</td>
+        <td>${b.party || b.name || p.name || '—'}</td>
+        <td class="amount">${fmt(b.taxable)}</td>
+        <td class="amount">${fmt(bTax)}</td>
+        <td class="amount">${fmt(pTax)}</td>
+        <td><button class="ignore-btn${ignored?' ignored':''}" onclick="toggleIgnore('${key}')">Ignore</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+function renderWarnTable(rows, ignores, isInward=false) {
+  if (!rows.length) return emptyState('No warnings. All matched invoices are clean.');
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>
+    <th>GSTIN (Books)</th><th>Inv No (Books)</th><th>Inv No (Portal)</th><th>Date</th>
+    <th>Taxable (Books)</th><th>Taxable (Portal)</th><th>Issue</th><th>Actions</th>
+  </tr></thead><tbody>
+    ${rows.map(({ b, p, warns }) => {
+      const key = 'warn|' + normInv(b.invNo) + '|' + normGSTIN(b.gstin);
+      const ignored = ignores[key];
+      const taxDiff = b.taxable - p.taxable;
+      return `<tr>
+        <td>${b.gstin || '—'}</td>
+        <td>${b.invNo}</td>
+        <td>${p.invNo}</td>
+        <td>${b.date || p.date || '—'}</td>
+        <td class="amount">${fmt(b.taxable)}</td>
+        <td class="amount ${Math.abs(taxDiff) > 0 ? (taxDiff > 0 ? 'amt-pos' : 'amt-neg') : ''}">${fmt(p.taxable)}</td>
+        <td>${warns.map(w => `<span class="warn-tag">${w}</span>`).join(' ')}</td>
+        <td><button class="ignore-btn${ignored?' ignored':''}" onclick="toggleIgnore('${key}')">Ignore</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+function renderSingleTable(rows, source, ignores, showITC=false) {
+  if (!rows.length) return emptyState(`No entries found only in ${source}.`);
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>
+    <th>GSTIN</th><th>Inv No</th><th>Date</th><th>Party / Supplier</th><th>Taxable Value</th>
+    ${showITC ? '<th>ITC Available</th>' : '<th>Tax Amount</th>'}
+    <th>Actions</th>
+  </tr></thead><tbody>
+    ${rows.map(r => {
+      const key = 'single|' + normInv(r.invNo) + '|' + normGSTIN(r.gstin);
+      const ignored = ignores[key];
+      const tax = (r.cgst||0) + (r.sgst||0) + (r.igst||0);
+      return `<tr>
+        <td>${r.gstin || '—'}</td>
+        <td>${r.invNo || '—'}</td>
+        <td>${r.date || '—'}</td>
+        <td>${r.party || r.name || '—'}</td>
+        <td class="amount">${fmt(r.taxable)}</td>
+        <td class="amount ${showITC ? 'kv-accent' : ''}">${fmt(showITC ? r.itc : tax)}</td>
+        <td><button class="ignore-btn${ignored?' ignored':''}" onclick="toggleIgnore('${key}')">Ignore</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+function renderITCRiskTable(rows, ignores) {
+  if (!rows.length) return emptyState('No ITC at risk. All claimed ITC is reflected in GSTR-2B.');
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>
+    <th>Supplier GSTIN</th><th>Bill No</th><th>Date</th><th>Supplier Name</th>
+    <th>Taxable Value</th><th>ITC Claimed</th><th>Status</th><th>Actions</th>
+  </tr></thead><tbody>
+    ${rows.map(r => {
+      const key = 'itcrisk|' + normInv(r.invNo) + '|' + normGSTIN(r.gstin);
+      const ignored = ignores[key];
+      return `<tr>
+        <td>${r.gstin || '—'}</td>
+        <td>${r.invNo || '—'}</td>
+        <td>${r.date || '—'}</td>
+        <td>${r.party || '—'}</td>
+        <td class="amount">${fmt(r.taxable)}</td>
+        <td class="amount amt-neg">${fmt(r.itc)}</td>
+        <td><span class="match-badge mb-risk">Supplier Follow-Up Required</span></td>
+        <td><button class="ignore-btn${ignored?' ignored':''}" onclick="toggleIgnore('${key}')">Ignore</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+}
+
+function emptyState(msg) {
+  return `<div class="empty-state"><div class="icon">✓</div><p>${msg}</p></div>`;
+}
+
+function switchTab(btn, paneId, containerId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById(paneId);
+  if (pane) pane.classList.add('active');
+  const tabBar = btn.parentElement;
+  tabBar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleIgnore(key) {
+  const ignores = loadIgnores(S.gstin);
+  const newVal = !ignores[key];
+  saveIgnore(S.gstin, key, newVal);
+  // Re-render
+  renderResults();
+}
+
+// ── Certificate ──
+function renderCertificate() {
+  const lines = [];
+  const period = S.period || 'the current period';
+
+  if (S.results.outward) {
+    const r = S.results.outward;
+    const totalBooks  = S.data.tallySales.length;
+    const totalPortal = S.data.gstr1.length;
+    const clean       = r.matched.length;
+    const warned      = r.warnings.length;
+    const missingAmt  = r.onlyBooks.reduce((s, x) => s + x.taxable, 0);
+    const extraAmt    = r.onlyPortal.reduce((s, x) => s + x.taxable, 0);
+
+    const matchPct = totalBooks > 0 ? ((clean + warned) / totalBooks * 100).toFixed(1) : 0;
+    lines.push(
+      `For the period <span class="cert-highlight">${period}</span>, out of ` +
+      `<span class="cert-highlight">${fmtN(totalBooks)}</span> sales invoices in the books, ` +
+      `<span class="cert-highlight">${fmtN(totalPortal)}</span> are reflected in GSTR-1 ` +
+      `(<span class="cert-highlight">${matchPct}% match rate</span>). ` +
+      (r.onlyBooks.length > 0
+        ? `<span class="cert-risk">${fmtN(r.onlyBooks.length)} invoice(s) totalling ${fmt(missingAmt)} of taxable value are missing from GSTR-1</span> and should be included in the next amendment. `
+        : `All invoices are reflected in GSTR-1. `) +
+      (r.onlyPortal.length > 0
+        ? `Additionally, ${fmtN(r.onlyPortal.length)} invoice(s) amounting to ${fmt(extraAmt)} are in GSTR-1 but not in books — please verify data entry.`
+        : `No extra invoices were found in GSTR-1 that are missing from the books.`)
+    );
+  }
+
+  if (S.results.inward) {
+    const r = S.results.inward;
+    const totalBooks = S.data.tallyPurchases.length;
+    const matchPct   = totalBooks > 0 ? ((r.matched.length + r.warnings.length) / totalBooks * 100).toFixed(1) : 0;
+    lines.push(
+      `On the purchase side, out of <span class="cert-highlight">${fmt(r.totalITCBooks)}</span> of ITC claimed in the books, ` +
+      `<span class="cert-highlight">${fmt(r.totalITC2B)}</span> is reflected in GSTR-2B ` +
+      `(<span class="cert-highlight">${matchPct}% match rate</span>). ` +
+      (r.itcRisk > 0
+        ? `<span class="cert-risk">${fmt(r.itcRisk)} is at risk</span> — claimed in books but not visible in GSTR-2B — requires supplier follow-up to file their returns. `
+        : `All ITC claimed in books is supported by GSTR-2B. `) +
+      (r.itcOpportunity > 0
+        ? `Additionally, ${fmt(r.itcOpportunity)} of ITC is available in GSTR-2B but not yet claimed in books — this is an uncaptured opportunity.`
+        : '') +
+      (r.rule36Breach
+        ? ` <span class="cert-risk">Note: Total ITC claimed (${fmt(r.totalITCBooks)}) exceeds GSTR-2B ITC (${fmt(r.totalITC2B)}) — excess must be reversed as per Rule 36(4).</span>`
+        : '')
+    );
+  }
+
+  if (!lines.length) lines.push('No data available to generate certificate.');
+  document.getElementById('certBody').innerHTML = lines.join('<br/><br/>');
+}
+
+// ══════════════════════════════════════════════════
+//  EXPORTS
+// ══════════════════════════════════════════════════
+function exportExcel() {
+  try {
+    const wb = XLSX.utils.book_new();
+
+    function addSheet(name, headers, rows) {
+      const data = [headers, ...rows.map(r => headers.map(h => r[h] !== undefined ? r[h] : ''))];
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows.map(r => {
+        return headers.map((h, i) => {
+          const keys = Object.keys(r);
+          return r[keys[i]] !== undefined ? r[keys[i]] : '';
+        });
+      })]);
+      XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
+    }
+
+    function flattenMatched(rows, side='outward') {
+      return rows.map(({ b, p, matchType, warns }) => ({
+        'Match Type': matchType || 'exact',
+        'Inv No (Books)': b.invNo, 'GSTIN (Books)': b.gstin, 'Date (Books)': b.date,
+        'Taxable (Books)': b.taxable, 'CGST (Books)': b.cgst, 'SGST (Books)': b.sgst, 'IGST (Books)': b.igst,
+        'Inv No (Portal)': p ? p.invNo : '', 'GSTIN (Portal)': p ? p.gstin : '',
+        'Taxable (Portal)': p ? p.taxable : '', 'Issues': warns ? warns.join('; ') : ''
+      }));
+    }
+
+    function flattenSingle(rows) {
+      return rows.map(r => ({
+        'Inv No': r.invNo, 'GSTIN': r.gstin, 'Date': r.date, 'Party': r.party || r.name || '',
+        'Taxable': r.taxable, 'CGST': r.cgst, 'SGST': r.sgst, 'IGST': r.igst,
+        'ITC': r.itc || (r.cgst + r.sgst + r.igst)
+      }));
+    }
+
+    if (S.results.outward) {
+      const r = S.results.outward;
+      const all = [
+        ...flattenMatched(r.matched),
+        ...flattenMatched(r.warnings),
+        ...r.onlyBooks.map(b => ({ 'Match Type': 'Missing from GSTR-1', 'Inv No (Books)': b.invNo, 'GSTIN (Books)': b.gstin, 'Date (Books)': b.date, 'Taxable (Books)': b.taxable, 'CGST (Books)': b.cgst, 'SGST (Books)': b.sgst, 'IGST (Books)': b.igst })),
+        ...r.onlyPortal.map(p => ({ 'Match Type': 'Extra in GSTR-1', 'Inv No (Portal)': p.invNo, 'GSTIN (Portal)': p.gstin, 'Date (Books)': p.date, 'Taxable (Books)': p.taxable }))
+      ];
+      const ws = XLSX.utils.json_to_sheet(all);
+      XLSX.utils.book_append_sheet(wb, ws, 'Outward Recon');
+
+      const wsBooks = XLSX.utils.json_to_sheet(S.data.tallySales.map(r => ({
+        'Date': r.date, 'Inv No': r.invNo, 'Party': r.party, 'GSTIN': r.gstin,
+        'Taxable': r.taxable, 'CGST': r.cgst, 'SGST': r.sgst, 'IGST': r.igst, 'Total': r.total
+      })));
+      XLSX.utils.book_append_sheet(wb, wsBooks, 'Tally Sales');
+
+      const wsPortal = XLSX.utils.json_to_sheet(S.data.gstr1.map(r => ({
+        'Date': r.date, 'Inv No': r.invNo, 'GSTIN': r.gstin, 'Taxable': r.taxable,
+        'CGST': r.cgst, 'SGST': r.sgst, 'IGST': r.igst, 'Total': r.total
+      })));
+      XLSX.utils.book_append_sheet(wb, wsPortal, 'GSTR-1');
+    }
+
+    if (S.results.inward) {
+      const r = S.results.inward;
+      const all = [
+        ...flattenMatched(r.matched, 'inward'),
+        ...flattenMatched(r.warnings, 'inward'),
+        ...r.onlyBooks.map(b => ({ 'Match Type': 'ITC At Risk', 'Inv No (Books)': b.invNo, 'GSTIN (Books)': b.gstin, 'Date (Books)': b.date, 'Taxable (Books)': b.taxable, 'ITC At Risk': b.itc })),
+        ...r.onlyPortal.map(p => ({ 'Match Type': 'ITC Opportunity', 'Inv No (Portal)': p.invNo, 'GSTIN (Portal)': p.gstin, 'Date (Books)': p.date, 'ITC Available': p.itc }))
+      ];
+      const ws = XLSX.utils.json_to_sheet(all);
+      XLSX.utils.book_append_sheet(wb, ws, 'Inward Recon');
+
+      const wsPurch = XLSX.utils.json_to_sheet(S.data.tallyPurchases.map(r => ({
+        'Date': r.date, 'Bill No': r.invNo, 'Party': r.party, 'GSTIN': r.gstin,
+        'Taxable': r.taxable, 'CGST': r.cgst, 'SGST': r.sgst, 'IGST': r.igst, 'ITC': r.itc
+      })));
+      XLSX.utils.book_append_sheet(wb, wsPurch, 'Tally Purchases');
+
+      const ws2B = XLSX.utils.json_to_sheet(S.data.gstr2b.map(r => ({
+        'Date': r.date, 'Inv No': r.invNo, 'Supplier': r.name, 'GSTIN': r.gstin,
+        'Taxable': r.taxable, 'CGST': r.cgst, 'SGST': r.sgst, 'IGST': r.igst, 'ITC': r.itc, 'ITC Avail': r.itcAvail
+      })));
+      XLSX.utils.book_append_sheet(wb, ws2B, 'GSTR-2B');
+    }
+
+    // Certificate sheet
+    const certText = document.getElementById('certBody').innerText;
+    const wsCert = XLSX.utils.aoa_to_sheet([
+      ['GST Reconciliation Certificate'],
+      ['GSTIN: ' + (S.gstin || '—'), 'Period: ' + S.period],
+      ['Generated: ' + new Date().toLocaleDateString('en-IN')],
+      [],
+      [certText]
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsCert, 'Certificate');
+
+    const filename = `GST_Recon_${S.gstin || 'NA'}_${S.period.replace(/\s/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showToast('Excel exported: ' + filename);
+  } catch(err) {
+    showToast('Export error: ' + err.message, 'error');
+  }
+}
+
+function exportPDF() {
+  window.print();
+}
+
+function startOver() {
+  S.files = { 'tally-sales': null, 'gstr1': null, 'tally-purchases': null, 'gstr2b': null };
+  S.data  = { tallySales: [], gstr1: [], tallyPurchases: [], gstr2b: [] };
+  S.results = { outward: null, inward: null };
+  ['tally-sales','gstr1','tally-purchases','gstr2b'].forEach(t => {
+    document.getElementById('slot-' + t).classList.remove('loaded');
+    document.getElementById('fn-' + t).textContent = '';
+  });
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runHint').textContent = 'Upload at least one pair of files (Sales + GSTR-1, or Purchases + GSTR-2B) to continue';
+  setStep(1);
+}
+</script>
+</body>
+</html>
