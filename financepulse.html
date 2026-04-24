@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinancePulse | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --amber: #ff8c42;
+      --green: #22c55e;
+      --blue: #60a5fa;
+      --red-bg: rgba(255,76,106,0.1);
+      --amber-bg: rgba(255,140,66,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+      --accent-glow: rgba(0,212,170,0.12);
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* ── NAV ── */
+    nav { position: sticky; top: 0; z-index: 200; background: rgba(11,15,26,0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 60px; }
+    .nav-logo { font-size: 1.2rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+    .nav-badge { background: var(--surface2); color: var(--accent); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero { padding: 3rem 2rem 2rem; text-align: center; max-width: 700px; margin: 0 auto; }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.2; margin-bottom: 0.6rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1rem; }
+
+    /* ── TABS ── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border); max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; overflow-x: auto; }
+    .tab-btn { background: none; border: none; color: var(--muted); font-size: 0.9rem; font-weight: 600; padding: 0.9rem 1.4rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; white-space: nowrap; letter-spacing: 0.02em; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── UPLOAD SECTION ── */
+    .upload-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; max-width: 1100px; margin: 1.5rem auto 0; padding: 0 1.5rem; }
+    @media(max-width:768px){ .upload-row { grid-template-columns: 1fr; } }
+    .upload-slot { background: var(--surface); border: 2px dashed var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; cursor: pointer; transition: all 0.25s; position: relative; }
+    .upload-slot:hover, .upload-slot.drag-over { border-color: var(--accent); background: var(--accent-glow); }
+    .upload-slot.loaded { border-style: solid; border-color: var(--accent2); }
+    .upload-slot input[type=file] { display: none; }
+    .upload-icon { font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .upload-slot h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .upload-slot p { font-size: 0.75rem; color: var(--muted); }
+    .upload-tag { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-top: 0.5rem; }
+    .tag-optional { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+    .tag-required { background: rgba(0,212,170,0.12); color: var(--accent); border: 1px solid rgba(0,212,170,0.2); }
+    .tag-loaded { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .file-name { font-size: 0.72rem; color: var(--accent); margin-top: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── CONTENT AREA ── */
+    .content-area { max-width: 1100px; margin: 1.5rem auto 4rem; padding: 0 1.5rem; }
+
+    /* ── SECTION HEADER ── */
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+    .section-head h2 { font-size: 1.3rem; font-weight: 800; }
+    .action-btns { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.45rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-accent { background: var(--accent); color: #0b0f1a; border: none; padding: 0.45rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: background 0.2s; }
+    .btn-accent:hover { background: var(--accent2); }
+
+    /* ── CARD ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .card-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .card-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.25rem; }
+    @media(max-width:900px){ .card-grid-2 { grid-template-columns: 1fr; } .card-grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:640px){ .card-grid-3 { grid-template-columns: 1fr; } }
+
+    /* ── FORM ── */
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.35rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    .form-group input[type=number], .form-group input[type=text], .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border 0.2s; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media(max-width:640px){ .form-grid { grid-template-columns: 1fr; } }
+    .field-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* ── SLIDER ── */
+    .slider-row { margin-bottom: 0.9rem; }
+    .slider-label { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.35rem; }
+    .slider-label span:last-child { color: var(--accent); font-weight: 700; }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    /* ── KPI STRIP ── */
+    .kpi-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.25rem; }
+    @media(max-width:768px){ .kpi-strip { grid-template-columns: repeat(2,1fr); } }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+    .kpi-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .kpi-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi-red { color: var(--red); }
+    .kpi-amber { color: var(--amber); }
+    .kpi-green { color: var(--green); }
+    .kpi-accent { color: var(--accent); }
+
+    /* ── GAUGE WRAPPER ── */
+    .gauge-wrap { position: relative; max-width: 320px; margin: 0 auto; }
+    .gauge-label { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+    .gauge-months { font-size: 2.4rem; font-weight: 800; line-height: 1; }
+    .gauge-sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .gauge-bands { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; font-size: 0.72rem; }
+    .band { display: flex; align-items: center; gap: 0.3rem; }
+    .band-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── CHART CONTAINER ── */
+    .chart-container { position: relative; }
+
+    /* ── RATIO GRID ── */
+    .ratio-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 1rem; }
+    @media(max-width:1100px){ .ratio-grid { grid-template-columns: repeat(4,1fr); } }
+    @media(max-width:900px){ .ratio-grid { grid-template-columns: repeat(3,1fr); } }
+    @media(max-width:640px){ .ratio-grid { grid-template-columns: repeat(2,1fr); } }
+
+    .ratio-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .ratio-tile:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+    .ratio-tile-name { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+    .ratio-tile-value { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem; }
+    .ratio-tile-mom { font-size: 0.72rem; margin-bottom: 0.5rem; }
+    .mom-up { color: var(--green); }
+    .mom-down { color: var(--red); }
+    .mom-flat { color: var(--muted); }
+    .ratio-tile canvas { display: block; width: 100% !important; height: 40px !important; }
+    .flag-green { border-top: 3px solid var(--green); }
+    .flag-red { border-top: 3px solid var(--red); }
+    .flag-amber { border-top: 3px solid var(--amber); }
+    .flag-neutral { border-top: 3px solid var(--border); }
+
+    /* ── TABLE ── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .data-table th { background: var(--surface2); color: var(--muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.65rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--surface2); }
+    .tbl-wrap { overflow-x: auto; }
+    .pos { color: var(--green); font-weight: 600; }
+    .neg { color: var(--red); font-weight: 600; }
+
+    /* ── MODAL ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; align-items: center; justify-content: center; padding: 1.5rem; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 760px; width: 100%; max-height: 85vh; overflow-y: auto; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+    .modal-head h3 { font-size: 1.1rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 4px 8px; border-radius: 6px; }
+    .modal-close:hover { color: var(--text); background: var(--surface2); }
+    .modal-body { padding: 1.5rem; }
+    .modal-def { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+    .modal-def strong { color: var(--accent); }
+
+    /* ── TOAST ── */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; background: var(--accent); color: #0b0f1a; padding: 0.8rem 1.4rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 8px 32px rgba(0,212,170,0.3); transform: translateY(120px); opacity: 0; transition: all 0.35s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--red); box-shadow: 0 8px 32px rgba(255,76,106,0.3); }
+
+    /* ── INFO BOX ── */
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--muted); }
+    .info-box strong { color: var(--text); }
+
+    /* ── DIVIDER ── */
+    .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
+
+    /* ── SENSITIVITY TABLE ── */
+    .stress-highlight { color: var(--amber); font-weight: 700; }
+    .stress-danger { color: var(--red); font-weight: 700; }
+    .stress-ok { color: var(--green); font-weight: 700; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align: center; padding: 3rem 2rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .empty-state h3 { font-size: 1rem; color: var(--text); margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.88rem; }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px){ .hero h1 { font-size: 1.6rem; } }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="index.html">Cred<span>lance</span></a>
+  <div class="nav-right">
+    <span class="nav-badge">FinancePulse</span>
+    <a href="index.html" class="nav-back">← Back to Lab</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1><span>Finance</span>Pulse</h1>
+  <p>Cash, Costs, and Credit Health at a Glance</p>
+</div>
+
+<!-- SHARED FILE UPLOAD -->
+<div class="upload-row" id="uploadRow">
+  <div class="upload-slot" id="slot-pl" onclick="document.getElementById('fi-pl').click()">
+    <input type="file" id="fi-pl" accept=".xlsx,.xls,.csv" />
+    <div class="upload-icon">📊</div>
+    <h4>P&amp;L Export</h4>
+    <p>Monthly P&amp;L from Tally</p>
+    <span class="upload-tag tag-required" id="tag-pl">Required</span>
+    <div class="file-name" id="fn-pl"></div>
+  </div>
+  <div class="upload-slot" id="slot-tb" onclick="document.getElementById('fi-tb').click()">
+    <input type="file" id="fi-tb" accept=".xlsx,.xls,.csv" />
+    <div class="upload-icon">🗂️</div>
+    <h4>Trial Balance</h4>
+    <p>Monthly columnar TB from Tally</p>
+    <span class="upload-tag tag-required" id="tag-tb">Required</span>
+    <div class="file-name" id="fn-tb"></div>
+  </div>
+  <div class="upload-slot" id="slot-bank" onclick="document.getElementById('fi-bank').click()">
+    <input type="file" id="fi-bank" accept=".xlsx,.xls,.csv" />
+    <div class="upload-icon">🏦</div>
+    <h4>Bank Ledger</h4>
+    <p>Tally bank account ledger</p>
+    <span class="upload-tag tag-optional" id="tag-bank">Optional</span>
+    <div class="file-name" id="fn-bank"></div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar" style="margin-top:1.5rem;">
+  <button class="tab-btn active" onclick="switchTab('runway',this)">💧 Cash Runway</button>
+  <button class="tab-btn" onclick="switchTab('breakeven',this)">⚖️ Break-Even</button>
+  <button class="tab-btn" onclick="switchTab('ratios',this)">📐 Financial Ratios</button>
+</div>
+
+<!-- ════════════ TAB: CASH RUNWAY ════════════ -->
+<div id="pane-runway" class="tab-pane active">
+<div class="content-area">
+  <div class="section-head">
+    <h2>Cash Runway Calculator</h2>
+    <div class="action-btns">
+      <button class="btn-outline" onclick="downloadRunwayExcel()">⬇ Excel</button>
+      <button class="btn-outline" onclick="downloadRunwayPDF()">⬇ PDF</button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip" id="runway-kpis">
+    <div class="kpi-card"><div class="kpi-value kpi-accent" id="kpi-runway">—</div><div class="kpi-label">Runway (months)</div></div>
+    <div class="kpi-card"><div class="kpi-value kpi-red" id="kpi-burn">—</div><div class="kpi-label">Net Monthly Burn</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-inflow">—</div><div class="kpi-label">Avg Monthly Inflow</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-outflow">—</div><div class="kpi-label">Avg Monthly Outflow</div></div>
+  </div>
+
+  <div class="card-grid-2" style="margin-bottom:1.25rem;">
+    <!-- LEFT: Inputs -->
+    <div class="card">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Inputs</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Current Cash Balance (₹)</label>
+          <input type="number" id="rw-cash" placeholder="e.g. 5000000" oninput="recalcRunway()" />
+          <div class="field-hint">Total available cash &amp; bank as of today</div>
+        </div>
+        <div class="form-group">
+          <label>Entity / Client Name</label>
+          <input type="text" id="rw-entity" placeholder="e.g. ABC Pvt Ltd" oninput="saveEntitySlug()" />
+        </div>
+        <div class="form-group">
+          <label>Avg Monthly Revenue / Inflow (₹)</label>
+          <input type="number" id="rw-inflow" placeholder="Auto from P&amp;L or enter manually" oninput="recalcRunway()" />
+          <div class="field-hint">Collections received in bank per month</div>
+        </div>
+        <div class="form-group">
+          <label>Avg Monthly Outflow (₹)</label>
+          <input type="number" id="rw-outflow" placeholder="Total expenses + RM + salaries" oninput="recalcRunway()" />
+          <div class="field-hint">All cash payments including RM, payroll, overheads</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem;">Scenario Sliders</div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Revenue Change</span><span id="sl-rev-val">0%</span></div>
+        <input type="range" id="sl-rev" min="-20" max="20" value="0" step="1" oninput="updateSliderLabel('sl-rev','sl-rev-val','%');recalcRunway()" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Expense Change</span><span id="sl-exp-val">0%</span></div>
+        <input type="range" id="sl-exp" min="-10" max="10" value="0" step="1" oninput="updateSliderLabel('sl-exp','sl-exp-val','%');recalcRunway()" />
+      </div>
+    </div>
+
+    <!-- RIGHT: Gauge -->
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <div class="gauge-wrap">
+        <canvas id="gaugeChart" height="180"></canvas>
+        <div class="gauge-label">
+          <div class="gauge-months" id="gauge-months-text">—</div>
+          <div class="gauge-sub">months of runway</div>
+        </div>
+      </div>
+      <div class="gauge-bands" style="margin-top:1rem;">
+        <div class="band"><div class="band-dot" style="background:var(--red)"></div><span style="color:var(--muted);font-size:0.72rem;">&lt;3 Critical</span></div>
+        <div class="band"><div class="band-dot" style="background:var(--amber)"></div><span style="color:var(--muted);font-size:0.72rem;">3–6 Watch</span></div>
+        <div class="band"><div class="band-dot" style="background:var(--green)"></div><span style="color:var(--muted);font-size:0.72rem;">&gt;6 Healthy</span></div>
+      </div>
+      <div id="runway-verdict" style="margin-top:1rem;text-align:center;font-size:0.88rem;color:var(--muted);">Enter inputs above to calculate runway</div>
+    </div>
+  </div>
+
+  <!-- Burn Trend Chart -->
+  <div class="card">
+    <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Monthly Burn Trend</div>
+    <div class="chart-container" style="height:220px;">
+      <canvas id="burnTrendChart"></canvas>
+    </div>
+    <div id="burn-empty" class="empty-state" style="padding:2rem;">
+      <div class="icon">📈</div>
+      <h3>Upload P&amp;L or Bank Ledger</h3>
+      <p>Upload a file above to see the 12-month burn trend chart</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════ TAB: BREAK-EVEN ════════════ -->
+<div id="pane-breakeven" class="tab-pane">
+<div class="content-area">
+  <div class="section-head">
+    <h2>Break-Even Analyser</h2>
+    <div class="action-btns">
+      <button class="btn-outline" onclick="downloadBEExcel()">⬇ Excel</button>
+      <button class="btn-outline" onclick="downloadBEPDF()">⬇ PDF</button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-card"><div class="kpi-value kpi-accent" id="be-kpi-berev">—</div><div class="kpi-label">Break-Even Revenue</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="be-kpi-beunits">—</div><div class="kpi-label">Break-Even Units</div></div>
+    <div class="kpi-card"><div class="kpi-value kpi-green" id="be-kpi-mos">—</div><div class="kpi-label">Margin of Safety</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="be-kpi-contrib">—</div><div class="kpi-label">Contribution/Unit</div></div>
+  </div>
+
+  <div class="card-grid-2" style="margin-bottom:1.25rem;">
+    <!-- LEFT: Inputs -->
+    <div class="card">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Cost &amp; Price Inputs</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Selling Price per Unit (₹)</label>
+          <input type="number" id="be-price" placeholder="e.g. 500" oninput="recalcBE()" />
+        </div>
+        <div class="form-group">
+          <label>Variable Cost per Unit (₹)</label>
+          <input type="number" id="be-vc" placeholder="e.g. 300" oninput="recalcBE()" />
+          <div class="field-hint">RM + direct labour + packing per unit</div>
+        </div>
+        <div class="form-group">
+          <label>Total Monthly Fixed Costs (₹)</label>
+          <input type="number" id="be-fixed" placeholder="Auto from P&amp;L or enter manually" oninput="recalcBE()" />
+          <div class="field-hint">Rent, salaries, admin, interest, depreciation</div>
+        </div>
+        <div class="form-group">
+          <label>Current Monthly Revenue (₹)</label>
+          <input type="number" id="be-currrev" placeholder="Auto from P&amp;L or enter manually" oninput="recalcBE()" />
+        </div>
+      </div>
+      <div class="info-box" id="be-fixed-breakdown" style="display:none;">
+        <strong>Fixed Costs from P&amp;L:</strong>
+        <div id="be-fixed-detail" style="margin-top:0.5rem;"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Margin of Safety Gauge -->
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+      <div style="font-size:0.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem;">Margin of Safety</div>
+      <div id="mos-circle" style="width:140px;height:140px;border-radius:50%;border:8px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;transition:all 0.4s;margin-bottom:1rem;">
+        <div id="mos-pct" style="font-size:2.2rem;font-weight:800;color:var(--muted);">—</div>
+        <div style="font-size:0.72rem;color:var(--muted);">Margin of Safety</div>
+      </div>
+      <div id="be-verdict" style="font-size:0.88rem;color:var(--muted);">Enter inputs to calculate</div>
+      <div class="divider" style="width:100%;"></div>
+      <div style="font-size:0.8rem;text-align:left;width:100%;">
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Contribution/Unit</span><span id="be-side-contrib" style="font-weight:600;">—</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);">Break-Even Units</span><span id="be-side-units" style="font-weight:600;">—</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;"><span style="color:var(--muted);">Break-Even Revenue</span><span id="be-side-rev" style="font-weight:600;color:var(--accent);">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Break-Even Chart -->
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Break-Even Chart</div>
+    <div class="chart-container" style="height:240px;">
+      <canvas id="beChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Sensitivity / Stress Test Table -->
+  <div class="card">
+    <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Stress Test — Break-Even under Adverse Scenarios</div>
+    <div class="tbl-wrap">
+      <table class="data-table" id="be-stress-table">
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>Fixed Costs</th>
+            <th>Variable Cost/Unit</th>
+            <th>Contribution/Unit</th>
+            <th>Break-Even Units</th>
+            <th>Break-Even Revenue</th>
+            <th>Margin of Safety</th>
+            <th>Impact</th>
+          </tr>
+        </thead>
+        <tbody id="be-stress-body">
+          <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Enter inputs above to generate stress test</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════ TAB: FINANCIAL RATIOS ════════════ -->
+<div id="pane-ratios" class="tab-pane">
+<div class="content-area">
+  <div class="section-head">
+    <h2>Financial Ratios Dashboard</h2>
+    <div class="action-btns">
+      <button class="btn-outline" onclick="downloadRatiosExcel()">⬇ Excel</button>
+      <button class="btn-outline" onclick="downloadRatiosPDF()">⬇ PDF</button>
+    </div>
+  </div>
+
+  <!-- Manual Input Fallback Banner -->
+  <div class="info-box" id="ratios-manual-prompt">
+    <strong>Upload a Trial Balance + P&amp;L to auto-compute all 15 ratios.</strong> Or enter key balance sheet figures below for a single-period snapshot.
+    <button class="btn-accent" onclick="toggleManualRatios()" style="margin-left:1rem;padding:0.3rem 0.75rem;font-size:0.78rem;">Enter Manually</button>
+  </div>
+
+  <!-- Manual Ratio Inputs (collapsible) -->
+  <div id="manual-ratio-inputs" style="display:none;" class="card" style="margin-bottom:1.25rem;">
+    <div style="font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;">Balance Sheet &amp; P&amp;L Inputs (Single Period)</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;" id="manual-ratio-grid">
+      <!-- populated by JS -->
+    </div>
+    <button class="btn-accent" onclick="computeRatiosManual()" style="margin-top:1rem;">Calculate Ratios</button>
+  </div>
+
+  <!-- 15-Tile Ratio Grid -->
+  <div class="ratio-grid" id="ratio-grid">
+    <!-- populated by JS -->
+  </div>
+
+</div>
+</div>
+
+<!-- ════════════ RATIO DETAIL MODAL ════════════ -->
+<div class="modal-overlay" id="ratioModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-ratio-name">Ratio Name</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-def" id="modal-def"></div>
+      <div class="chart-container" style="height:220px;margin-bottom:1.25rem;">
+        <canvas id="modal-chart"></canvas>
+      </div>
+      <div class="tbl-wrap">
+        <table class="data-table" id="modal-table">
+          <thead><tr id="modal-table-head"></tr></thead>
+          <tbody id="modal-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ════════════════════════════════════════════════════════
+const FP = {
+  months: [],
+  revenue: [],
+  cogs: [],
+  grossProfit: [],
+  opex: [],
+  ebitda: [],
+  depreciation: [],
+  ebit: [],
+  interest: [],
+  netProfit: [],
+  // Balance sheet
+  currentAssets: [],
+  inventory: [],
+  debtors: [],
+  cashAndBank: [],
+  currentLiabilities: [],
+  creditors: [],
+  totalDebt: [],
+  equity: [],
+  totalAssets: [],
+  fixedAssets: [],
+  // Single-period manual fields
+  manualFields: {},
+  // Computed ratios
+  ratios: {},
+  // Chart instances
+  charts: {},
+  // Files loaded
+  plLoaded: false,
+  tbLoaded: false,
+  bankLoaded: false,
+};
+
+// Ratio definitions
+const RATIO_DEFS = [
+  { id:'grossMargin',   name:'Gross Margin',       cat:'Profitability', unit:'%',  fmt:pct,  def:'<strong>Gross Margin</strong> = (Revenue − COGS) ÷ Revenue × 100. Measures how much of each rupee of revenue is left after paying direct production costs. Higher is better.', improvingDir:'up' },
+  { id:'ebitdaMargin',  name:'EBITDA Margin',       cat:'Profitability', unit:'%',  fmt:pct,  def:'<strong>EBITDA Margin</strong> = EBITDA ÷ Revenue × 100. Earnings before Interest, Tax, Depreciation, and Amortisation as a % of revenue — a proxy for operating cash profitability.', improvingDir:'up' },
+  { id:'netMargin',     name:'Net Margin',          cat:'Profitability', unit:'%',  fmt:pct,  def:'<strong>Net Margin</strong> = Net Profit ÷ Revenue × 100. The bottom-line profitability after all costs, interest, and taxes.', improvingDir:'up' },
+  { id:'roce',          name:'ROCE',                cat:'Profitability', unit:'%',  fmt:pct,  def:'<strong>Return on Capital Employed</strong> = EBIT ÷ Capital Employed × 100. Capital Employed = Total Assets − Current Liabilities. Measures efficiency of capital deployment.', improvingDir:'up' },
+  { id:'roe',           name:'ROE',                 cat:'Profitability', unit:'%',  fmt:pct,  def:'<strong>Return on Equity</strong> = Net Profit ÷ Shareholders Equity × 100. Measures the return earned on owners\' capital.', improvingDir:'up' },
+  { id:'currentRatio',  name:'Current Ratio',       cat:'Liquidity',     unit:'x',  fmt:x2,   def:'<strong>Current Ratio</strong> = Current Assets ÷ Current Liabilities. A ratio above 1.5x indicates adequate short-term liquidity. Below 1x signals potential payment stress.', improvingDir:'up' },
+  { id:'quickRatio',    name:'Quick Ratio',         cat:'Liquidity',     unit:'x',  fmt:x2,   def:'<strong>Quick Ratio</strong> = (Current Assets − Inventory) ÷ Current Liabilities. A stricter liquidity test excluding inventory. Above 1x is generally healthy.', improvingDir:'up' },
+  { id:'debtorDays',    name:'Debtor Days',         cat:'Efficiency',    unit:'d',  fmt:days, def:'<strong>Debtor Days</strong> = (Debtors ÷ Revenue) × 365. Average number of days taken to collect payment from customers. Lower is better for cash flow.', improvingDir:'down' },
+  { id:'creditorDays',  name:'Creditor Days',       cat:'Efficiency',    unit:'d',  fmt:days, def:'<strong>Creditor Days</strong> = (Creditors ÷ COGS) × 365. Average days taken to pay suppliers. Higher creditor days extend cash runway but can strain supplier relationships.', improvingDir:'up' },
+  { id:'inventoryDays', name:'Inventory Days',      cat:'Efficiency',    unit:'d',  fmt:days, def:'<strong>Inventory Days</strong> = (Inventory ÷ COGS) × 365. Average days goods sit in stock. Lower means faster conversion of inventory to cash.', improvingDir:'down' },
+  { id:'ccc',           name:'Cash Conv. Cycle',    cat:'Efficiency',    unit:'d',  fmt:days, def:'<strong>Cash Conversion Cycle</strong> = Debtor Days + Inventory Days − Creditor Days. Number of days cash is tied up in the operating cycle. Negative CCC is excellent (collected before paying).', improvingDir:'down' },
+  { id:'deRatio',       name:'D/E Ratio',           cat:'Leverage',      unit:'x',  fmt:x2,   def:'<strong>Debt-to-Equity Ratio</strong> = Total Debt ÷ Equity. Measures financial leverage. A higher ratio means more debt-financed assets, increasing risk but potentially amplifying returns.', improvingDir:'down' },
+  { id:'interestCov',   name:'Interest Coverage',   cat:'Leverage',      unit:'x',  fmt:x1,   def:'<strong>Interest Coverage Ratio</strong> = EBIT ÷ Interest Expense. Times the company can pay its interest from operating earnings. Below 1.5x signals debt servicing risk.', improvingDir:'up' },
+  { id:'toltnw',        name:'TOL/TNW',             cat:'Leverage',      unit:'x',  fmt:x2,   def:'<strong>Total Outside Liabilities / Tangible Net Worth</strong> = Total Liabilities ÷ (Equity − Intangibles). A key banking metric. Above 3x often triggers lender concerns.', improvingDir:'down' },
+  { id:'assetTurnover', name:'Asset Turnover',      cat:'Valuation',     unit:'x',  fmt:x2,   def:'<strong>Asset Turnover</strong> = Revenue ÷ Total Assets. Measures how efficiently the business uses assets to generate revenue. Higher is better in most industries.', improvingDir:'up' },
+];
+
+// Format helpers
+function pct(v)  { return v == null ? '—' : v.toFixed(1) + '%'; }
+function x2(v)   { return v == null ? '—' : v.toFixed(2) + 'x'; }
+function x1(v)   { return v == null ? '—' : v.toFixed(1) + 'x'; }
+function days(v) { return v == null ? '—' : Math.round(v) + 'd'; }
+function fmtINR(v) { if (v == null) return '—'; const abs = Math.abs(v); let s = abs >= 1e7 ? '₹' + (abs/1e7).toFixed(2) + ' Cr' : abs >= 1e5 ? '₹' + (abs/1e5).toFixed(2) + ' L' : '₹' + abs.toLocaleString('en-IN'); return v < 0 ? '-' + s : s; }
+function fmtN(v) { if (v == null || isNaN(v)) return '—'; return v.toLocaleString('en-IN'); }
+
+// ════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type === 'error' ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════════════
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'ratios' && Object.keys(FP.ratios).length > 0) renderRatioGrid();
+}
+
+// ════════════════════════════════════════════════════════
+// FILE UPLOAD HANDLING
+// ════════════════════════════════════════════════════════
+['pl','tb','bank'].forEach(type => {
+  const inp = document.getElementById('fi-' + type);
+  const slot = document.getElementById('slot-' + type);
+
+  inp.addEventListener('change', e => {
+    if (!e.target.files.length) return;
+    const file = e.target.files[0];
+    document.getElementById('fn-' + type).textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        parseFile(wb, type, file.name);
+      } catch(err) {
+        toast('Could not parse file: ' + err.message, 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  });
+
+  // Drag and drop
+  slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+  slot.addEventListener('drop', e => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    document.getElementById('fn-' + type).textContent = file.name;
+    inp.files = e.dataTransfer.files;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        parseFile(wb, type, file.name);
+      } catch(err) {
+        toast('Could not parse file: ' + err.message, 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  });
+});
+
+function markSlotLoaded(type) {
+  const tag = document.getElementById('tag-' + type);
+  tag.textContent = '✓ Loaded';
+  tag.className = 'upload-tag tag-loaded';
+  document.getElementById('slot-' + type).classList.add('loaded');
+}
+
+// ════════════════════════════════════════════════════════
+// TALLY PARSER — flexible multi-strategy
+// ════════════════════════════════════════════════════════
+function parseFile(wb, type, name) {
+  const wsName = wb.SheetNames[0];
+  const ws = wb.Sheets[wsName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  if (type === 'pl') parsePL(rows, name);
+  else if (type === 'tb') parseTB(rows, name);
+  else if (type === 'bank') parseBankLedger(rows, name);
+}
+
+// Account group classifier
+const ACCOUNT_MAP = {
+  revenue:     ['sales', 'revenue', 'turnover', 'income from operations', 'net sales', 'gross sales', 'services rendered'],
+  cogs:        ['direct expenses', 'cost of material', 'purchases', 'cost of goods', 'raw material', 'material consumed', 'cogs', 'opening stock', 'closing stock', 'direct labour', 'labour charges'],
+  opex:        ['indirect expenses', 'operating expenses', 'selling', 'distribution', 'general & admin', 'staff expenses', 'employee benefit', 'power', 'repairs', 'other expenses'],
+  fixedCost:   ['rent', 'salaries', 'admin', 'interest on loan', 'bank interest', 'depreciation', 'amortisation', 'lease'],
+  interest:    ['interest paid', 'finance charges', 'bank charges', 'interest on od', 'interest on tl', 'interest expense', 'finance cost'],
+  depreciation:['depreciation', 'amortisation', 'amortization'],
+  currentAssets:['sundry debtors', 'debtors', 'accounts receivable', 'cash', 'bank', 'loans & advances', 'other current assets', 'prepaid', 'advance tax'],
+  inventory:   ['stock', 'inventory', 'closing stock', 'raw material', 'wip', 'finished goods'],
+  debtors:     ['sundry debtors', 'debtors', 'accounts receivable', 'trade receivable'],
+  cashAndBank: ['cash in hand', 'bank account', 'cash at bank', 'petty cash'],
+  currentLiabilities: ['sundry creditors', 'creditors', 'accounts payable', 'trade payable', 'short term loan', 'bank od', 'overdraft', 'current liabilities', 'duties & taxes', 'provisions'],
+  creditors:   ['sundry creditors', 'creditors', 'accounts payable', 'trade payable'],
+  totalDebt:   ['term loan', 'secured loan', 'unsecured loan', 'bank od', 'overdraft', 'borrowings'],
+  equity:      ['capital account', 'share capital', 'reserves', 'surplus', 'retained earnings', 'proprietor'],
+  fixedAssets: ['fixed assets', 'tangible assets', 'land', 'building', 'machinery', 'plant', 'furniture', 'vehicles'],
+};
+
+function classifyAccount(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  for (const [cat, keywords] of Object.entries(ACCOUNT_MAP)) {
+    if (keywords.some(k => n.includes(k))) return cat;
+  }
+  return null;
+}
+
+function parsePL(rows, name) {
+  // Strategy: find rows with numeric data and classify account names
+  // Look for monthly columns (dates in header)
+  const monthsFound = [];
+  let headerRow = -1;
+  let amounts = {};
+
+  // Find header row (contains month names or "Amount")
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const r = rows[i];
+    const hasDates = r.some(c => /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(String(c)));
+    const hasAmt   = r.some(c => /amount|total|dr|cr/i.test(String(c)));
+    if (hasDates || hasAmt) { headerRow = i; break; }
+  }
+
+  // Extract month labels from header row
+  let monthCols = [];
+  if (headerRow >= 0) {
+    rows[headerRow].forEach((cell, idx) => {
+      const s = String(cell).trim();
+      if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{2}[-\/]\d{2,4}/i.test(s)) {
+        monthCols.push({ idx, label: s });
+      }
+    });
+  }
+
+  // If no month columns found, use all numeric columns after first
+  const dataRows = rows.slice(headerRow >= 0 ? headerRow + 1 : 0);
+
+  // Accumulate by category
+  const catAccum = {};
+  const cats = ['revenue','cogs','opex','fixedCost','interest','depreciation'];
+  cats.forEach(c => catAccum[c] = monthCols.length > 0 ? new Array(monthCols.length).fill(0) : [0]);
+
+  dataRows.forEach(row => {
+    const label = String(row[0] || '').trim();
+    if (!label || label.length < 2) return;
+    const cat = classifyAccount(label);
+    if (!cat || !catAccum[cat]) return;
+
+    if (monthCols.length > 0) {
+      monthCols.forEach(({ idx }, mi) => {
+        const v = parseFloat(String(row[idx]).replace(/[,₹\s]/g, '')) || 0;
+        catAccum[cat][mi] += Math.abs(v);
+      });
+    } else {
+      // Find first numeric value
+      const v = row.slice(1).map(c => parseFloat(String(c).replace(/[,₹\s]/g,''))).find(n => !isNaN(n) && n !== 0) || 0;
+      catAccum[cat][0] += Math.abs(v);
+    }
+  });
+
+  // Populate FP
+  const n = monthCols.length > 0 ? monthCols.length : 1;
+  FP.months       = monthCols.length > 0 ? monthCols.map(m => m.label) : ['Current'];
+  FP.revenue      = catAccum.revenue;
+  FP.cogs         = catAccum.cogs;
+  FP.grossProfit  = FP.revenue.map((r,i) => r - FP.cogs[i]);
+  FP.opex         = catAccum.opex;
+  FP.depreciation = catAccum.depreciation;
+  FP.interest     = catAccum.interest;
+  FP.ebitda       = FP.grossProfit.map((g,i) => g - FP.opex[i]);
+  FP.ebit         = FP.ebitda.map((e,i) => e - FP.depreciation[i]);
+  FP.netProfit    = FP.ebit.map((e,i) => e - FP.interest[i]);
+
+  FP.plLoaded = true;
+  markSlotLoaded('pl');
+
+  // Pre-fill Runway inputs
+  if (FP.revenue.length > 0) {
+    const avgRev = avg(FP.revenue);
+    const avgOut = avg(FP.cogs.map((c,i) => c + FP.opex[i] + FP.depreciation[i] + FP.interest[i]));
+    safeSet('rw-inflow', Math.round(avgRev));
+    safeSet('rw-outflow', Math.round(avgOut));
+  }
+
+  // Pre-fill Break-Even fixed costs
+  const totalFixed = avg(catAccum.fixedCost.map((f,i) => f + FP.interest[i] + FP.depreciation[i]));
+  safeSet('be-fixed', Math.round(totalFixed));
+  if (FP.revenue.length > 0) safeSet('be-currrev', Math.round(avg(FP.revenue)));
+
+  recalcRunway();
+  recalcBE();
+  renderBurnTrendChart();
+  toast('P&L loaded — ' + n + ' month(s) of data extracted');
+}
+
+function parseTB(rows, name) {
+  // Trial Balance: account in col 0, monthly values in subsequent cols
+  let headerRow = -1;
+  let monthCols = [];
+
+  for (let i = 0; i < Math.min(8, rows.length); i++) {
+    const r = rows[i];
+    const hasDates = r.some(c => /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4}/i.test(String(c)));
+    if (hasDates) { headerRow = i; break; }
+  }
+
+  if (headerRow >= 0) {
+    rows[headerRow].forEach((cell, idx) => {
+      const s = String(cell).trim();
+      if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(s) || /\d{2}[-\/]\d{2,4}/.test(s)) {
+        monthCols.push({ idx, label: s });
+      }
+    });
+  }
+
+  // If no month cols, look for consecutive numeric columns
+  if (monthCols.length === 0 && headerRow < 0) {
+    // Single period TB — use column 1
+    monthCols = [{ idx: 1, label: 'Current' }];
+    headerRow = 0;
+  }
+
+  const dataRows = rows.slice(headerRow >= 0 ? headerRow + 1 : 0);
+  const n = monthCols.length;
+
+  const catAccum = {
+    currentAssets:      new Array(n).fill(0),
+    inventory:          new Array(n).fill(0),
+    debtors:            new Array(n).fill(0),
+    cashAndBank:        new Array(n).fill(0),
+    fixedAssets:        new Array(n).fill(0),
+    currentLiabilities: new Array(n).fill(0),
+    creditors:          new Array(n).fill(0),
+    totalDebt:          new Array(n).fill(0),
+    equity:             new Array(n).fill(0),
+  };
+
+  dataRows.forEach(row => {
+    const label = String(row[0] || '').trim();
+    if (!label || label.length < 2) return;
+    const cat = classifyAccount(label);
+    if (!cat || !catAccum[cat]) return;
+    monthCols.forEach(({ idx }, mi) => {
+      const v = parseFloat(String(row[idx]).replace(/[,₹\s]/g, '')) || 0;
+      catAccum[cat][mi] += Math.abs(v);
+    });
+  });
+
+  FP.tbLoaded = true;
+  if (!FP.plLoaded) FP.months = monthCols.map(m => m.label);
+
+  Object.assign(FP, {
+    currentAssets:      catAccum.currentAssets,
+    inventory:          catAccum.inventory,
+    debtors:            catAccum.debtors,
+    cashAndBank:        catAccum.cashAndBank,
+    fixedAssets:        catAccum.fixedAssets,
+    currentLiabilities: catAccum.currentLiabilities,
+    creditors:          catAccum.creditors,
+    totalDebt:          catAccum.totalDebt,
+    equity:             catAccum.equity,
+    totalAssets:        catAccum.currentAssets.map((ca,i) => ca + catAccum.fixedAssets[i]),
+  });
+
+  markSlotLoaded('tb');
+  computeAndRenderRatios();
+  toast('Trial Balance loaded — ' + n + ' period(s) found');
+}
+
+function parseBankLedger(rows, name) {
+  // Look for Date, Debit, Credit columns
+  let headerRow = -1;
+  let dateCol = -1, debitCol = -1, creditCol = -1;
+
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const r = rows[i].map(c => String(c).toLowerCase());
+    const dIdx = r.findIndex(c => c.includes('date'));
+    const drIdx = r.findIndex(c => c.includes('debit') || c === 'dr');
+    const crIdx = r.findIndex(c => c.includes('credit') || c === 'cr');
+    if (dIdx >= 0 && (drIdx >= 0 || crIdx >= 0)) {
+      headerRow = i; dateCol = dIdx; debitCol = drIdx; creditCol = crIdx; break;
+    }
+  }
+
+  if (headerRow < 0) { toast('Could not parse bank ledger — expected Date / Debit / Credit columns', 'error'); return; }
+
+  const dataRows = rows.slice(headerRow + 1);
+  const monthlyOut = {}, monthlyIn = {};
+
+  dataRows.forEach(row => {
+    const dateStr = String(row[dateCol] || '').trim();
+    if (!dateStr) return;
+    let d;
+    try { d = new Date(dateStr); } catch { return; }
+    if (isNaN(d)) return;
+    const key = d.toLocaleString('en-IN', { month:'short', year:'2-digit' });
+    const debit  = debitCol  >= 0 ? (parseFloat(String(row[debitCol ]).replace(/[,₹\s]/g,'')) || 0) : 0;
+    const credit = creditCol >= 0 ? (parseFloat(String(row[creditCol]).replace(/[,₹\s]/g,'')) || 0) : 0;
+    monthlyOut[key] = (monthlyOut[key] || 0) + debit;
+    monthlyIn[key]  = (monthlyIn[key]  || 0) + credit;
+  });
+
+  const mKeys = Object.keys(monthlyOut).sort();
+  if (!FP.plLoaded) FP.months = mKeys;
+
+  FP.bankOutflow = mKeys.map(k => monthlyOut[k] || 0);
+  FP.bankInflow  = mKeys.map(k => monthlyIn[k]  || 0);
+
+  // Pre-fill runway inputs from bank data
+  if (mKeys.length > 0) {
+    safeSet('rw-inflow',  Math.round(avg(FP.bankInflow)));
+    safeSet('rw-outflow', Math.round(avg(FP.bankOutflow)));
+  }
+
+  FP.bankLoaded = true;
+  markSlotLoaded('bank');
+  recalcRunway();
+  renderBurnTrendChart();
+  toast('Bank Ledger loaded — ' + mKeys.length + ' months found');
+}
+
+// ════════════════════════════════════════════════════════
+// TOOL 1: CASH RUNWAY
+// ════════════════════════════════════════════════════════
+function recalcRunway() {
+  const cash    = parseFloat(document.getElementById('rw-cash').value)    || 0;
+  const inflow  = parseFloat(document.getElementById('rw-inflow').value)  || 0;
+  const outflow = parseFloat(document.getElementById('rw-outflow').value) || 0;
+  const revAdj  = parseFloat(document.getElementById('sl-rev').value)     || 0;
+  const expAdj  = parseFloat(document.getElementById('sl-exp').value)     || 0;
+
+  const adjInflow  = inflow  * (1 + revAdj  / 100);
+  const adjOutflow = outflow * (1 + expAdj  / 100);
+  const netBurn    = adjOutflow - adjInflow;
+  const runway     = netBurn > 0 ? cash / netBurn : Infinity;
+
+  // Update KPIs
+  const runwayStr = netBurn <= 0 ? '∞' : runway.toFixed(1);
+  const runwayEl  = document.getElementById('kpi-runway');
+  runwayEl.textContent = runwayStr;
+  runwayEl.className   = 'kpi-value ' + runwayColor(runway);
+
+  document.getElementById('kpi-burn').textContent    = fmtINR(netBurn > 0 ? netBurn : 0);
+  document.getElementById('kpi-inflow').textContent  = fmtINR(adjInflow);
+  document.getElementById('kpi-outflow').textContent = fmtINR(adjOutflow);
+
+  // Update gauge
+  updateGauge(runway);
+
+  // Verdict
+  const v = document.getElementById('runway-verdict');
+  if (cash === 0 && inflow === 0 && outflow === 0) {
+    v.textContent = 'Enter inputs above to calculate runway';
+    v.style.color = 'var(--muted)';
+  } else if (netBurn <= 0) {
+    v.innerHTML = '✅ <strong>Cash positive</strong> — inflows exceed outflows. Runway is infinite at current burn.';
+    v.style.color = 'var(--green)';
+  } else if (runway < 3) {
+    v.innerHTML = '🔴 <strong>Critical:</strong> Less than 3 months runway. Immediate action required — cut costs or raise capital.';
+    v.style.color = 'var(--red)';
+  } else if (runway < 6) {
+    v.innerHTML = '🟡 <strong>Watch:</strong> 3–6 months runway. Start exploring options — revenue acceleration or cost reduction.';
+    v.style.color = 'var(--amber)';
+  } else {
+    v.innerHTML = '🟢 <strong>Healthy:</strong> Over 6 months runway. Maintain discipline; plan for growth or buffer build.';
+    v.style.color = 'var(--green)';
+  }
+
+  // Save to localStorage
+  if (document.getElementById('rw-entity').value) saveEntitySlug();
+}
+
+function runwayColor(months) {
+  if (!isFinite(months) || months >= 6) return 'kpi-green';
+  if (months >= 3) return 'kpi-amber';
+  return 'kpi-red';
+}
+
+function updateGauge(runway) {
+  const maxMonths = 24;
+  const clamp = Math.min(isFinite(runway) ? runway : maxMonths, maxMonths);
+  const color  = clamp < 3 ? '#ff4c6a' : clamp < 6 ? '#ff8c42' : '#22c55e';
+  const val    = clamp / maxMonths; // 0..1 for half circle
+
+  document.getElementById('gauge-months-text').textContent = isFinite(runway) ? runway.toFixed(1) : '∞';
+  document.getElementById('gauge-months-text').style.color = color;
+
+  const ctx = document.getElementById('gaugeChart').getContext('2d');
+  if (FP.charts.gauge) FP.charts.gauge.destroy();
+  FP.charts.gauge = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [val, 1 - val],
+        backgroundColor: [color, '#1a2235'],
+        borderWidth: 0,
+        circumference: 180,
+        rotation: -90,
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+  });
+}
+
+function renderBurnTrendChart() {
+  const months  = FP.months.length > 0 ? FP.months : [];
+  const outArr  = FP.bankLoaded ? FP.bankOutflow : (FP.plLoaded ? FP.cogs.map((c,i) => c + (FP.opex[i]||0) + (FP.interest[i]||0)) : []);
+  const inArr   = FP.bankLoaded ? FP.bankInflow  : (FP.plLoaded ? FP.revenue : []);
+  const burnArr = outArr.map((o,i) => o - (inArr[i] || 0));
+
+  const canvas = document.getElementById('burnTrendChart');
+  const empty  = document.getElementById('burn-empty');
+
+  if (months.length === 0 || outArr.length === 0) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+  canvas.style.display = 'block';
+  empty.style.display  = 'none';
+
+  const ctx = canvas.getContext('2d');
+  if (FP.charts.burnTrend) FP.charts.burnTrend.destroy();
+  FP.charts.burnTrend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Inflow',   data: inArr,   borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',  tension: 0.35, fill: false, pointRadius: 3 },
+        { label: 'Outflow',  data: outArr,  borderColor: '#ff4c6a', backgroundColor: 'rgba(255,76,106,0.1)', tension: 0.35, fill: false, pointRadius: 3 },
+        { label: 'Net Burn', data: burnArr, borderColor: '#ff8c42', backgroundColor: 'rgba(255,140,66,0.1)', tension: 0.35, fill: true,  pointRadius: 3, borderDash: [5,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8899aa', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#8899aa', font: { size: 10 } }, grid: { color: '#1f2d42' } },
+        y: { ticks: { color: '#8899aa', font: { size: 10 }, callback: v => fmtINR(v) }, grid: { color: '#1f2d42' } }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// TOOL 2: BREAK-EVEN
+// ════════════════════════════════════════════════════════
+function recalcBE() {
+  const price    = parseFloat(document.getElementById('be-price').value)   || 0;
+  const vc       = parseFloat(document.getElementById('be-vc').value)      || 0;
+  const fixed    = parseFloat(document.getElementById('be-fixed').value)   || 0;
+  const currRev  = parseFloat(document.getElementById('be-currrev').value) || 0;
+
+  if (price === 0 || vc >= price || fixed === 0) {
+    ['be-kpi-berev','be-kpi-beunits','be-kpi-mos','be-kpi-contrib','be-side-contrib','be-side-units','be-side-rev','mos-pct'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
+    document.getElementById('be-verdict').textContent = price > 0 && vc >= price ? '⚠ Variable cost must be less than selling price' : 'Enter inputs above to calculate';
+    renderBEChart(0, 0, 0, 0, 0, 0);
+    renderStressTable(0, 0, 0, 0, 0);
+    return;
+  }
+
+  const contrib   = price - vc;
+  const beUnits   = fixed / contrib;
+  const beRev     = beUnits * price;
+  const mos       = currRev > 0 ? (currRev - beRev) / currRev * 100 : null;
+  const currUnits = currRev / price;
+
+  document.getElementById('be-kpi-berev').textContent     = fmtINR(beRev);
+  document.getElementById('be-kpi-beunits').textContent   = fmtN(Math.ceil(beUnits));
+  document.getElementById('be-kpi-mos').textContent       = mos != null ? mos.toFixed(1) + '%' : '—';
+  document.getElementById('be-kpi-contrib').textContent   = fmtINR(contrib);
+  document.getElementById('be-side-contrib').textContent  = fmtINR(contrib);
+  document.getElementById('be-side-units').textContent    = fmtN(Math.ceil(beUnits));
+  document.getElementById('be-side-rev').textContent      = fmtINR(beRev);
+
+  const mosPct = document.getElementById('mos-pct');
+  const mosCircle = document.getElementById('mos-circle');
+  if (mos != null) {
+    mosPct.textContent = mos.toFixed(1) + '%';
+    const col = mos < 0 ? 'var(--red)' : mos < 15 ? 'var(--amber)' : 'var(--green)';
+    mosPct.style.color = col;
+    mosCircle.style.borderColor = col;
+    const verdict = document.getElementById('be-verdict');
+    if (mos < 0) { verdict.innerHTML = '🔴 <strong>Below Break-Even</strong> — current revenue cannot cover fixed costs.'; verdict.style.color = 'var(--red)'; }
+    else if (mos < 15) { verdict.innerHTML = '🟡 <strong>Thin margin</strong> — only ' + mos.toFixed(1) + '% safety before losses.'; verdict.style.color = 'var(--amber)'; }
+    else { verdict.innerHTML = '🟢 <strong>Comfortable</strong> — ' + mos.toFixed(1) + '% margin of safety.'; verdict.style.color = 'var(--green)'; }
+  } else {
+    mosPct.textContent = '—';
+    document.getElementById('be-verdict').textContent = 'Enter current revenue for margin of safety';
+  }
+
+  renderBEChart(price, vc, fixed, beUnits, currUnits, currRev);
+  renderStressTable(price, vc, fixed, currRev, beRev);
+}
+
+function renderBEChart(price, vc, fixed, beUnits, currUnits, currRev) {
+  const ctx = document.getElementById('beChart').getContext('2d');
+  if (FP.charts.be) FP.charts.be.destroy();
+
+  if (price === 0 || fixed === 0) {
+    FP.charts.be = new Chart(ctx, { type:'line', data:{ labels:[], datasets:[] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } } });
+    return;
+  }
+
+  const maxUnits = Math.max(beUnits * 2, currUnits * 1.3, 10);
+  const points   = 20;
+  const step     = maxUnits / points;
+  const labels   = Array.from({ length: points + 1 }, (_,i) => Math.round(i * step));
+  const revenues = labels.map(u => u * price);
+  const totCosts = labels.map(u => fixed + u * vc);
+
+  FP.charts.be = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Revenue',    data: revenues, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)',  fill: false, tension: 0, pointRadius: 0, borderWidth: 2 },
+        { label: 'Total Cost', data: totCosts, borderColor: '#ff4c6a', backgroundColor: 'rgba(255,76,106,0.08)', fill: false, tension: 0, pointRadius: 0, borderWidth: 2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8899aa', font: { size: 11 } } },
+        annotation: { annotations: { line1: { type: 'line', xMin: Math.round(beUnits), xMax: Math.round(beUnits), borderColor: '#00d4aa', borderWidth: 1, borderDash: [6,3], label: { content: 'Break-Even', enabled: true } } } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Units', color: '#8899aa', font: { size: 10 } }, ticks: { color: '#8899aa', font: { size: 10 } }, grid: { color: '#1f2d42' } },
+        y: { ticks: { color: '#8899aa', font: { size: 10 }, callback: v => fmtINR(v) }, grid: { color: '#1f2d42' } }
+      }
+    }
+  });
+}
+
+function renderStressTable(price, vc, fixed, currRev, baseBeRev) {
+  const tbody = document.getElementById('be-stress-body');
+  if (price === 0 || fixed === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Enter inputs above to generate stress test</td></tr>';
+    return;
+  }
+
+  const scenarios = [
+    { name: 'Base Case',            fc: fixed,       vcU: vc,         },
+    { name: 'RM Cost +10%',         fc: fixed,       vcU: vc * 1.1,   },
+    { name: 'RM Cost −10%',         fc: fixed,       vcU: vc * 0.9,   },
+    { name: 'Fixed Cost +20%',      fc: fixed * 1.2, vcU: vc,         },
+    { name: 'Fixed Cost +20% + RM +10%', fc: fixed * 1.2, vcU: vc * 1.1, },
+    { name: 'Revenue −20%',         fc: fixed,       vcU: vc,         revenueAdj: 0.8 },
+  ];
+
+  tbody.innerHTML = scenarios.map(s => {
+    const adjRev   = currRev * (s.revenueAdj || 1);
+    const contrib  = price - s.vcU;
+    if (contrib <= 0) return `<tr><td>${s.name}</td><td colspan="7" class="neg">Contribution negative — loss at any volume</td></tr>`;
+    const beU  = s.fc / contrib;
+    const beR  = beU * price;
+    const mos  = adjRev > 0 ? (adjRev - beR) / adjRev * 100 : null;
+    const diff = beR - baseBeRev;
+    const cls  = s.name === 'Base Case' ? '' : beR > baseBeRev ? 'stress-highlight' : 'stress-ok';
+    const mosCls = mos == null ? '' : mos < 0 ? 'stress-danger' : mos < 15 ? 'stress-highlight' : 'stress-ok';
+    const impact = s.name === 'Base Case' ? '—' : diff > 0 ? `BE up ${fmtINR(diff)}` : `BE down ${fmtINR(Math.abs(diff))}`;
+    return `<tr>
+      <td>${s.name}</td>
+      <td>${fmtINR(s.fc)}</td>
+      <td>${fmtINR(s.vcU)}</td>
+      <td>${fmtINR(contrib)}</td>
+      <td class="${cls}">${fmtN(Math.ceil(beU))}</td>
+      <td class="${cls}">${fmtINR(beR)}</td>
+      <td class="${mosCls}">${mos != null ? mos.toFixed(1)+'%' : '—'}</td>
+      <td class="${diff > 0 ? 'stress-highlight' : diff < 0 ? 'stress-ok' : ''}">${impact}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// TOOL 3: FINANCIAL RATIOS
+// ════════════════════════════════════════════════════════
+function computeRatios(m) {
+  // m = month index (0-based), or compute for all months if no index
+  const ns = FP.months.length || 1;
+  const result = {};
+
+  RATIO_DEFS.forEach(rd => {
+    result[rd.id] = new Array(ns).fill(null);
+  });
+
+  for (let i = 0; i < ns; i++) {
+    const rev  = FP.revenue[i]      || 0;
+    const cg   = FP.cogs[i]         || 0;
+    const gp   = FP.grossProfit[i]  || (rev - cg);
+    const ebd  = FP.ebitda[i]       || (gp - (FP.opex[i] || 0));
+    const dep  = FP.depreciation[i] || 0;
+    const eb   = FP.ebit[i]         || (ebd - dep);
+    const np   = FP.netProfit[i]    || (eb - (FP.interest[i] || 0));
+    const intr = FP.interest[i]     || 0;
+
+    const ca   = FP.currentAssets[i]      || 0;
+    const inv  = FP.inventory[i]          || 0;
+    const deb  = FP.debtors[i]            || 0;
+    const cl   = FP.currentLiabilities[i] || 0;
+    const cred = FP.creditors[i]          || 0;
+    const td   = FP.totalDebt[i]          || 0;
+    const eq   = FP.equity[i]             || 0;
+    const ta   = FP.totalAssets[i]        || (ca + (FP.fixedAssets[i] || 0));
+    const fa   = FP.fixedAssets[i]        || 0;
+
+    const capEmp = ta - cl;
+
+    result.grossMargin[i]   = rev > 0 ? (gp / rev) * 100 : null;
+    result.ebitdaMargin[i]  = rev > 0 ? (ebd / rev) * 100 : null;
+    result.netMargin[i]     = rev > 0 ? (np / rev) * 100 : null;
+    result.roce[i]          = capEmp > 0 ? (eb / capEmp) * 100 : null;
+    result.roe[i]           = eq > 0 ? (np / eq) * 100 : null;
+    result.currentRatio[i]  = cl > 0 ? ca / cl : null;
+    result.quickRatio[i]    = cl > 0 ? (ca - inv) / cl : null;
+    result.debtorDays[i]    = rev > 0 ? (deb / rev) * 365 : null;
+    result.creditorDays[i]  = cg > 0 ? (cred / cg) * 365 : null;
+    result.inventoryDays[i] = cg > 0 ? (inv / cg) * 365 : null;
+    const dd = result.debtorDays[i], cd = result.creditorDays[i], id = result.inventoryDays[i];
+    result.ccc[i]           = dd != null && cd != null && id != null ? dd + id - cd : null;
+    result.deRatio[i]       = eq > 0 ? td / eq : null;
+    result.interestCov[i]   = intr > 0 ? eb / intr : null;
+    result.toltnw[i]        = eq > 0 ? (cl + td) / eq : null;
+    result.assetTurnover[i] = ta > 0 ? rev / ta : null;
+  }
+
+  FP.ratios = result;
+  return result;
+}
+
+function computeAndRenderRatios() {
+  computeRatios();
+  renderRatioGrid();
+}
+
+function renderRatioGrid() {
+  if (FP.months.length === 0) { initPlaceholderRatios(); return; }
+  const grid = document.getElementById('ratio-grid');
+  grid.innerHTML = '';
+
+  RATIO_DEFS.forEach(rd => {
+    const vals = FP.ratios[rd.id] || [];
+    const last = vals[vals.length - 1];
+    const prev = vals.length > 1 ? vals[vals.length - 2] : null;
+
+    let momStr = '', momCls = 'mom-flat';
+    if (last != null && prev != null && prev !== 0) {
+      const chg = ((last - prev) / Math.abs(prev)) * 100;
+      const improving = rd.improvingDir === 'up' ? chg > 0 : chg < 0;
+      momCls = Math.abs(chg) < 0.5 ? 'mom-flat' : improving ? 'mom-up' : 'mom-down';
+      momStr = (chg > 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(1) + '% MoM';
+    }
+
+    const flagCls = last == null ? 'flag-neutral' : momCls === 'mom-up' ? 'flag-green' : momCls === 'mom-down' ? 'flag-red' : 'flag-amber';
+    const valStr  = last != null ? rd.fmt(last) : '—';
+    const valColor = last == null ? 'var(--muted)' : momCls === 'mom-up' ? 'var(--green)' : momCls === 'mom-down' ? 'var(--red)' : 'var(--text)';
+    const canvasId = 'spark-' + rd.id;
+
+    const tile = document.createElement('div');
+    tile.className = 'ratio-tile ' + flagCls;
+    tile.innerHTML = `
+      <div class="ratio-tile-name">${rd.name}</div>
+      <div class="ratio-tile-value" style="color:${valColor}">${valStr}</div>
+      <div class="ratio-tile-mom ${momCls}">${momStr || 'No prior period'}</div>
+      <canvas id="${canvasId}"></canvas>
+    `;
+    tile.addEventListener('click', () => openRatioModal(rd));
+    grid.appendChild(tile);
+
+    // Render sparkline after appending
+    setTimeout(() => renderSparkline(canvasId, vals, rd), 50);
+  });
+}
+
+function initPlaceholderRatios() {
+  const grid = document.getElementById('ratio-grid');
+  grid.innerHTML = '';
+  RATIO_DEFS.forEach(rd => {
+    const tile = document.createElement('div');
+    tile.className = 'ratio-tile flag-neutral';
+    tile.innerHTML = `<div class="ratio-tile-name">${rd.name}</div><div class="ratio-tile-value" style="color:var(--muted)">—</div><div class="ratio-tile-mom mom-flat" style="font-size:0.7rem;">${rd.cat}</div><div style="height:40px;background:var(--surface2);border-radius:4px;margin-top:0.5rem;"></div>`;
+    tile.addEventListener('click', () => openRatioModal(rd));
+    grid.appendChild(tile);
+  });
+}
+
+function renderSparkline(canvasId, vals, rd) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const validVals = vals.filter(v => v != null);
+  if (validVals.length === 0) return;
+
+  const color = rd.improvingDir === 'up' ? '#22c55e' : '#60a5fa';
+
+  const ctx = canvas.getContext('2d');
+  if (FP.charts['spark_' + rd.id]) FP.charts['spark_' + rd.id].destroy();
+  FP.charts['spark_' + rd.id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: FP.months.slice(-validVals.length),
+      datasets: [{ data: validVals, borderColor: color, borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.35 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+      elements: { line: { borderWidth: 1.5 } }
+    }
+  });
+}
+
+// RATIO MODAL
+let activeModalChart = null;
+function openRatioModal(rd) {
+  const vals    = FP.ratios[rd.id] || new Array(12).fill(null);
+  const months  = FP.months.length > 0 ? FP.months : Array.from({ length: 12 }, (_,i) => 'M' + (i + 1));
+  const lastVal = vals[vals.length - 1];
+
+  document.getElementById('modal-ratio-name').textContent = rd.name + ' — ' + rd.cat;
+  document.getElementById('modal-def').innerHTML = rd.def;
+
+  // 12-month table
+  const thead = document.getElementById('modal-table-head');
+  const tbody = document.getElementById('modal-table-body');
+  thead.innerHTML = '<th>Month</th>' + months.map(m => `<th>${m}</th>`).join('');
+  tbody.innerHTML = `<tr><td style="color:var(--muted);font-size:0.8rem;">${rd.name}</td>` + vals.map(v => `<td>${v != null ? rd.fmt(v) : '—'}</td>`).join('') + '</tr>';
+
+  // Modal chart
+  const ctx = document.getElementById('modal-chart').getContext('2d');
+  if (activeModalChart) activeModalChart.destroy();
+  activeModalChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: rd.name,
+        data: vals,
+        borderColor: '#00d4aa',
+        backgroundColor: 'rgba(0,212,170,0.08)',
+        fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: '#00d4aa', borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8899aa', font: { size: 10 } }, grid: { color: '#1f2d42' } },
+        y: { ticks: { color: '#8899aa', font: { size: 10 }, callback: v => rd.fmt(v) }, grid: { color: '#1f2d42' } }
+      }
+    }
+  });
+
+  document.getElementById('ratioModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('ratioModal').classList.remove('show');
+  if (activeModalChart) { activeModalChart.destroy(); activeModalChart = null; }
+}
+document.getElementById('ratioModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// ════════════════════════════════════════════════════════
+// MANUAL RATIO INPUTS
+// ════════════════════════════════════════════════════════
+const MANUAL_FIELDS = [
+  { id:'m-revenue',   label:'Annual Revenue (₹)' },
+  { id:'m-cogs',      label:'COGS (₹)' },
+  { id:'m-opex',      label:'Operating Expenses (₹)' },
+  { id:'m-dep',       label:'Depreciation (₹)' },
+  { id:'m-interest',  label:'Interest Expense (₹)' },
+  { id:'m-ca',        label:'Current Assets (₹)' },
+  { id:'m-inv',       label:'Inventory (₹)' },
+  { id:'m-debtors',   label:'Debtors / Trade Receivables (₹)' },
+  { id:'m-cash',      label:'Cash & Bank Balance (₹)' },
+  { id:'m-fa',        label:'Fixed Assets (Net) (₹)' },
+  { id:'m-cl',        label:'Current Liabilities (₹)' },
+  { id:'m-cred',      label:'Creditors / Trade Payables (₹)' },
+  { id:'m-td',        label:'Total Debt (₹)' },
+  { id:'m-equity',    label:'Equity / Net Worth (₹)' },
+];
+
+function toggleManualRatios() {
+  const el = document.getElementById('manual-ratio-inputs');
+  const showing = el.style.display !== 'none';
+  el.style.display = showing ? 'none' : 'block';
+  if (!showing && document.getElementById('manual-ratio-grid').children.length === 0) buildManualForm();
+}
+
+function buildManualForm() {
+  const grid = document.getElementById('manual-ratio-grid');
+  grid.innerHTML = MANUAL_FIELDS.map(f => `
+    <div class="form-group">
+      <label>${f.label}</label>
+      <input type="number" id="${f.id}" placeholder="0" />
+    </div>
+  `).join('');
+}
+
+function computeRatiosManual() {
+  const get = id => parseFloat(document.getElementById(id).value) || 0;
+
+  const rev  = get('m-revenue');  const cg  = get('m-cogs');
+  const opex = get('m-opex');     const dep = get('m-dep');
+  const intr = get('m-interest'); const ca  = get('m-ca');
+  const inv  = get('m-inv');      const deb = get('m-debtors');
+  const cl   = get('m-cl');       const cred= get('m-cred');
+  const td   = get('m-td');       const eq  = get('m-equity');
+  const fa   = get('m-fa');
+
+  const gp  = rev - cg;
+  const ebd = gp - opex;
+  const eb  = ebd - dep;
+  const np  = eb - intr;
+  const ta  = ca + fa;
+
+  FP.months       = ['Current'];
+  FP.revenue      = [rev];  FP.cogs      = [cg];
+  FP.grossProfit  = [gp];   FP.opex      = [opex];
+  FP.ebitda       = [ebd];  FP.depreciation = [dep];
+  FP.ebit         = [eb];   FP.interest  = [intr];
+  FP.netProfit    = [np];
+  FP.currentAssets      = [ca];  FP.inventory    = [inv];
+  FP.debtors            = [deb]; FP.currentLiabilities = [cl];
+  FP.creditors          = [cred]; FP.totalDebt   = [td];
+  FP.equity             = [eq];  FP.fixedAssets  = [fa];
+  FP.totalAssets        = [ta];
+
+  computeAndRenderRatios();
+  toast('Ratios computed from manual inputs');
+}
+
+// ════════════════════════════════════════════════════════
+// DOWNLOAD — EXCEL
+// ════════════════════════════════════════════════════════
+function downloadRunwayExcel() {
+  const cash   = parseFloat(document.getElementById('rw-cash').value) || 0;
+  const inflow = parseFloat(document.getElementById('rw-inflow').value) || 0;
+  const outflow= parseFloat(document.getElementById('rw-outflow').value) || 0;
+  const burn   = outflow - inflow;
+  const runway = burn > 0 ? cash / burn : 'Infinite';
+
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['FinancePulse — Cash Runway Calculator', '', ''],
+    ['Generated', new Date().toLocaleDateString('en-IN'), ''],
+    [''],
+    ['Metric', 'Value'],
+    ['Current Cash Balance', cash],
+    ['Avg Monthly Inflow', inflow],
+    ['Avg Monthly Outflow', outflow],
+    ['Net Monthly Burn', burn],
+    ['Runway (months)', runway],
+    [''],
+    ['--- Monthly Data ---'],
+    ['Month', 'Inflow', 'Outflow', 'Net Burn'],
+    ...FP.months.map((m,i) => [m,
+      (FP.bankLoaded ? FP.bankInflow[i] : FP.revenue[i]) || 0,
+      (FP.bankLoaded ? FP.bankOutflow[i] : ((FP.cogs[i]||0) + (FP.opex[i]||0))) || 0,
+      ((FP.bankLoaded ? FP.bankOutflow[i] : ((FP.cogs[i]||0)+(FP.opex[i]||0))) - (FP.bankLoaded ? FP.bankInflow[i] : FP.revenue[i])) || 0
+    ]),
+    [''],
+    ['Scope: FinancePulse by Credlance — For informational use. Consult your CA for formal analysis.']
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cash Runway');
+  XLSX.writeFile(wb, 'FinancePulse_CashRunway.xlsx');
+  toast('Excel downloaded');
+}
+
+function downloadBEExcel() {
+  const price  = parseFloat(document.getElementById('be-price').value) || 0;
+  const vc     = parseFloat(document.getElementById('be-vc').value) || 0;
+  const fixed  = parseFloat(document.getElementById('be-fixed').value) || 0;
+  const currRev= parseFloat(document.getElementById('be-currrev').value) || 0;
+  const contrib= price - vc;
+  const beU    = contrib > 0 ? fixed / contrib : 0;
+  const beR    = beU * price;
+  const mos    = currRev > 0 ? (currRev - beR) / currRev * 100 : null;
+
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['FinancePulse — Break-Even Analyser'],
+    ['Generated', new Date().toLocaleDateString('en-IN')],
+    [''],
+    ['Metric', 'Value'],
+    ['Selling Price per Unit', price],
+    ['Variable Cost per Unit', vc],
+    ['Contribution per Unit', contrib],
+    ['Total Fixed Costs', fixed],
+    ['Break-Even Units', Math.ceil(beU)],
+    ['Break-Even Revenue', beR],
+    ['Current Revenue', currRev],
+    ['Margin of Safety (%)', mos != null ? mos.toFixed(2) + '%' : 'N/A'],
+    [''],
+    ['Stress Test'],
+    ['Scenario', 'Fixed Costs', 'VC/Unit', 'Contrib/Unit', 'BE Units', 'BE Revenue', 'MoS %'],
+    ['Base Case',                  fixed,       vc,       contrib,          Math.ceil(beU), beR, mos != null ? mos.toFixed(1)+'%' : 'N/A'],
+    ['RM Cost +10%',               fixed,       vc*1.1,   price-vc*1.1,    contrib>0?Math.ceil(fixed/(price-vc*1.1)):'-', price-vc*1.1>0?fixed/(price-vc*1.1)*price:'-', '—'],
+    ['RM Cost −10%',               fixed,       vc*0.9,   price-vc*0.9,    contrib>0?Math.ceil(fixed/(price-vc*0.9)):'-', price-vc*0.9>0?fixed/(price-vc*0.9)*price:'-', '—'],
+    ['Fixed Cost +20%',            fixed*1.2,   vc,       contrib,          Math.ceil(fixed*1.2/contrib), fixed*1.2/contrib*price, '—'],
+    [''],
+    ['Scope: FinancePulse by Credlance — For informational use. Consult your CA for formal analysis.']
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Break-Even');
+  XLSX.writeFile(wb, 'FinancePulse_BreakEven.xlsx');
+  toast('Excel downloaded');
+}
+
+function downloadRatiosExcel() {
+  const rows = [
+    ['FinancePulse — Financial Ratios Dashboard'],
+    ['Generated', new Date().toLocaleDateString('en-IN')],
+    [''],
+    ['Ratio', 'Category', ...FP.months, 'Latest Value'],
+  ];
+  RATIO_DEFS.forEach(rd => {
+    const vals = FP.ratios[rd.id] || [];
+    const last = vals[vals.length - 1];
+    rows.push([rd.name, rd.cat, ...vals.map(v => v != null ? parseFloat(v.toFixed(2)) : '—'), last != null ? rd.fmt(last) : '—']);
+  });
+  rows.push(['']);
+  rows.push(['Scope: FinancePulse by Credlance — For informational use. Consult your CA for formal analysis.']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Financial Ratios');
+  XLSX.writeFile(wb, 'FinancePulse_FinancialRatios.xlsx');
+  toast('Excel downloaded');
+}
+
+// ════════════════════════════════════════════════════════
+// DOWNLOAD — PDF
+// ════════════════════════════════════════════════════════
+const SCOPE = 'FinancePulse by Credlance — For informational use. Consult your CA for formal analysis.';
+
+function pdfHeader(doc, title) {
+  doc.setFontSize(16);  doc.setTextColor(0, 212, 170);  doc.text('FinancePulse', 14, 18);
+  doc.setFontSize(10);  doc.setTextColor(180, 180, 180); doc.text(title, 14, 25);
+  doc.text('Generated: ' + new Date().toLocaleDateString('en-IN'), 145, 18);
+  doc.setDrawColor(31, 45, 66); doc.line(14, 28, 196, 28);
+}
+
+function pdfFooter(doc) {
+  const total = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7); doc.setTextColor(100, 100, 100);
+    doc.text(SCOPE, 14, doc.internal.pageSize.height - 8);
+    doc.text('Page ' + p + ' of ' + total, 180, doc.internal.pageSize.height - 8);
+  }
+}
+
+function downloadRunwayPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  pdfHeader(doc, 'Cash Runway Calculator');
+
+  const cash   = parseFloat(document.getElementById('rw-cash').value) || 0;
+  const inflow = parseFloat(document.getElementById('rw-inflow').value) || 0;
+  const outflow= parseFloat(document.getElementById('rw-outflow').value) || 0;
+  const burn   = outflow - inflow;
+  const runway = burn > 0 ? (cash / burn).toFixed(1) + ' months' : '∞ (Cash Positive)';
+
+  doc.autoTable({
+    startY: 35, theme: 'grid',
+    headStyles: { fillColor: [17, 24, 39], textColor: [0, 212, 170], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fillColor: [11, 15, 26], textColor: [226, 232, 240], fontSize: 9 },
+    alternateRowStyles: { fillColor: [26, 34, 53] },
+    head: [['Metric', 'Value']],
+    body: [
+      ['Current Cash Balance', fmtINR(cash)],
+      ['Avg Monthly Inflow', fmtINR(inflow)],
+      ['Avg Monthly Outflow', fmtINR(outflow)],
+      ['Net Monthly Burn', fmtINR(burn)],
+      ['Estimated Runway', runway],
+    ]
+  });
+
+  if (FP.months.length > 0) {
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10, theme: 'grid',
+      headStyles: { fillColor: [17, 24, 39], textColor: [0, 212, 170], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fillColor: [11, 15, 26], textColor: [226, 232, 240], fontSize: 9 },
+      alternateRowStyles: { fillColor: [26, 34, 53] },
+      head: [['Month', 'Inflow', 'Outflow', 'Net Burn']],
+      body: FP.months.map((m,i) => {
+        const inf = (FP.bankLoaded ? FP.bankInflow[i] : FP.revenue[i]) || 0;
+        const out = (FP.bankLoaded ? FP.bankOutflow[i] : (FP.cogs[i]||0)+(FP.opex[i]||0)) || 0;
+        return [m, fmtINR(inf), fmtINR(out), fmtINR(out - inf)];
+      })
+    });
+  }
+
+  pdfFooter(doc);
+  doc.save('FinancePulse_CashRunway.pdf');
+  toast('PDF downloaded');
+}
+
+function downloadBEPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  pdfHeader(doc, 'Break-Even Analyser');
+
+  const price  = parseFloat(document.getElementById('be-price').value) || 0;
+  const vc     = parseFloat(document.getElementById('be-vc').value) || 0;
+  const fixed  = parseFloat(document.getElementById('be-fixed').value) || 0;
+  const currRev= parseFloat(document.getElementById('be-currrev').value) || 0;
+  const contrib= price - vc;
+  const beU    = contrib > 0 ? fixed / contrib : 0;
+  const beR    = beU * price;
+  const mos    = currRev > 0 ? ((currRev - beR) / currRev * 100).toFixed(1) + '%' : 'N/A';
+
+  doc.autoTable({
+    startY: 35, theme: 'grid',
+    headStyles: { fillColor: [17, 24, 39], textColor: [0, 212, 170], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fillColor: [11, 15, 26], textColor: [226, 232, 240], fontSize: 9 },
+    alternateRowStyles: { fillColor: [26, 34, 53] },
+    head: [['Metric', 'Value']],
+    body: [
+      ['Selling Price / Unit', fmtINR(price)],
+      ['Variable Cost / Unit', fmtINR(vc)],
+      ['Contribution / Unit', fmtINR(contrib)],
+      ['Total Fixed Costs', fmtINR(fixed)],
+      ['Break-Even Units', fmtN(Math.ceil(beU))],
+      ['Break-Even Revenue', fmtINR(beR)],
+      ['Current Revenue', fmtINR(currRev)],
+      ['Margin of Safety', mos],
+    ]
+  });
+
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 10, theme: 'grid',
+    headStyles: { fillColor: [17, 24, 39], textColor: [0, 212, 170], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fillColor: [11, 15, 26], textColor: [226, 232, 240], fontSize: 9 },
+    alternateRowStyles: { fillColor: [26, 34, 53] },
+    head: [['Scenario', 'Fixed Costs', 'VC/Unit', 'Contrib/Unit', 'BE Units', 'BE Revenue']],
+    body: [
+      ['Base Case',       fmtINR(fixed),       fmtINR(vc),       fmtINR(contrib),             fmtN(Math.ceil(beU)), fmtINR(beR)],
+      ['RM Cost +10%',    fmtINR(fixed),       fmtINR(vc*1.1),   fmtINR(price-vc*1.1),        price-vc*1.1>0?fmtN(Math.ceil(fixed/(price-vc*1.1))):'—', price-vc*1.1>0?fmtINR(fixed/(price-vc*1.1)*price):'—'],
+      ['RM Cost −10%',    fmtINR(fixed),       fmtINR(vc*0.9),   fmtINR(price-vc*0.9),        price-vc*0.9>0?fmtN(Math.ceil(fixed/(price-vc*0.9))):'—', price-vc*0.9>0?fmtINR(fixed/(price-vc*0.9)*price):'—'],
+      ['Fixed Cost +20%', fmtINR(fixed*1.2),   fmtINR(vc),       fmtINR(contrib),             contrib>0?fmtN(Math.ceil(fixed*1.2/contrib)):'—', contrib>0?fmtINR(fixed*1.2/contrib*price):'—'],
+    ]
+  });
+
+  pdfFooter(doc);
+  doc.save('FinancePulse_BreakEven.pdf');
+  toast('PDF downloaded');
+}
+
+function downloadRatiosPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  pdfHeader(doc, 'Financial Ratios Dashboard');
+
+  const head = [['Ratio', 'Category', ...FP.months.slice(-6), 'Latest']];
+  const body = RATIO_DEFS.map(rd => {
+    const vals = FP.ratios[rd.id] || [];
+    const last = vals[vals.length - 1];
+    return [rd.name, rd.cat, ...vals.slice(-6).map(v => v != null ? rd.fmt(v) : '—'), last != null ? rd.fmt(last) : '—'];
+  });
+
+  doc.autoTable({
+    startY: 35, theme: 'grid',
+    headStyles: { fillColor: [17, 24, 39], textColor: [0, 212, 170], fontStyle: 'bold', fontSize: 8 },
+    bodyStyles: { fillColor: [11, 15, 26], textColor: [226, 232, 240], fontSize: 8 },
+    alternateRowStyles: { fillColor: [26, 34, 53] },
+    head, body, margin: { left: 14, right: 14 }
+  });
+
+  pdfFooter(doc);
+  doc.save('FinancePulse_FinancialRatios.pdf');
+  toast('PDF downloaded');
+}
+
+// ════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════
+function avg(arr) { const v = arr.filter(x => x != null && !isNaN(x)); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; }
+function safeSet(id, val) { const el = document.getElementById(id); if (el && (el.value === '' || !isNaN(val))) el.value = val; }
+function updateSliderLabel(sliderId, labelId, suffix) {
+  const v = document.getElementById(sliderId).value;
+  document.getElementById(labelId).textContent = (v > 0 ? '+' : '') + v + suffix;
+}
+function saveEntitySlug() {
+  const entity = document.getElementById('rw-entity').value.trim();
+  if (!entity) return;
+  const slug = entity.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  localStorage.setItem('credlance_financepulse_' + slug + '_entity', entity);
+}
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Init placeholder ratio grid
+  initPlaceholderRatios();
+  // Init manual form
+  buildManualForm();
+  // Init gauge with no data
+  updateGauge(Infinity);
+  // Init BE chart empty
+  renderBEChart(0,0,0,0,0,0);
+  // Init burn chart empty
+  renderBurnTrendChart();
+});
+</script>
+</body>
+</html>
