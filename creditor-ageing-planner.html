@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creditor Ageing & Payment Planner | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --blue: #60a5fa;
+      --red-bg: rgba(255,76,106,0.1);
+      --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+      --blue-bg: rgba(96,165,250,0.1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.96);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px;
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge {
+      background: var(--surface2); color: var(--accent);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; margin-left: 1rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 3.5rem 2rem 2rem;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto 1.5rem; }
+    .hero-pills { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .hero-pill {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.78rem; padding: 0.3rem 0.9rem;
+      border-radius: 20px;
+    }
+    .hero-pill span { color: var(--accent); margin-right: 0.25rem; }
+
+    /* ── STEPPER ── */
+    .stepper {
+      max-width: 800px; margin: 0 auto 2rem;
+      padding: 0 2rem;
+      display: flex; align-items: center;
+    }
+    .step-item { display: flex; align-items: center; gap: 0.5rem; }
+    .step-circle {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 700; color: var(--muted);
+      flex-shrink: 0; transition: all 0.3s;
+    }
+    .step-circle.active { border-color: var(--accent); color: var(--accent); }
+    .step-circle.done { background: var(--accent); border-color: var(--accent); color: #0b0f1a; }
+    .step-label { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+    .step-label.active { color: var(--text); font-weight: 600; }
+    .step-connector { flex: 1; height: 1px; background: var(--border); margin: 0 0.75rem; }
+
+    /* ── SECTIONS ── */
+    .section-wrap { max-width: 860px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+    .section-wrap-wide { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: var(--surface);
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(0,212,170,0.04);
+    }
+    .upload-icon { font-size: 2.8rem; margin-bottom: 1rem; }
+    .upload-zone h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+    .upload-btn {
+      display: inline-block; margin-top: 1.25rem;
+      background: var(--accent); color: #0b0f1a;
+      font-weight: 700; font-size: 0.9rem;
+      padding: 0.6rem 1.6rem; border-radius: 8px;
+      border: none; cursor: pointer; letter-spacing: 0.03em;
+    }
+    .upload-btn:hover { background: var(--accent2); }
+
+    /* ── FORMAT HINT ── */
+    .format-hint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .format-hint h4 { font-size: 0.82rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.7rem; }
+    .format-hint ul { color: var(--muted); font-size: 0.84rem; list-style: disc; padding-left: 1.2rem; }
+    .format-hint li { margin-bottom: 0.35rem; }
+
+    /* ── CONFIG PANEL ── */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .config-panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; }
+    .config-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+    .config-field { flex: 1; min-width: 180px; }
+    .config-field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .config-field input, .config-field select {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 0.55rem 0.9rem; border-radius: 8px; font-size: 0.9rem;
+    }
+    .config-field input:focus, .config-field select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      background: var(--accent); color: #0b0f1a;
+      border: none; padding: 0.65rem 1.5rem;
+      border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 0.55rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 6px; }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+    .summary-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem;
+    }
+    .summary-card.red { border-left: 3px solid var(--red); }
+    .summary-card.orange { border-left: 3px solid var(--orange); }
+    .summary-card.blue { border-left: 3px solid var(--blue); }
+    .summary-card.accent { border-left: 3px solid var(--accent); }
+    .card-value { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .card-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+    .val-red { color: var(--red); }
+    .val-orange { color: var(--orange); }
+    .val-yellow { color: var(--yellow); }
+    .val-blue { color: var(--blue); }
+    .val-green { color: var(--green); }
+    .val-accent { color: var(--accent); }
+
+    /* ── CHART WRAP ── */
+    .chart-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-wrap h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem; }
+    .chart-legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; font-size: 0.78rem; }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .table-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; gap: 0.75rem;
+    }
+    .table-header h3 { font-size: 0.95rem; font-weight: 700; }
+    .table-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .search-input {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 0.38rem 0.85rem; border-radius: 6px; font-size: 0.82rem;
+      width: 180px;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th {
+      background: var(--surface2); color: var(--muted);
+      font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 0.65rem 1rem; text-align: left; font-weight: 700;
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    th:hover { color: var(--accent); }
+    th .sort-icon { margin-left: 4px; color: var(--border); font-size: 0.65rem; }
+    th.sorted .sort-icon { color: var(--accent); }
+    td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr.expandable-row { cursor: pointer; }
+    .drill-row td { background: var(--surface2) !important; }
+    .drill-row.hidden { display: none; }
+
+    /* ── BUCKET BADGES ── */
+    .bucket-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 3px 8px;
+      border-radius: 12px; white-space: nowrap;
+    }
+    .bucket-current { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .bucket-030    { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+    .bucket-3160   { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+    .bucket-6190   { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .bucket-90plus { background: rgba(180,20,60,0.18); color: #ff2050; border: 1px solid rgba(255,20,60,0.35); }
+    .msme-tag { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; margin-left: 3px; vertical-align: middle; }
+    .risk-tag { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; margin-left: 3px; vertical-align: middle; }
+
+    /* ── PAYMENT PLANNER ── */
+    .planner-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .planner-wrap h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .planner-input-row { display: flex; gap: 1rem; align-items: flex-end; margin: 1rem 0; flex-wrap: wrap; }
+    .payment-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
+    .payment-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.25rem;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .payment-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #0b0f1a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 800; flex-shrink: 0; margin-top: 2px;
+    }
+    .payment-info { flex: 1; min-width: 200px; }
+    .payment-party { font-weight: 700; font-size: 0.95rem; }
+    .payment-reason { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .payment-amount { font-weight: 800; font-size: 1.1rem; color: var(--accent); text-align: right; white-space: nowrap; }
+    .payment-amount small { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+    .planner-summary {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.5rem;
+      display: flex; gap: 2.5rem; flex-wrap: wrap; margin-top: 1rem;
+    }
+    .planner-stat-val { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+    .planner-stat-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    /* ── ACTION BAR ── */
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; align-items: center; }
+
+    /* ── PROCESSING ── */
+    #processingSection {
+      display: none; text-align: center;
+      padding: 4rem 2rem; max-width: 500px; margin: 0 auto;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--accent); color: #0b0f1a;
+      padding: 0.8rem 1.4rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.35s ease; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--red); box-shadow: 0 8px 32px rgba(255,76,106,0.3); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; max-width: 600px; width: 92%;
+      max-height: 82vh; overflow-y: auto;
+    }
+    .modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .modal-desc { color: var(--muted); font-size: 0.86rem; margin-bottom: 1.5rem; line-height: 1.5; }
+    .msme-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .msme-table th { background: var(--surface2); color: var(--muted); font-size: 0.72rem; text-transform: uppercase; padding: 0.6rem 0.9rem; text-align: left; font-weight: 700; }
+    .msme-table td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); }
+    .msme-table tr:last-child td { border-bottom: none; }
+    .toggle-msme {
+      width: 38px; height: 22px; background: var(--border);
+      border-radius: 11px; position: relative; cursor: pointer;
+      transition: background 0.2s; border: none; outline: none;
+      display: inline-block; flex-shrink: 0;
+    }
+    .toggle-msme::after {
+      content: ''; position: absolute;
+      width: 16px; height: 16px; border-radius: 50%; background: white;
+      top: 3px; left: 3px; transition: transform 0.2s;
+    }
+    .toggle-msme.on { background: var(--blue); }
+    .toggle-msme.on::after { transform: translateX(16px); }
+
+    /* ── FILTER CHIPS ── */
+    .filter-chip {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.78rem; padding: 0.3rem 0.8rem;
+      border-radius: 20px; cursor: pointer; transition: all 0.2s;
+    }
+    .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+    .filter-chip.active { background: var(--accent); color: #0b0f1a; border-color: var(--accent); font-weight: 600; }
+
+    /* ── SCOPE FOOTER ── */
+    .scope-footer {
+      text-align: center; padding: 2rem 1.5rem 1.5rem;
+      font-size: 0.78rem; color: #475569;
+      max-width: 700px; margin: 0 auto;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .summary-strip { grid-template-columns: repeat(2, 1fr); }
+      .stepper { overflow-x: auto; padding: 0 1rem; }
+      .hero h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <div style="display:flex;gap:0.75rem;align-items:center;">
+    <span class="nav-badge">CREDITOR AGEING</span>
+    <a href="index.html" class="nav-back">← All Apps</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Creditor Ageing &<br><span>Payment Planner</span></h1>
+  <p>Upload your Tally outstandings, analyse payables by ageing bucket, flag MSME exposure and concentration risk, then generate a smart payment schedule from available cash.</p>
+  <div class="hero-pills">
+    <div class="hero-pill"><span>✓</span>Tally Compatible</div>
+    <div class="hero-pill"><span>✓</span>MSMED Act Interest</div>
+    <div class="hero-pill"><span>✓</span>Payment Priority Engine</div>
+    <div class="hero-pill"><span>✓</span>Excel & PDF Export</div>
+    <div class="hero-pill"><span>✓</span>No Data Stored</div>
+  </div>
+</div>
+
+<!-- STEPPER -->
+<div class="stepper">
+  <div class="step-item">
+    <div class="step-circle active" id="sc1">1</div>
+    <span class="step-label active" id="sl1">Upload</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc2">2</div>
+    <span class="step-label" id="sl2">Configure</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc3">3</div>
+    <span class="step-label" id="sl3">Ageing Dashboard</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc4">4</div>
+    <span class="step-label" id="sl4">Payment Plan</span>
+  </div>
+</div>
+
+<!-- STEP 1: UPLOAD -->
+<div id="step1Section" class="section-wrap">
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" />
+    <div class="upload-icon">📂</div>
+    <h3>Upload Tally Outstandings Export</h3>
+    <p>Drag & drop your Excel / CSV file or click to browse</p>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+  </div>
+
+  <div class="format-hint">
+    <h4>📋 How to Export from Tally</h4>
+    <ul>
+      <li><strong>Recommended (Payables):</strong> Gateway of Tally → Display More Reports → Statements of Accounts → Outstandings → Payables → F6 (Age-wise) → F2 (set period end date) → Alt+E → Excel</li>
+      <li><strong>Alternative (Bills Payable):</strong> Gateway → Display → Statements of Accounts → Outstandings → Ledger → Select Sundry Creditors group → Alt+E</li>
+      <li><strong>Required columns:</strong> Party Name, Bill/Ref No., Bill Date, Due Date (if credit terms set), Bill Amount, Outstanding Amount</li>
+      <li>Standard Tally exports work without any column renaming — the app auto-detects headers</li>
+      <li>If Due Date is missing, ageing is computed from Bill Date</li>
+    </ul>
+  </div>
+</div>
+
+<!-- STEP 2: CONFIGURE -->
+<div id="step2Section" class="section-wrap" style="display:none;">
+  <div class="config-panel">
+    <h3>⚙️ Analysis Settings</h3>
+    <div class="config-row">
+      <div class="config-field">
+        <label>Reference Date (Ageing as of)</label>
+        <input type="date" id="refDate" />
+      </div>
+      <div class="config-field">
+        <label>Entity Name (for export)</label>
+        <input type="text" id="entityName" placeholder="e.g. ABC Pvt. Ltd." />
+      </div>
+      <div class="config-field">
+        <label>RBI Bank Rate (% p.a.)</label>
+        <input type="number" id="bankRate" value="6.50" step="0.25" min="0" max="25" />
+      </div>
+    </div>
+    <div class="config-row">
+      <div class="config-field">
+        <label>Concentration Risk Threshold (%)</label>
+        <input type="number" id="concThreshold" value="15" step="1" min="5" max="50" />
+      </div>
+      <div class="config-field">
+        <label>Small Balance Clearance Threshold (₹)</label>
+        <input type="number" id="smallBalThreshold" value="10000" step="1000" min="0" />
+      </div>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;padding-top:0.25rem;border-top:1px solid var(--border);margin-top:0.25rem;">
+      <div style="font-size:0.8rem;color:var(--muted);">MSME Classification:</div>
+      <button class="btn-outline btn-sm" onclick="downloadMsmeSheet()">⬇ Download Classification Sheet</button>
+      <input type="file" id="msmeFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleMsmeUpload(this)" />
+      <button class="btn-outline btn-sm" onclick="document.getElementById('msmeFileInput').click()">⬆ Upload After Marking</button>
+      <span id="msmeStatus" style="font-size:0.8rem;color:var(--accent);"></span>
+    </div>
+  </div>
+
+  <div style="text-align:center;">
+    <button class="btn-primary" style="font-size:1rem;padding:0.75rem 2.5rem;" onclick="runAnalysis()">▶ Run Ageing Analysis</button>
+  </div>
+</div>
+
+<!-- PROCESSING -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg" style="font-size:1.05rem;color:var(--text);">Analysing payables…</div>
+  <div style="font-size:0.85rem;color:var(--muted);margin-top:0.4rem;">Computing ageing buckets and MSME interest</div>
+</div>
+
+<!-- STEP 3 + 4: DASHBOARD & PLANNER -->
+<div id="step3Section" class="section-wrap-wide" style="display:none;">
+
+  <!-- Action Bar -->
+  <div class="action-bar">
+    <button class="btn-outline" onclick="exportExcel()">⬇ Export Excel</button>
+    <button class="btn-outline" onclick="exportPDF()">📄 PDF Summary</button>
+    <button class="btn-outline" onclick="openMsmeModal()">🏷 Manage MSME Tags</button>
+    <button class="btn-outline" onclick="resetApp()">↺ New Analysis</button>
+    <div style="margin-left:auto;font-size:0.82rem;color:var(--muted);" id="refDateDisplay"></div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-strip" id="summaryStrip"></div>
+
+  <!-- Two-column charts -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;margin-bottom:1.5rem;" id="chartGrid">
+    <div class="chart-wrap">
+      <h3>📊 Party-wise Ageing Waterfall (Top 15)</h3>
+      <div style="position:relative;height:320px;">
+        <canvas id="ageingChart"></canvas>
+      </div>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
+    <div class="chart-wrap">
+      <h3>🪣 Bucket Breakdown</h3>
+      <div style="position:relative;height:320px;">
+        <canvas id="bucketChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Party Table -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>Party-wise Outstanding Summary</h3>
+      <div class="table-controls">
+        <input type="text" class="search-input" id="partySearch" placeholder="Search party…" oninput="renderPartyTable()" />
+        <button class="filter-chip active" id="fc-all" onclick="setFilter('all')">All</button>
+        <button class="filter-chip" id="fc-overdue" onclick="setFilter('overdue')">Overdue</button>
+        <button class="filter-chip" id="fc-msme" onclick="setFilter('msme')">MSME</button>
+        <button class="filter-chip" id="fc-risk" onclick="setFilter('risk')">Conc. Risk</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('party')">Party <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('total')">Total Outstanding <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('overdue')">Overdue <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('bucket')">Worst Bucket <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('days')">Max Days <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('interest')">MSME Interest ₹ <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('conc')">Share % <span class="sort-icon">↕</span></th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody id="partyTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Payment Planner -->
+  <div class="planner-wrap" id="step4Section">
+    <h3>💳 Payment Planner</h3>
+    <p style="color:var(--muted);font-size:0.87rem;margin-bottom:0.25rem;">Enter available cash and select a priority mode. The planner ranks payments by legal obligation, supply risk, and relationship preservation — allocating your cash optimally.</p>
+    <div class="planner-input-row">
+      <div class="config-field" style="max-width:260px;">
+        <label>Available Cash for Payments (₹)</label>
+        <input type="number" id="availCash" placeholder="e.g. 5,00,000" min="0" step="10000" oninput="generatePaymentPlan()" />
+      </div>
+      <div class="config-field" style="max-width:200px;">
+        <label>Priority Mode</label>
+        <select id="priorityMode" onchange="generatePaymentPlan()">
+          <option value="standard">Standard (Balanced)</option>
+          <option value="msme-first">MSME Legal First</option>
+          <option value="relationship">Relationship First</option>
+          <option value="cash-clearing">Cash Clearing (Small First)</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="generatePaymentPlan()" style="margin-top:auto;">Generate Schedule</button>
+    </div>
+
+    <div id="plannerResults" style="display:none;">
+      <div class="planner-summary" id="plannerSummary"></div>
+      <div class="payment-list" id="paymentList"></div>
+      <div id="remainingNote" style="margin-top:1rem;font-size:0.82rem;color:var(--muted);padding:0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border);"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MSME Modal -->
+<div class="modal-overlay hidden" id="msmeModal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+      <h3>🏷 MSME Vendor Classification</h3>
+      <button onclick="closeMsmeModal()" style="background:none;border:none;color:var(--muted);font-size:1.25rem;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div class="modal-desc">Toggle MSME status for each vendor. MSMD Act Section 16: interest computed at <strong style="color:var(--blue);">(Bank Rate + 3%) p.a.</strong> on amounts overdue beyond 45 days. Settings saved locally per entity slug.</div>
+    <div style="overflow-y:auto;max-height:50vh;">
+      <table class="msme-table">
+        <thead><tr><th>Party Name</th><th>Outstanding</th><th>Max Days</th><th>MSME</th></tr></thead>
+        <tbody id="msmeTableBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:1.25rem;display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button class="btn-primary" onclick="applyMsmeSave()">Save & Recompute</button>
+      <button class="btn-outline" onclick="closeMsmeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SCOPE FOOTER -->
+<div class="scope-footer">
+  <em>Credlance Creditor Ageing Planner — Decisions should consider vendor relationships and contract terms beyond automated prioritisation.</em><br><br>
+  ⚠ MSMD Act interest is indicative at (Bank Rate + 3%) p.a. The Act prescribes 3× bank rate compounded monthly — consult your CA for precise liability. No data is uploaded to any server; all computation happens in your browser.
+</div>
+
+<!-- FOOTER -->
+<footer style="background:var(--surface);border-top:1px solid var(--border);padding:1.5rem 2rem;">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+    <div style="font-size:0.82rem;color:var(--muted);">© 2026 Credlance. All rights reserved.</div>
+    <a href="index.html" style="font-size:0.82rem;color:var(--muted);text-decoration:none;">← Back to All Apps</a>
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let rawBills    = [];
+let parties     = [];
+let msmeFlags   = {};
+let ageingChart = null;
+let bucketChart = null;
+let sortCol     = 'total';
+let sortDir     = -1;
+let activeFilter = 'all';
+let entitySlug  = '';
+
+const STORAGE_PREFIX = 'credlance_creditor_';
+const BUCKET_KEYS    = ['current','0-30','31-60','61-90','90+'];
+const BUCKET_LABELS  = ['Current (Not Due)','0–30 Days Overdue','31–60 Days Overdue','61–90 Days Overdue','90+ Days Overdue'];
+const BUCKET_COLORS  = ['#22c55e','#f5c518','#ff8c42','#ff4c6a','#cc0030'];
+
+// ═══════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════
+const inr = n => isNaN(n)||n==null ? '–' : '₹' + Math.round(n).toLocaleString('en-IN');
+const pct = n => (n||0).toFixed(1) + '%';
+const slugify = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,30);
+
+function showToast(msg, isError=false, dur=3200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const sc = document.getElementById('sc' + i);
+    const sl = document.getElementById('sl' + i);
+    if (!sc) continue;
+    sc.className = 'step-circle' + (i < n ? ' done' : i === n ? ' active' : '');
+    sl.className = 'step-label' + (i === n ? ' active' : '');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  COLUMN DETECTION
+// ═══════════════════════════════════════════════════════
+const COL = {
+  party: ['party name','party','vendor','supplier','ledger name','ledger','name','creditor'],
+  ref:   ['bill no','bill ref','ref no','reference','voucher no','invoice no','doc no','bill number','ref','vch no'],
+  bDate: ['bill date','invoice date','voucher date','date','doc date'],
+  dDate: ['due date','payment due','due','expiry date'],
+  bAmt:  ['bill amount','invoice amount','amount','total amount','gross amount','bill amt','original amount','debit','dr amount'],
+  oAmt:  ['outstanding amount','outstanding','balance','pending amount','amount due','net outstanding','balance due','closing balance','os amount','payable']
+};
+
+function detectCol(headers, aliases) {
+  const lh = headers.map(h => String(h).toLowerCase().trim());
+  for (const alias of aliases) {
+    const i = lh.findIndex(h => h.includes(alias));
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DATE & AMOUNT PARSERS
+// ═══════════════════════════════════════════════════════
+function parseDate(val) {
+  if (!val && val !== 0) return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === 'number') {
+    const d = new Date(Math.round((val - 25569) * 86400000));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(val).trim();
+  if (!s) return null;
+  let d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  // DD-MM-YYYY or DD/MM/YYYY
+  const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (m) {
+    const yr = m[3].length === 2 ? '20' + m[3] : m[3];
+    d = new Date(`${yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function parseAmt(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return Math.abs(val);
+  const s = String(val).replace(/[₹,\s\u20B9]/g,'').replace(/\(([^)]+)\)/,'$1');
+  return Math.abs(parseFloat(s) || 0);
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════════════════════
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('click', e => { if(e.target !== fileInput) fileInput.click(); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+
+function processFile(file) {
+  show('processingSection'); hide('step1Section');
+  document.getElementById('processingMsg').textContent = 'Reading ' + file.name + '…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+
+      // Find header row
+      let hdrRow = 0;
+      for (let i = 0; i < Math.min(25, raw.length); i++) {
+        const r = raw[i].map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('party') || c.includes('ledger') || c.includes('vendor') || c.includes('name') || c.includes('creditor'))) {
+          hdrRow = i; break;
+        }
+      }
+
+      const headers = raw[hdrRow].map(c => String(c));
+      const pIdx  = detectCol(headers, COL.party);
+      const rIdx  = detectCol(headers, COL.ref);
+      const bdIdx = detectCol(headers, COL.bDate);
+      const ddIdx = detectCol(headers, COL.dDate);
+      const baIdx = detectCol(headers, COL.bAmt);
+      const oaIdx = detectCol(headers, COL.oAmt);
+
+      if (pIdx === -1) throw new Error('Party Name column not found. Ensure column exists and try again.');
+      if (bdIdx === -1) throw new Error('Bill Date column not found. Please check file format.');
+
+      const SKIP_PATTERNS = /^(total|grand total|sub.?total|net total|sum)$/i;
+      rawBills = [];
+
+      for (let i = hdrRow + 1; i < raw.length; i++) {
+        const row = raw[i];
+        const party = String(row[pIdx] || '').trim();
+        if (!party || SKIP_PATTERNS.test(party)) continue;
+
+        const outAmt = oaIdx !== -1 ? parseAmt(row[oaIdx]) : (baIdx !== -1 ? parseAmt(row[baIdx]) : 0);
+        if (outAmt === 0) continue;
+
+        rawBills.push({
+          partyName: party,
+          billRef:   rIdx !== -1 ? String(row[rIdx] || '').trim() : '',
+          billDate:  parseDate(row[bdIdx]),
+          dueDate:   ddIdx !== -1 ? parseDate(row[ddIdx]) : null,
+          billAmt:   baIdx !== -1 ? parseAmt(row[baIdx]) : outAmt,
+          outAmt
+        });
+      }
+
+      if (rawBills.length === 0) throw new Error('No payable rows found. Check for non-zero outstanding amounts.');
+
+      entitySlug = slugify(file.name.replace(/\.[^.]+$/, ''));
+      loadMsmeFromStorage();
+
+      hide('processingSection'); show('step2Section');
+      document.getElementById('refDate').value = new Date().toISOString().split('T')[0];
+      setStep(2);
+      showToast(`✓ Loaded ${rawBills.length} bills across ${new Set(rawBills.map(b => b.partyName)).size} vendors`);
+    } catch (err) {
+      hide('processingSection'); show('step1Section');
+      showToast('Error: ' + err.message, true, 6000);
+    }
+  };
+  reader.onerror = () => { hide('processingSection'); show('step1Section'); showToast('File read error', true); };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MSME STORAGE
+// ═══════════════════════════════════════════════════════
+function loadMsmeFromStorage() {
+  try { msmeFlags = JSON.parse(localStorage.getItem(STORAGE_PREFIX + entitySlug) || '{}'); }
+  catch { msmeFlags = {}; }
+}
+function saveMsmeToStorage() {
+  try { localStorage.setItem(STORAGE_PREFIX + entitySlug, JSON.stringify(msmeFlags)); } catch {}
+}
+
+function downloadMsmeSheet() {
+  if (!rawBills.length) { showToast('Upload a file first', true); return; }
+  const uniqParties = [...new Set(rawBills.map(b => b.partyName))].sort();
+  const data = [['Party Name','MSME (Yes/No)','Notes']];
+  uniqParties.forEach(p => data.push([p, msmeFlags[p] ? 'Yes' : 'No', '']));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'MSME Classification');
+  XLSX.writeFile(wb, 'msme_classification.xlsx');
+  showToast('⬇ MSME sheet downloaded. Mark MSMEs and re-upload.');
+}
+
+function handleMsmeUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+      let count = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const party = String(rows[i][0] || '').trim();
+        const flag  = String(rows[i][1] || '').trim().toLowerCase();
+        if (party) { msmeFlags[party] = ['yes','y','true','1'].includes(flag); count++; }
+      }
+      saveMsmeToStorage();
+      document.getElementById('msmeStatus').textContent = `✓ ${count} vendor classifications loaded`;
+      showToast('MSME classification updated');
+    } catch { showToast('Error reading MSME file', true); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CORE ANALYSIS
+// ═══════════════════════════════════════════════════════
+function runAnalysis() {
+  const refDate = new Date(document.getElementById('refDate').value);
+  if (isNaN(refDate.getTime())) { showToast('Please set a valid reference date', true); return; }
+
+  hide('step2Section'); show('processingSection');
+  document.getElementById('processingMsg').textContent = 'Computing ageing buckets…';
+
+  setTimeout(() => {
+    compute(refDate);
+    hide('processingSection'); show('step3Section');
+    document.getElementById('refDateDisplay').textContent =
+      'As of: ' + refDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    renderDashboard();
+    setStep(3);
+  }, 350);
+}
+
+function getBucket(days) {
+  if (days <= 0) return 'current';
+  if (days <= 30) return '0-30';
+  if (days <= 60) return '31-60';
+  if (days <= 90) return '61-90';
+  return '90+';
+}
+function bucketOrder(b) { return BUCKET_KEYS.indexOf(b); }
+
+function compute(refDate) {
+  const bankRate  = (parseFloat(document.getElementById('bankRate').value) || 6.50) / 100;
+  const msmedRate = bankRate + 0.03; // bank rate + 3% per task spec
+  const concTh    = parseFloat(document.getElementById('concThreshold').value) || 15;
+  const MS_DAY    = 86400000;
+
+  rawBills.forEach(b => {
+    const ref = b.dueDate || b.billDate;
+    if (!ref) { b.daysOut = 0; b.bucket = 'current'; b.msmeInterest = 0; return; }
+    b.daysOut = Math.floor((refDate - ref) / MS_DAY);
+    b.bucket  = getBucket(b.daysOut);
+    const isMsme = !!msmeFlags[b.partyName];
+    b.msmeInterest = (isMsme && b.daysOut > 45)
+      ? b.outAmt * msmedRate * Math.max(b.daysOut - 45, 0) / 365
+      : 0;
+  });
+
+  const totalOut = rawBills.reduce((s, b) => s + b.outAmt, 0);
+
+  const partyMap = {};
+  rawBills.forEach(b => {
+    if (!partyMap[b.partyName]) {
+      partyMap[b.partyName] = {
+        partyName: b.partyName,
+        total: 0,
+        buckets: { current:0, '0-30':0, '31-60':0, '61-90':0, '90+':0 },
+        bills: [],
+        maxDays: 0,
+        msmeInterest: 0,
+        isMsme: !!msmeFlags[b.partyName]
+      };
+    }
+    const p = partyMap[b.partyName];
+    p.total         += b.outAmt;
+    p.buckets[b.bucket] += b.outAmt;
+    p.bills.push(b);
+    p.maxDays       = Math.max(p.maxDays, b.daysOut);
+    p.msmeInterest  += b.msmeInterest;
+  });
+
+  parties = Object.values(partyMap).map(p => {
+    p.worstBucket = [...BUCKET_KEYS].reverse().find(bk => p.buckets[bk] > 0) || 'current';
+    p.share   = totalOut > 0 ? (p.total / totalOut) * 100 : 0;
+    p.concRisk = p.share > concTh;
+    p.overdue  = p.total - p.buckets['current'];
+    return p;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD RENDER
+// ═══════════════════════════════════════════════════════
+function renderDashboard() {
+  renderSummaryCards();
+  renderAgeingChart();
+  renderBucketChart();
+  renderPartyTable();
+}
+
+function renderSummaryCards() {
+  const totalOut       = parties.reduce((s,p) => s + p.total, 0);
+  const totalOverdue   = parties.reduce((s,p) => s + p.overdue, 0);
+  const msmeExp        = parties.filter(p => p.isMsme).reduce((s,p) => s + p.total, 0);
+  const msmeInterest   = parties.reduce((s,p) => s + p.msmeInterest, 0);
+  const concCount      = parties.filter(p => p.concRisk).length;
+
+  document.getElementById('summaryStrip').innerHTML = `
+    <div class="summary-card accent">
+      <div class="card-value val-accent">${inr(totalOut)}</div>
+      <div class="card-label">Total Payables</div>
+      <div class="card-sub">${parties.length} vendors · ${rawBills.length} bills</div>
+    </div>
+    <div class="summary-card red">
+      <div class="card-value val-red">${inr(totalOverdue)}</div>
+      <div class="card-label">Overdue Amount</div>
+      <div class="card-sub">${pct(totalOut ? totalOverdue/totalOut*100 : 0)} of total payables</div>
+    </div>
+    <div class="summary-card blue">
+      <div class="card-value val-blue">${inr(msmeExp)}</div>
+      <div class="card-label">MSME Exposure</div>
+      <div class="card-sub">${msmeInterest > 0 ? 'Interest liability: ' + inr(msmeInterest) : 'No MSME tags — use Manage MSME Tags'}</div>
+    </div>
+    <div class="summary-card orange">
+      <div class="card-value val-orange">${concCount}</div>
+      <div class="card-label">Concentration Risk</div>
+      <div class="card-sub">${concCount > 0 ? concCount + ' vendor(s) > ' + document.getElementById('concThreshold').value + '% share' : 'No single-vendor concentration risk'}</div>
+    </div>
+  `;
+}
+
+function renderAgeingChart() {
+  const top = [...parties].sort((a,b) => b.total - a.total).slice(0, 15);
+  const datasets = BUCKET_KEYS.map((bk, i) => ({
+    label: BUCKET_LABELS[i],
+    data: top.map(p => Math.round(p.buckets[bk])),
+    backgroundColor: BUCKET_COLORS[i],
+    borderRadius: 2,
+    borderSkipped: false
+  }));
+
+  if (ageingChart) ageingChart.destroy();
+  ageingChart = new Chart(document.getElementById('ageingChart'), {
+    type: 'bar',
+    data: {
+      labels: top.map(p => p.partyName.length > 22 ? p.partyName.slice(0,20) + '…' : p.partyName),
+      datasets
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ₹${ctx.raw.toLocaleString('en-IN')}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: '#8899aa', callback: v => '₹' + (v/100000).toFixed(0) + 'L' },
+          grid: { color: '#1f2d42' }
+        },
+        y: {
+          stacked: true,
+          ticks: { color: '#e2e8f0', font: { size: 11 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  document.getElementById('chartLegend').innerHTML = BUCKET_KEYS.map((bk, i) => {
+    const tot = parties.reduce((s, p) => s + p.buckets[bk], 0);
+    return `<div class="legend-item"><div class="legend-dot" style="background:${BUCKET_COLORS[i]};"></div><span style="color:var(--muted);">${BUCKET_LABELS[i]}:</span>&nbsp;<strong style="color:${BUCKET_COLORS[i]};">${inr(tot)}</strong></div>`;
+  }).join('');
+}
+
+function renderBucketChart() {
+  const totals = BUCKET_KEYS.map(bk => parties.reduce((s, p) => s + p.buckets[bk], 0));
+  if (bucketChart) bucketChart.destroy();
+  bucketChart = new Chart(document.getElementById('bucketChart'), {
+    type: 'doughnut',
+    data: {
+      labels: BUCKET_LABELS,
+      datasets: [{ data: totals.map(Math.round), backgroundColor: BUCKET_COLORS, borderWidth: 2, borderColor: '#111827' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#8899aa', font: { size: 10 }, padding: 8,
+            generateLabels: chart => chart.data.labels.map((l, i) => ({
+              text: `${BUCKET_LABELS[i].replace(' Days Overdue','d').replace('Current (Not Due)','Current')}: ₹${(totals[i]/100000).toFixed(1)}L`,
+              fillStyle: BUCKET_COLORS[i], strokeStyle: BUCKET_COLORS[i], lineWidth: 0, index: i, hidden: false
+            }))
+          }
+        },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ₹${ctx.raw.toLocaleString('en-IN')}` } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  PARTY TABLE
+// ═══════════════════════════════════════════════════════
+function getBucketBadge(bucket) {
+  const map = {
+    'current': `<span class="bucket-badge bucket-current">Current</span>`,
+    '0-30':    `<span class="bucket-badge bucket-030">0–30d</span>`,
+    '31-60':   `<span class="bucket-badge bucket-3160">31–60d</span>`,
+    '61-90':   `<span class="bucket-badge bucket-6190">61–90d</span>`,
+    '90+':     `<span class="bucket-badge bucket-90plus">90+ days ⚠</span>`
+  };
+  return map[bucket] || bucket;
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  ['all','overdue','msme','risk'].forEach(x => {
+    document.getElementById('fc-'+x).classList.toggle('active', x === f);
+  });
+  renderPartyTable();
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir = -sortDir; else { sortCol = col; sortDir = -1; }
+  renderPartyTable();
+}
+
+function renderPartyTable() {
+  let list = [...parties];
+  const search = (document.getElementById('partySearch').value || '').toLowerCase();
+  if (search) list = list.filter(p => p.partyName.toLowerCase().includes(search));
+  if (activeFilter === 'overdue') list = list.filter(p => p.overdue > 0);
+  if (activeFilter === 'msme')    list = list.filter(p => p.isMsme);
+  if (activeFilter === 'risk')    list = list.filter(p => p.concRisk);
+
+  list.sort((a, b) => {
+    const v = col => ({
+      party: p => p.partyName, total: p => p.total, overdue: p => p.overdue,
+      bucket: p => bucketOrder(p.worstBucket), days: p => p.maxDays,
+      interest: p => p.msmeInterest, conc: p => p.share
+    }[col]?.(col === 'party' ? a : a) ?? a.total);
+    const getV = (p, c) => ({
+      party: p.partyName, total: p.total, overdue: p.overdue,
+      bucket: bucketOrder(p.worstBucket), days: p.maxDays,
+      interest: p.msmeInterest, conc: p.share
+    }[c] ?? p.total);
+    const va = getV(a, sortCol), vb = getV(b, sortCol);
+    if (typeof va === 'string') return sortDir * va.localeCompare(vb);
+    return sortDir * (va - vb);
+  });
+
+  const tbody = document.getElementById('partyTableBody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted);">No vendors match the current filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((p, idx) => {
+    const flags = [
+      p.isMsme    ? '<span class="msme-tag">MSME</span>' : '',
+      p.concRisk  ? '<span class="risk-tag">⚠ Conc.</span>' : '',
+      p.msmeInterest > 0 ? '' : ''
+    ].filter(Boolean).join('') || '–';
+
+    return `
+      <tr class="expandable-row" onclick="toggleDrill(${idx})">
+        <td><strong>${p.partyName}</strong></td>
+        <td style="font-weight:600;">${inr(p.total)}</td>
+        <td style="color:${p.overdue > 0 ? 'var(--red)' : 'var(--green)'};">${p.overdue > 0 ? inr(p.overdue) : '–'}</td>
+        <td>${getBucketBadge(p.worstBucket)}</td>
+        <td style="color:${p.maxDays > 90 ? '#ff2050' : p.maxDays > 60 ? 'var(--red)' : p.maxDays > 30 ? 'var(--orange)' : 'var(--text)'};">${p.maxDays > 0 ? p.maxDays + 'd' : 'Not due'}</td>
+        <td style="color:var(--blue);">${p.msmeInterest > 0 ? inr(p.msmeInterest) : '–'}</td>
+        <td style="color:${p.concRisk ? 'var(--red)' : 'var(--text)'};">${pct(p.share)}</td>
+        <td>${flags}</td>
+      </tr>
+      <tr class="drill-row hidden" id="drill-${idx}">
+        <td colspan="8" style="padding:0 0.75rem 1rem;">
+          ${renderDrilldown(p)}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderDrilldown(p) {
+  return `<div style="background:var(--bg);border-radius:8px;padding:0.75rem;margin:0.5rem 0;border:1px solid var(--border);">
+    <div style="font-size:0.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin-bottom:0.6rem;">
+      Bill Detail — ${p.partyName} &nbsp;·&nbsp; ${p.bills.length} bill(s)
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:left;">Ref</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:left;">Bill Date</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:left;">Due Date</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:right;">Bill Amt</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:right;">Outstanding</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:center;">Days</th>
+        <th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:center;">Bucket</th>
+        ${p.isMsme ? '<th style="padding:0.35rem 0.6rem;color:var(--muted);font-size:0.7rem;text-transform:uppercase;font-weight:700;text-align:right;">Interest ₹</th>' : ''}
+      </tr></thead>
+      <tbody>
+        ${p.bills.map(b => `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.35rem 0.6rem;color:var(--accent);">${b.billRef || '–'}</td>
+            <td style="padding:0.35rem 0.6rem;">${b.billDate ? b.billDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '–'}</td>
+            <td style="padding:0.35rem 0.6rem;">${b.dueDate ? b.dueDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '–'}</td>
+            <td style="padding:0.35rem 0.6rem;text-align:right;">${inr(b.billAmt)}</td>
+            <td style="padding:0.35rem 0.6rem;text-align:right;font-weight:600;">${inr(b.outAmt)}</td>
+            <td style="padding:0.35rem 0.6rem;text-align:center;color:${b.daysOut > 90 ? '#ff2050' : b.daysOut > 60 ? 'var(--red)' : b.daysOut > 30 ? 'var(--orange)' : 'var(--text)'};">${b.daysOut > 0 ? b.daysOut + 'd' : 'Not due'}</td>
+            <td style="padding:0.35rem 0.6rem;text-align:center;">${getBucketBadge(b.bucket)}</td>
+            ${p.isMsme ? `<td style="padding:0.35rem 0.6rem;text-align:right;color:var(--blue);">${b.msmeInterest > 0 ? inr(b.msmeInterest) : '–'}</td>` : ''}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function toggleDrill(idx) {
+  const row = document.getElementById('drill-' + idx);
+  if (row) row.classList.toggle('hidden');
+}
+
+// ═══════════════════════════════════════════════════════
+//  MSME MODAL
+// ═══════════════════════════════════════════════════════
+function openMsmeModal() {
+  const sorted = [...parties].sort((a,b) => b.total - a.total);
+  document.getElementById('msmeTableBody').innerHTML = sorted.map(p => `
+    <tr>
+      <td><strong>${p.partyName}</strong></td>
+      <td>${inr(p.total)}</td>
+      <td>${p.maxDays > 0 ? p.maxDays + 'd' : 'Not due'}</td>
+      <td>
+        <button class="toggle-msme ${p.isMsme ? 'on' : ''}"
+          id="mt-${slugify(p.partyName)}"
+          onclick="toggleMsme('${p.partyName.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}')"
+          title="${p.isMsme ? 'MSME — click to remove' : 'Not MSME — click to mark'}"></button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('msmeModal').classList.remove('hidden');
+}
+
+function toggleMsme(partyName) {
+  msmeFlags[partyName] = !msmeFlags[partyName];
+  const btn = document.getElementById('mt-' + slugify(partyName));
+  if (btn) btn.classList.toggle('on', msmeFlags[partyName]);
+}
+
+function closeMsmeModal() { document.getElementById('msmeModal').classList.add('hidden'); }
+
+function applyMsmeSave() {
+  saveMsmeToStorage();
+  const refDate = new Date(document.getElementById('refDate').value);
+  compute(refDate);
+  renderDashboard();
+  closeMsmeModal();
+  showToast('✓ MSME tags saved & analysis recomputed');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PAYMENT PLANNER
+// ═══════════════════════════════════════════════════════
+function generatePaymentPlan() {
+  const cash = parseFloat(document.getElementById('availCash').value);
+  if (!cash || cash <= 0) { document.getElementById('plannerResults').style.display = 'none'; return; }
+
+  const mode       = document.getElementById('priorityMode').value;
+  const smallBal   = parseFloat(document.getElementById('smallBalThreshold').value) || 10000;
+
+  const scored = parties.filter(p => p.total > 0).map(p => {
+    let score = 0;
+    const reasons = [];
+    const msmeOverdue45 = p.isMsme && p.maxDays > 45;
+
+    if (msmeOverdue45) {
+      switch (mode) {
+        case 'msme-first': score += 10000; break;
+        default:           score += 1000;  break;
+      }
+      reasons.push(`MSME overdue ${p.maxDays}d (MSMD Act — legal priority)`);
+    }
+
+    switch (mode) {
+      case 'standard':
+        if (p.concRisk && !msmeOverdue45)         { score += 600; reasons.push('Concentration risk — supply disruption'); }
+        if (p.worstBucket === '90+')               { score += 500; reasons.push('90+ days overdue'); }
+        else if (p.worstBucket === '61-90')        { score += 350; reasons.push('61–90 days overdue'); }
+        else if (p.worstBucket === '31-60')        { score += 200; reasons.push('31–60 days overdue'); }
+        if (p.total <= smallBal)                   { score +=  80; reasons.push('Small balance clearance'); }
+        break;
+      case 'msme-first':
+        if (p.isMsme && !msmeOverdue45)            { score += 5000; reasons.push('MSME vendor'); }
+        if (p.maxDays > 0)                         { score += p.maxDays * 2; if (!msmeOverdue45) reasons.push(p.maxDays + 'd outstanding'); }
+        break;
+      case 'relationship':
+        if (p.worstBucket === '90+')               { score += 1000; reasons.push('90+ days — relationship at risk'); }
+        else if (p.worstBucket === '61-90')        { score +=  700; reasons.push('61–90 days — follow-up expected'); }
+        else if (p.worstBucket === '31-60')        { score +=  400; reasons.push('31–60 days overdue'); }
+        if (p.concRisk)                            { score +=  500; reasons.push('Strategic supply dependency'); }
+        if (p.total > 200000)                      { score +=  100; reasons.push('High-value vendor'); }
+        break;
+      case 'cash-clearing':
+        if (!msmeOverdue45) score = 10000 - p.total; // lowest amount first, unless MSME override
+        reasons.push('Smallest outstanding first');
+        break;
+    }
+
+    if (!reasons.length) reasons.push(p.maxDays > 0 ? p.maxDays + 'd outstanding' : 'Current');
+
+    // Payable target: overdue first, else total outstanding
+    const target = p.overdue > 0 ? p.overdue : p.total;
+    return { ...p, score, reasons, target };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  let remaining = cash;
+  const schedule = [];
+  const deferred = [];
+
+  scored.forEach(p => {
+    if (p.target <= 0) return;
+    if (remaining <= 0) { deferred.push(p); return; }
+    const pay = Math.min(p.target, remaining);
+    schedule.push({ ...p, payAmt: pay });
+    remaining -= pay;
+  });
+
+  // Render results
+  document.getElementById('plannerResults').style.display = 'block';
+  const totalPaid = schedule.reduce((s, i) => s + i.payAmt, 0);
+
+  document.getElementById('plannerSummary').innerHTML = `
+    <div class="planner-stat"><div class="planner-stat-val">${inr(cash)}</div><div class="planner-stat-lbl">Available Cash</div></div>
+    <div class="planner-stat"><div class="planner-stat-val">${inr(totalPaid)}</div><div class="planner-stat-lbl">Scheduled to Pay</div></div>
+    <div class="planner-stat"><div class="planner-stat-val">${schedule.length}</div><div class="planner-stat-lbl">Vendors Covered</div></div>
+    <div class="planner-stat"><div class="planner-stat-val">${inr(remaining)}</div><div class="planner-stat-lbl">Cash Remaining</div></div>
+    <div class="planner-stat"><div class="planner-stat-val" style="color:var(--red);">${deferred.length}</div><div class="planner-stat-lbl">Vendors Deferred</div></div>
+  `;
+
+  document.getElementById('paymentList').innerHTML = schedule.map((item, i) => `
+    <div class="payment-item">
+      <div class="payment-rank">${i + 1}</div>
+      <div class="payment-info">
+        <div class="payment-party">${item.partyName}${item.isMsme ? ' <span class="msme-tag">MSME</span>' : ''}${item.concRisk ? ' <span class="risk-tag">⚠</span>' : ''}</div>
+        <div class="payment-reason">${item.reasons.join(' · ')}</div>
+        <div style="font-size:0.76rem;color:var(--muted);margin-top:0.25rem;">Total payables: ${inr(item.total)} | Worst bucket: ${item.worstBucket === 'current' ? 'Current' : item.worstBucket + ' days'}</div>
+      </div>
+      <div class="payment-amount">
+        ${inr(item.payAmt)}
+        <small>${item.payAmt < item.target ? 'partial — ' : ''}of ${inr(item.target)} due</small>
+        ${item.msmeInterest > 0 ? `<small style="color:var(--blue);">+${inr(item.msmeInterest)} interest liability</small>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  const defMsg = deferred.length
+    ? `⚠ ${deferred.length} vendor(s) deferred due to insufficient cash: ${deferred.map(p => p.partyName).join(', ')}. Total deferred: ${inr(deferred.reduce((s,p)=>s+p.target,0))}.`
+    : '✅ All outstanding vendors covered within available cash.';
+  document.getElementById('remainingNote').textContent = defMsg;
+
+  // Advance stepper to step 4
+  document.getElementById('sc4').className = 'step-circle active';
+  document.getElementById('sl4').className = 'step-label active';
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXCEL EXPORT
+// ═══════════════════════════════════════════════════════
+function exportExcel() {
+  if (!parties.length) { showToast('No data to export', true); return; }
+  const entity  = document.getElementById('entityName').value || 'Entity';
+  const refDate = document.getElementById('refDate').value;
+
+  // Sheet 1: Party Summary
+  const s1 = [['Party Name','Total Outstanding','Current (Not Due)','0-30d Overdue','31-60d Overdue','61-90d Overdue','90+ Overdue','Max Days Overdue','Worst Bucket','Share %','MSME','Concentration Risk','MSME Interest (₹)']];
+  [...parties].sort((a,b) => b.total-a.total).forEach(p => s1.push([
+    p.partyName, p.total, p.buckets['current'], p.buckets['0-30'], p.buckets['31-60'], p.buckets['61-90'], p.buckets['90+'],
+    p.maxDays, p.worstBucket, +p.share.toFixed(2), p.isMsme?'Yes':'No', p.concRisk?'Yes':'No', +p.msmeInterest.toFixed(2)
+  ]));
+
+  // Sheet 2: Bill Detail
+  const s2 = [['Party Name','Bill Ref','Bill Date','Due Date','Bill Amount','Outstanding Amount','Days Outstanding','Ageing Bucket','MSME Interest (₹)']];
+  [...rawBills].sort((a,b) => b.daysOut-a.daysOut).forEach(b => s2.push([
+    b.partyName, b.billRef,
+    b.billDate ? b.billDate.toLocaleDateString('en-IN') : '',
+    b.dueDate  ? b.dueDate.toLocaleDateString('en-IN')  : '',
+    b.billAmt, b.outAmt, b.daysOut, b.bucket, +(b.msmeInterest||0).toFixed(2)
+  ]));
+
+  // Sheet 3: Bucket Summary
+  const totalOut = parties.reduce((s,p) => s+p.total, 0);
+  const s3 = [['Ageing Bucket','Outstanding Amount','% of Total','No. of Bills']];
+  BUCKET_KEYS.forEach((bk, i) => {
+    const amt = parties.reduce((s,p) => s+p.buckets[bk], 0);
+    const cnt = rawBills.filter(b => b.bucket === bk).length;
+    s3.push([BUCKET_LABELS[i], amt, +(totalOut ? amt/totalOut*100 : 0).toFixed(2), cnt]);
+  });
+  s3.push(['Total', totalOut, 100, rawBills.length]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1), 'Party Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), 'Bill Detail');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s3), 'Bucket Summary');
+  XLSX.writeFile(wb, `Creditor_Ageing_${entity.replace(/\s+/g,'_')}_${refDate}.xlsx`);
+  showToast('✓ Excel exported successfully');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PDF EXPORT (print to PDF)
+// ═══════════════════════════════════════════════════════
+function exportPDF() {
+  if (!parties.length) { showToast('No data to export', true); return; }
+  const entity  = document.getElementById('entityName').value || 'Entity';
+  const refDate = new Date(document.getElementById('refDate').value);
+  const refStr  = refDate.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  const totalOut  = parties.reduce((s,p) => s+p.total, 0);
+  const totalOvd  = parties.reduce((s,p) => s+p.overdue, 0);
+  const msmeExp   = parties.filter(p=>p.isMsme).reduce((s,p)=>s+p.total, 0);
+  const msmeInt   = parties.reduce((s,p)=>s+p.msmeInterest, 0);
+  const concP     = parties.filter(p=>p.concRisk);
+  const bankRate  = document.getElementById('bankRate').value;
+  const top10     = [...parties].sort((a,b)=>b.total-a.total).slice(0,10);
+  const msmeInt10 = parties.filter(p=>p.msmeInterest>0).sort((a,b)=>b.msmeInterest-a.msmeInterest);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Creditor Ageing — ${entity}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:10.5pt;color:#1a1a1a;margin:1.5cm 2cm;}
+    h1{font-size:16pt;color:#00a884;margin-bottom:3px;}
+    h2{font-size:11pt;border-bottom:2px solid #00a884;padding-bottom:3px;margin:14px 0 8px;color:#003d30;}
+    .meta{color:#555;font-size:9pt;margin-bottom:12px;}
+    .kpi-row{display:flex;gap:12px;margin-bottom:14px;}
+    .kpi{border:1px solid #ddd;border-radius:6px;padding:8px 12px;flex:1;text-align:center;}
+    .kv{font-size:14pt;font-weight:bold;color:#00a884;}
+    .kl{font-size:8pt;color:#666;text-transform:uppercase;letter-spacing:0.5px;}
+    table{width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:12px;}
+    th{background:#e8f8f5;padding:5px 7px;text-align:left;font-size:8pt;text-transform:uppercase;border-bottom:2px solid #00a884;}
+    td{padding:4px 7px;border-bottom:1px solid #eee;}
+    tr:nth-child(even) td{background:#f9f9f9;}
+    .footer{margin-top:16px;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:6px;}
+    @media print{@page{margin:1.5cm;size:A4;}body{margin:0;}}
+  </style></head><body>
+  <h1>Creditor Ageing Report</h1>
+  <div class="meta">
+    <strong>Entity:</strong> ${entity} &nbsp;|&nbsp;
+    <strong>Ageing as of:</strong> ${refStr} &nbsp;|&nbsp;
+    <strong>Generated:</strong> ${new Date().toLocaleString('en-IN')} &nbsp;|&nbsp;
+    <strong>Total Vendors:</strong> ${parties.length} &nbsp;|&nbsp;
+    <strong>Total Bills:</strong> ${rawBills.length}
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kv">₹${(totalOut/100000).toFixed(1)}L</div><div class="kl">Total Payables</div></div>
+    <div class="kpi"><div class="kv" style="color:#c0392b;">₹${(totalOvd/100000).toFixed(1)}L</div><div class="kl">Overdue</div></div>
+    <div class="kpi"><div class="kv" style="color:#2471a3;">₹${(msmeExp/100000).toFixed(1)}L</div><div class="kl">MSME Exposure</div></div>
+    <div class="kpi"><div class="kv" style="color:#e67e22;">${concP.length}</div><div class="kl">Concentration Risk</div></div>
+    ${msmeInt > 0 ? `<div class="kpi"><div class="kv" style="color:#8e44ad;">₹${Math.round(msmeInt).toLocaleString('en-IN')}</div><div class="kl">MSME Interest Liability</div></div>` : ''}
+  </div>
+
+  <h2>Ageing Bucket Summary</h2>
+  <table>
+    <tr><th>Bucket</th><th>Amount (₹)</th><th>% of Total</th><th>No. of Bills</th></tr>
+    ${BUCKET_KEYS.map((bk, i) => {
+      const amt = parties.reduce((s,p) => s+p.buckets[bk], 0);
+      const cnt = rawBills.filter(b => b.bucket === bk).length;
+      return `<tr><td>${BUCKET_LABELS[i]}</td><td>₹${Math.round(amt).toLocaleString('en-IN')}</td><td>${totalOut?(amt/totalOut*100).toFixed(1):0}%</td><td>${cnt}</td></tr>`;
+    }).join('')}
+    <tr style="font-weight:bold;"><td>Grand Total</td><td>₹${Math.round(totalOut).toLocaleString('en-IN')}</td><td>100%</td><td>${rawBills.length}</td></tr>
+  </table>
+
+  ${msmeInt > 0 ? `
+  <h2>MSME Interest Liability (MSMED Act — Bank Rate ${bankRate}% + 3% p.a. on overdue > 45 days)</h2>
+  <table>
+    <tr><th>Party Name</th><th>MSME Outstanding</th><th>Max Days Overdue</th><th>Interest Liability (₹)</th></tr>
+    ${msmeInt10.map(p => `<tr><td>${p.partyName}</td><td>₹${Math.round(p.total).toLocaleString('en-IN')}</td><td>${p.maxDays}d</td><td style="color:#8e44ad;font-weight:bold;">₹${Math.round(p.msmeInterest).toLocaleString('en-IN')}</td></tr>`).join('')}
+    <tr style="font-weight:bold;"><td colspan="3">Total MSME Interest Liability</td><td style="color:#8e44ad;">₹${Math.round(msmeInt).toLocaleString('en-IN')}</td></tr>
+  </table>
+  ` : ''}
+
+  <h2>Top 10 Vendors by Outstanding</h2>
+  <table>
+    <tr><th>Party</th><th>Total (₹)</th><th>Overdue (₹)</th><th>Worst Bucket</th><th>Max Days</th><th>Share %</th><th>Flags</th></tr>
+    ${top10.map(p => `<tr>
+      <td>${p.partyName}</td>
+      <td>₹${Math.round(p.total).toLocaleString('en-IN')}</td>
+      <td style="color:${p.overdue>0?'#c0392b':'#27ae60'};">₹${Math.round(p.overdue).toLocaleString('en-IN')}</td>
+      <td>${p.worstBucket==='current'?'Current':p.worstBucket+' days'}</td>
+      <td>${p.maxDays>0?p.maxDays+'d':'Not due'}</td>
+      <td>${p.share.toFixed(1)}%</td>
+      <td>${[p.isMsme?'MSME':'',p.concRisk?'⚠ Conc.':''].filter(Boolean).join(', ')||'–'}</td>
+    </tr>`).join('')}
+  </table>
+
+  ${concP.length > 0 ? `
+  <h2>Concentration Risk — Vendors > ${document.getElementById('concThreshold').value}% of Total Payables</h2>
+  <table>
+    <tr><th>Party</th><th>Outstanding (₹)</th><th>Share %</th><th>Worst Bucket</th></tr>
+    ${concP.sort((a,b)=>b.share-a.share).map(p => `<tr><td>${p.partyName}</td><td>₹${Math.round(p.total).toLocaleString('en-IN')}</td><td style="font-weight:bold;color:#e67e22;">${p.share.toFixed(1)}%</td><td>${p.worstBucket}</td></tr>`).join('')}
+  </table>
+  ` : ''}
+
+  <div class="footer">
+    Credlance Creditor Ageing Planner — Decisions should consider vendor relationships and contract terms beyond automated prioritisation.<br>
+    MSMD Act interest is indicative at (Bank Rate + 3%) p.a.; actual liability may vary — consult your CA. This report is for management information only.
+  </div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Popup blocked — please allow popups', true); return; }
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════════
+function resetApp() {
+  rawBills = []; parties = []; msmeFlags = {};
+  if (ageingChart) { ageingChart.destroy(); ageingChart = null; }
+  if (bucketChart) { bucketChart.destroy(); bucketChart = null; }
+  hide('step2Section'); hide('step3Section'); hide('processingSection');
+  show('step1Section');
+  document.getElementById('fileInput').value = '';
+  document.getElementById('plannerResults').style.display = 'none';
+  setStep(1);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOM HELPERS
+// ═══════════════════════════════════════════════════════
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── INIT ──
+document.getElementById('refDate').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
