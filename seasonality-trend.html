@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seasonality &amp; Trend Analyser | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --red-bg: rgba(255,76,106,0.1);
+      --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px;
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge {
+      background: var(--surface2); color: var(--accent);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 3.5rem 2rem 2.5rem;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 580px; margin: 0 auto; }
+
+    /* ── UPLOAD SECTION ── */
+    .upload-section { max-width: 860px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+
+    .upload-modules {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    @media (max-width: 700px) { .upload-modules { grid-template-columns: 1fr; } }
+
+    .upload-module {
+      border: 2px dashed var(--border);
+      border-radius: 14px; padding: 1.5rem 1rem;
+      text-align: center; cursor: pointer;
+      transition: all 0.25s; background: var(--surface); position: relative;
+    }
+    .upload-module:hover, .upload-module.drag-over {
+      border-color: var(--accent); background: rgba(0,212,170,0.04);
+    }
+    .upload-module.has-file { border-color: var(--green); border-style: solid; }
+    .upload-module.has-file .module-icon { filter: none; }
+    .module-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .module-label {
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 0.3rem; color: var(--text);
+    }
+    .module-tag {
+      font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; margin-bottom: 0.6rem;
+      display: inline-block;
+    }
+    .tag-mandatory { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.25); }
+    .tag-optional  { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.25); }
+    .module-desc { color: var(--muted); font-size: 0.78rem; line-height: 1.4; margin-bottom: 0.75rem; }
+    .module-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      font-size: 0.78rem; padding: 0.35rem 0.9rem; border-radius: 6px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .module-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .file-chosen {
+      display: none; font-size: 0.75rem; color: var(--green);
+      margin-top: 0.4rem; font-weight: 600;
+    }
+    .upload-module.has-file .file-chosen { display: block; }
+    .upload-module.has-file .module-btn { border-color: var(--green); color: var(--green); }
+
+    .analyze-row {
+      display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;
+    }
+    .btn-analyze {
+      background: var(--accent); color: #0b0f1a;
+      font-weight: 700; font-size: 1rem;
+      padding: 0.75rem 2rem; border-radius: 10px;
+      border: none; cursor: pointer; letter-spacing: 0.03em;
+      transition: all 0.2s;
+    }
+    .btn-analyze:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .format-hint {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem 1.5rem; margin-top: 1.25rem; text-align: left;
+    }
+    .format-hint h4 { font-size: 0.82rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.7rem; }
+    .format-hint ul { color: var(--muted); font-size: 0.84rem; list-style: disc; padding-left: 1.2rem; }
+    .format-hint li { margin-bottom: 0.3rem; }
+
+    /* ── PROCESSING ── */
+    #processingSection { display: none; text-align: center; padding: 4rem 2rem; }
+    .spinner {
+      width: 48px; height: 48px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-steps { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+    #processingMsg { color: var(--text); font-size: 1.05rem; }
+
+    /* ── RESULTS ── */
+    #resultsSection { display: none; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 5rem; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+      padding: 0.5rem 1.1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary-sm {
+      background: var(--accent); color: #0b0f1a; border: none;
+      padding: 0.5rem 1.1rem; border-radius: 8px; cursor: pointer;
+      font-weight: 600; font-size: 0.85rem;
+    }
+    .btn-primary-sm:hover { background: var(--accent2); }
+
+    /* ── FILE INFO BAR ── */
+    .file-info-bar {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 1.25rem;
+      display: flex; align-items: center; gap: 1.5rem;
+      flex-wrap: wrap; margin-bottom: 1.5rem; font-size: 0.85rem;
+    }
+    .fi-item { display: flex; align-items: center; gap: 0.4rem; }
+    .fi-label { color: var(--muted); }
+    .fi-value { font-weight: 600; color: var(--text); }
+    .fi-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    /* ── SUMMARY STRIP ── */
+    .summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .sum-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem;
+    }
+    .sum-value { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .sum-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .sum-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-top: 0.4rem; }
+    .color-accent { color: var(--accent); }
+    .color-green { color: var(--green); }
+    .color-red { color: var(--red); }
+    .color-yellow { color: var(--yellow); }
+    .color-orange { color: var(--orange); }
+    .color-blue { color: var(--blue); }
+
+    /* ── COMMENTARY ── */
+    .commentary-box {
+      background: var(--surface2); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+      border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .commentary-title { font-size: 0.72rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 0.6rem; }
+    .commentary-text { font-size: 0.925rem; color: var(--text); line-height: 1.75; }
+    .commentary-text strong { color: var(--accent); font-weight: 700; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem; overflow-x: auto;
+    }
+    .tab-btn {
+      background: none; border: none; color: var(--muted); font-size: 0.88rem;
+      padding: 0.7rem 1.2rem; cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all 0.2s; white-space: nowrap; font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── CHART CONTAINERS ── */
+    .chart-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .chart-title { font-size: 1rem; font-weight: 700; }
+    .chart-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+    .chart-canvas-wrap { position: relative; height: 320px; }
+    .chart-canvas-wrap canvas { max-height: 320px; }
+
+    /* ── TOGGLE BUTTONS ── */
+    .metric-toggle { display: flex; gap: 0.4rem; }
+    .mtgl-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.75rem; padding: 0.3rem 0.7rem;
+      border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit;
+    }
+    .mtgl-btn.active { background: var(--accent); color: #0b0f1a; border-color: var(--accent); font-weight: 600; }
+
+    /* ── HEATMAP ── */
+    .heatmap-wrap { overflow-x: auto; }
+    .heatmap-table { border-collapse: collapse; width: 100%; min-width: 640px; }
+    .heatmap-table th {
+      font-size: 0.72rem; color: var(--muted); font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 0.5rem 0.4rem; text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .heatmap-table th.row-header { text-align: left; padding-left: 0.75rem; }
+    .heatmap-table td {
+      padding: 0.4rem; text-align: center; font-size: 0.75rem;
+      border: 1px solid rgba(31,45,66,0.5);
+    }
+    .heatmap-table td.year-label {
+      text-align: left; padding-left: 0.75rem; color: var(--muted);
+      font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+      background: var(--surface2); border-color: var(--border);
+    }
+    .hm-cell {
+      border-radius: 5px; padding: 0.35rem 0.25rem;
+      font-size: 0.68rem; font-weight: 600; min-width: 56px;
+      line-height: 1.3;
+    }
+    .hm-cell .hm-val { display: block; }
+    .hm-cell .hm-idx { display: block; font-size: 0.6rem; opacity: 0.8; margin-top: 1px; }
+
+    .heatmap-legend {
+      display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .legend-bar {
+      height: 10px; width: 150px; border-radius: 5px;
+      background: linear-gradient(to right, rgba(0,212,170,0.1), rgba(0,212,170,0.9));
+    }
+
+    /* ── FORECAST TABLE ── */
+    .forecast-table-wrap { overflow-x: auto; }
+    .forecast-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+    .forecast-table th {
+      font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 0.6rem 0.9rem; text-align: right;
+      border-bottom: 1px solid var(--border); background: var(--surface2);
+    }
+    .forecast-table th:first-child { text-align: left; }
+    .forecast-table td {
+      padding: 0.55rem 0.9rem; font-size: 0.85rem;
+      border-bottom: 1px solid rgba(31,45,66,0.5); text-align: right;
+    }
+    .forecast-table td:first-child { text-align: left; color: var(--text); font-weight: 600; }
+    .forecast-table tbody tr:hover td { background: rgba(0,212,170,0.03); }
+    .peak-row td:first-child { color: var(--green); }
+    .trough-row td:first-child { color: var(--red); }
+    .forecast-table tfoot td {
+      background: var(--surface2); font-weight: 700; border-top: 1px solid var(--border);
+    }
+
+    /* ── SEASONALITY GRID ── */
+    .season-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
+    @media (max-width: 640px) { .season-grid { grid-template-columns: repeat(3, 1fr); } }
+    .season-tile {
+      border-radius: 10px; padding: 0.8rem 0.6rem; text-align: center;
+      border: 1px solid transparent;
+    }
+    .season-tile .st-month { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .season-tile .st-idx { font-size: 1.4rem; font-weight: 800; margin: 0.2rem 0; }
+    .season-tile .st-tag { font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+    .season-tile.peak { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.25); }
+    .season-tile.peak .st-idx { color: var(--green); }
+    .season-tile.peak .st-tag { background: rgba(34,197,94,0.15); color: var(--green); }
+    .season-tile.normal { background: var(--surface2); border-color: var(--border); }
+    .season-tile.normal .st-idx { color: var(--text); }
+    .season-tile.normal .st-tag { background: rgba(255,255,255,0.06); color: var(--muted); }
+    .season-tile.trough { background: rgba(255,76,106,0.08); border-color: rgba(255,76,106,0.2); }
+    .season-tile.trough .st-idx { color: var(--red); }
+    .season-tile.trough .st-tag { background: rgba(255,76,106,0.12); color: var(--red); }
+
+    /* ── RELIABILITY SCORE ── */
+    .reliability-bar-wrap { margin-top: 1rem; }
+    .reliability-bar {
+      height: 8px; border-radius: 4px; background: var(--border);
+      overflow: hidden; margin-top: 0.4rem;
+    }
+    .reliability-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+
+    /* ── YOY FLAGS ── */
+    .yoy-flags { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+    .yoy-flag-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.6rem 1rem;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; font-size: 0.83rem;
+    }
+    .yoy-flag-item.positive { border-left: 3px solid var(--green); }
+    .yoy-flag-item.negative { border-left: 3px solid var(--red); }
+    .yoy-month { font-weight: 600; min-width: 80px; }
+    .yoy-pct { font-weight: 800; }
+    .yoy-detail { color: var(--muted); font-size: 0.78rem; }
+
+    /* ── SCOPE FOOTER ── */
+    .scope-footer {
+      max-width: 1100px; margin: 2rem auto 0;
+      padding: 1rem 1.5rem 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.75rem; line-height: 1.6;
+      text-align: center;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--accent); color: #0b0f1a;
+      padding: 0.8rem 1.4rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+      transform: translateY(100px); opacity: 0; transition: all 0.35s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="index.html" class="nav-logo">Cred<span>lance</span></a>
+  <span class="nav-badge">SEASONALITY &amp; TREND</span>
+  <a href="index.html" class="nav-back">← Back to Apps</a>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <h1>Seasonality &amp; <span>Trend</span> Analyser</h1>
+  <p>Upload 24–36 months of Tally register exports. Get seasonality indices, de-seasonalised trend, YoY comparisons, a reliability score, and a 12-month forward cash projection.</p>
+</div>
+
+<!-- ── UPLOAD SECTION ── -->
+<div class="upload-section" id="uploadSection">
+  <div class="upload-modules">
+
+    <!-- Sales Register -->
+    <div class="upload-module" id="mod-sales" onclick="triggerUpload('sales')">
+      <div class="module-icon">📈</div>
+      <div class="module-label">Sales Register</div>
+      <div><span class="module-tag tag-mandatory">Mandatory</span></div>
+      <div class="module-desc">Tally → Sales Register → Alt+N Monthly → Alt+E Excel<br>Columns: Month, Gross Sales Value</div>
+      <button class="module-btn" onclick="event.stopPropagation(); triggerUpload('sales')">Choose File (.xlsx)</button>
+      <input type="file" id="file-sales" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(this, 'sales')" />
+      <div class="file-chosen" id="name-sales">✓ File loaded</div>
+    </div>
+
+    <!-- Purchase Register -->
+    <div class="upload-module" id="mod-purchase" onclick="triggerUpload('purchase')">
+      <div class="module-icon">📦</div>
+      <div class="module-label">Purchase Register</div>
+      <div><span class="module-tag tag-mandatory">Mandatory</span></div>
+      <div class="module-desc">Tally → Purchase Register → Alt+N Monthly → Alt+E Excel<br>Columns: Month, Purchase Value</div>
+      <button class="module-btn" onclick="event.stopPropagation(); triggerUpload('purchase')">Choose File (.xlsx)</button>
+      <input type="file" id="file-purchase" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(this, 'purchase')" />
+      <div class="file-chosen" id="name-purchase">✓ File loaded</div>
+    </div>
+
+    <!-- Stock Movement (Optional) -->
+    <div class="upload-module" id="mod-stock" onclick="triggerUpload('stock')">
+      <div class="module-icon">🔄</div>
+      <div class="module-label">Stock Movement</div>
+      <div><span class="module-tag tag-optional">Optional</span></div>
+      <div class="module-desc">For precise COGS via actual consumption. Tally → Inventory Books → Stock Item → Alt+N Monthly</div>
+      <button class="module-btn" onclick="event.stopPropagation(); triggerUpload('stock')">Choose File (.xlsx)</button>
+      <input type="file" id="file-stock" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(this, 'stock')" />
+      <div class="file-chosen" id="name-stock">✓ File loaded</div>
+    </div>
+  </div>
+
+  <div class="analyze-row">
+    <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()" disabled>
+      🔍 Run Seasonality Analysis
+    </button>
+  </div>
+
+  <div class="format-hint">
+    <h4>Expected Format — Tally Monthly Export</h4>
+    <ul>
+      <li>Export via: Gateway → Display → Accounts Books → Sales/Purchase Register → F2 [set 24–36 month range] → Alt+N Monthly → Alt+E Excel</li>
+      <li>Column A: Month name (e.g. "April 2023", "Apr-23", "1-Apr-23")</li>
+      <li>Column B: Value (may include commas — automatically handled)</li>
+      <li>Header rows (company name, report title) are auto-skipped</li>
+      <li>Grand Total rows at the bottom are auto-excluded</li>
+      <li>Indian FY (April–March) supported natively · Values in INR</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── PROCESSING ── -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Reading registers…</div>
+  <div class="processing-steps">Computing seasonality indices, de-seasonalising trend, and building projections</div>
+</div>
+
+<!-- ── RESULTS ── -->
+<div id="resultsSection">
+  <div class="results-header">
+    <div>
+      <h2>Seasonality &amp; Trend Report</h2>
+      <div id="resultsMeta" style="color:var(--muted);font-size:0.85rem;margin-top:0.2rem;"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="resetApp()">↑ New Analysis</button>
+      <button class="btn-outline" onclick="exportPDF()">🖨 Export PDF</button>
+      <button class="btn-primary-sm" onclick="exportExcel()">📥 Export Excel</button>
+    </div>
+  </div>
+
+  <div class="file-info-bar" id="fileInfoBar"></div>
+
+  <div class="summary-strip">
+    <div class="sum-card">
+      <div class="sum-value color-accent" id="kpiPeak">—</div>
+      <div class="sum-sub" id="kpiPeakSub">index</div>
+      <div class="sum-label">📈 Peak Month (Revenue)</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-value color-red" id="kpiTrough">—</div>
+      <div class="sum-sub" id="kpiTroughSub">index</div>
+      <div class="sum-label">📉 Trough Month (Revenue)</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-value" id="kpiGrowth">—</div>
+      <div class="sum-sub">per year (de-seasonalised)</div>
+      <div class="sum-label">📊 Underlying Growth</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-value color-blue" id="kpiReliability">—</div>
+      <div class="sum-sub" id="kpiReliabilitySub">score</div>
+      <div class="sum-label">🎯 Seasonality Reliability</div>
+    </div>
+  </div>
+
+  <!-- Commentary -->
+  <div class="commentary-box">
+    <div class="commentary-title">📝 Auto-Generated Commentary</div>
+    <div class="commentary-text" id="commentaryText">—</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('heatmap', this)">🗺 Heatmap</button>
+    <button class="tab-btn" onclick="switchTab('seasonality', this)">📊 Seasonality Index</button>
+    <button class="tab-btn" onclick="switchTab('trend', this)">📈 Trend</button>
+    <button class="tab-btn" onclick="switchTab('yoy', this)">↕ YoY Change</button>
+    <button class="tab-btn" onclick="switchTab('forecast', this)">🔮 12-Month Forecast</button>
+  </div>
+
+  <!-- TAB: Heatmap -->
+  <div class="tab-panel active" id="tab-heatmap">
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Revenue Heatmap</div>
+          <div class="chart-subtitle">Colour intensity = revenue magnitude. Instant visual of which month–year combinations drove revenue.</div>
+        </div>
+        <div class="metric-toggle" id="hmToggle">
+          <button class="mtgl-btn active" onclick="switchHeatmap('revenue', this)">Revenue</button>
+          <button class="mtgl-btn" onclick="switchHeatmap('cogs', this)">COGS</button>
+          <button class="mtgl-btn" onclick="switchHeatmap('contribution', this)">Contribution</button>
+        </div>
+      </div>
+      <div class="heatmap-wrap">
+        <table class="heatmap-table" id="heatmapTable"></table>
+      </div>
+      <div class="heatmap-legend">
+        <span>Low</span>
+        <div class="legend-bar"></div>
+        <span>High</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Seasonality Index -->
+  <div class="tab-panel" id="tab-seasonality">
+    <div class="two-col" style="margin-bottom:1rem;">
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Monthly Seasonality Indices</div>
+            <div class="chart-subtitle">Value &gt; 1.15 = Peak &nbsp;|&nbsp; 0.85–1.15 = Normal &nbsp;|&nbsp; &lt; 0.85 = Trough</div>
+          </div>
+          <div class="metric-toggle">
+            <button class="mtgl-btn active" onclick="switchSeasonChart('revenue', this)">Revenue</button>
+            <button class="mtgl-btn" onclick="switchSeasonChart('cogs', this)">COGS</button>
+            <button class="mtgl-btn" onclick="switchSeasonChart('contribution', this)">Contribution</button>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap"><canvas id="seasonChart"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title" style="margin-bottom:0.75rem;">Seasonality Index Grid</div>
+        <div class="season-grid" id="seasonGrid"></div>
+        <div class="reliability-bar-wrap">
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;">
+            <span style="color:var(--muted);">Reliability Score</span>
+            <span style="font-weight:700;color:var(--blue)" id="relScore">—</span>
+          </div>
+          <div class="reliability-bar">
+            <div class="reliability-fill" id="relFill" style="width:0%;background:var(--blue)"></div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:0.4rem;" id="relLabel"></div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="font-size:0.83rem;color:var(--muted);">
+      ✅ Validation: Seasonality indices sum to <strong id="seasonSum" style="color:var(--text)">—</strong> (must equal 12 for mathematical integrity)
+    </div>
+  </div>
+
+  <!-- TAB: Trend -->
+  <div class="tab-panel" id="tab-trend">
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Trend Analysis — Actual vs De-seasonalised</div>
+          <div class="chart-subtitle">Solid line = actual &nbsp;|&nbsp; Dashed line = de-seasonalised &nbsp;|&nbsp; Dotted line = linear trend</div>
+        </div>
+        <div class="metric-toggle">
+          <button class="mtgl-btn active" onclick="switchTrendChart('revenue', this)">Revenue</button>
+          <button class="mtgl-btn" onclick="switchTrendChart('cogs', this)">COGS</button>
+          <button class="mtgl-btn" onclick="switchTrendChart('contribution', this)">Contribution</button>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:380px;"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="two-col">
+      <div class="chart-wrap">
+        <div class="chart-title" style="margin-bottom:0.5rem;">Revenue Trend Stats</div>
+        <div id="trendStatsRevenue" style="font-size:0.85rem;"></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title" style="margin-bottom:0.5rem;">Rolling 12-Month Revenue</div>
+        <div class="chart-canvas-wrap" style="height:180px;"><canvas id="rollingChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: YoY -->
+  <div class="tab-panel" id="tab-yoy">
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Year-on-Year Monthly Change</div>
+          <div class="chart-subtitle">Same month vs same month one year prior. Bars beyond ±20% are flagged as significant deviations.</div>
+        </div>
+        <div class="metric-toggle">
+          <button class="mtgl-btn active" onclick="switchYoYChart('revenue', this)">Revenue</button>
+          <button class="mtgl-btn" onclick="switchYoYChart('cogs', this)">COGS</button>
+          <button class="mtgl-btn" onclick="switchYoYChart('contribution', this)">Contribution</button>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:320px;"><canvas id="yoyChart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title" style="margin-bottom:0.75rem;">Significant Deviations (|YoY| &gt; 20%)</div>
+      <div id="yoyFlags" class="yoy-flags"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Forecast -->
+  <div class="tab-panel" id="tab-forecast">
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">12-Month Forward Projection</div>
+          <div class="chart-subtitle">Projected values = linear trend × seasonality index. Cash planning insights for RM purchases.</div>
+        </div>
+      </div>
+      <div class="forecast-table-wrap">
+        <table class="forecast-table" id="forecastTable">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Seasonality Index</th>
+              <th>Projected Revenue</th>
+              <th>Projected COGS</th>
+              <th>Projected Contribution</th>
+              <th>Margin %</th>
+            </tr>
+          </thead>
+          <tbody id="forecastBody"></tbody>
+          <tfoot id="forecastFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title" style="margin-bottom:0.5rem;">Forward Projection Chart</div>
+      <div class="chart-canvas-wrap" style="height:280px;"><canvas id="forecastChart"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /resultsSection -->
+
+<!-- ── SCOPE FOOTER ── -->
+<div class="scope-footer">
+  <strong>Scope &amp; Limitations:</strong> Seasonality analysis assumes past patterns will continue. Business cycles, new product launches, pricing changes, and market shifts may alter seasonality going forward. The trend line is a simple linear fit; actual growth may be non-linear. Use this analysis as one input, not the sole basis for business decisions. Values in INR. Indian Financial Year (April–March) assumed.
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   CREDLANCE — SEASONALITY & TREND ANALYSER
+   Version 1.0 | India Standard | April–March FY
+   ══════════════════════════════════════════════════════════════════ */
+
+// ── Global State ──────────────────────────────────────────────────
+const FILES = { sales: null, purchase: null, stock: null };
+let RESULT = null;
+let CHARTS = {};
+
+const FY_MONTHS = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+// FY position 0=Apr...8=Dec, 9=Jan, 10=Feb, 11=Mar
+// Calendar month: Apr=4, May=5...Dec=12, Jan=1, Feb=2, Mar=3
+
+// ── Upload Handlers ───────────────────────────────────────────────
+function triggerUpload(type) {
+  document.getElementById('file-' + type).click();
+}
+
+function handleFileSelect(input, type) {
+  if (!input.files[0]) return;
+  FILES[type] = input.files[0];
+  const mod = document.getElementById('mod-' + type);
+  mod.classList.add('has-file');
+  document.getElementById('name-' + type).textContent = '✓ ' + input.files[0].name;
+  updateAnalyzeBtn();
+}
+
+function updateAnalyzeBtn() {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = !(FILES.sales && FILES.purchase);
+}
+
+// Drag & drop
+['sales','purchase','stock'].forEach(type => {
+  const zone = document.getElementById('mod-' + type);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    FILES[type] = file;
+    zone.classList.add('has-file');
+    document.getElementById('name-' + type).textContent = '✓ ' + file.name;
+    updateAnalyzeBtn();
+  });
+});
+
+// ── Date Parsing ──────────────────────────────────────────────────
+const MONTH_MAP = {
+  january:1,jan:1,february:2,feb:2,march:3,mar:3,
+  april:4,apr:4,may:5,june:6,jun:6,july:7,jul:7,
+  august:8,aug:8,september:9,sep:9,sept:9,
+  october:10,oct:10,november:11,nov:11,december:12,dec:12
+};
+
+function parseMonthStr(val) {
+  if (val === null || val === undefined) return null;
+  // Handle Excel serial date numbers
+  if (typeof val === 'number') {
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    if (!isNaN(d)) return { year: d.getFullYear(), calMonth: d.getMonth() + 1 };
+    return null;
+  }
+  const s = String(val).trim();
+  if (!s || s.length < 3) return null;
+
+  let m;
+
+  // "April 2023" | "Apr 2023"
+  m = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (m) { const cm = MONTH_MAP[m[1].toLowerCase()]; if (cm) return {year: +m[2], calMonth: cm}; }
+
+  // "Apr-23" | "Apr-2023"
+  m = s.match(/^([A-Za-z]{3,})-(\d{2,4})$/);
+  if (m) { const cm = MONTH_MAP[m[1].toLowerCase()]; let y = +m[2]; if (y<100) y+=2000; if (cm) return {year: y, calMonth: cm}; }
+
+  // "1-Apr-23" | "01-Apr-2023"
+  m = s.match(/^\d{1,2}[\/\-]([A-Za-z]{3,})[\/\-](\d{2,4})/);
+  if (m) { const cm = MONTH_MAP[m[1].toLowerCase()]; let y = +m[2]; if (y<100) y+=2000; if (cm) return {year: y, calMonth: cm}; }
+
+  // "2023-04" | "2023/04"
+  m = s.match(/^(\d{4})[\/\-](\d{1,2})$/);
+  if (m) { return {year: +m[1], calMonth: +m[2]}; }
+
+  // "04/2023"
+  m = s.match(/^(\d{1,2})\/(\d{4})$/);
+  if (m) { return {year: +m[2], calMonth: +m[1]}; }
+
+  // Just month name "April"
+  m = s.match(/^([A-Za-z]+)$/);
+  if (m) { const cm = MONTH_MAP[m[1].toLowerCase()]; if (cm) return {year: null, calMonth: cm}; }
+
+  return null;
+}
+
+function parseValue(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v;
+  const cleaned = String(v).replace(/[₹,\s]/g, '').trim();
+  if (cleaned === '' || cleaned === '-' || cleaned.toLowerCase() === 'total' || cleaned.toLowerCase() === 'grand total') return null;
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+function isSkipRow(row) {
+  if (!row || row.length === 0) return true;
+  const s = String(row[0]).toLowerCase().trim();
+  if (s === '' || s === 'total' || s === 'grand total' || s === 'months' || s === 'month' || s === 'date' || s === 'period') return true;
+  return false;
+}
+
+// ── Excel Parsing ─────────────────────────────────────────────────
+function parseExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        resolve(raw);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function extractMonthlyData(rows) {
+  // Find best month column and value column
+  // Strategy: find first row where col[x] parses as a month with a year
+  const data = [];
+  let monthCol = -1, valueCol = -1;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 2) continue;
+    if (isSkipRow(row)) continue;
+
+    for (let c = 0; c < row.length; c++) {
+      const parsed = parseMonthStr(row[c]);
+      if (parsed && parsed.year) {
+        // Found month column — look for value in same row
+        for (let c2 = 0; c2 < row.length; c2++) {
+          if (c2 === c) continue;
+          const v = parseValue(row[c2]);
+          if (v !== null && v >= 0) {
+            monthCol = c; valueCol = c2;
+            break;
+          }
+        }
+        if (monthCol >= 0) break;
+      }
+    }
+    if (monthCol >= 0) break;
+  }
+
+  if (monthCol < 0) {
+    // Fallback: use col 0 as month, col 1 as value and try to infer years
+    monthCol = 0; valueCol = 1;
+  }
+
+  // Extract data rows
+  let lastYear = null;
+  let lastCalMonth = null;
+
+  for (const row of rows) {
+    if (!row || row.length <= Math.max(monthCol, valueCol)) continue;
+    if (isSkipRow(row)) continue;
+
+    const parsed = parseMonthStr(row[monthCol]);
+    if (!parsed) continue;
+
+    let { year, calMonth } = parsed;
+    if (!calMonth) continue;
+
+    // Infer year if missing
+    if (!year) {
+      if (lastYear === null) {
+        year = new Date().getFullYear() - 2; // fallback
+      } else {
+        // If calMonth <= lastCalMonth (wrapped around), increment year
+        if (calMonth < lastCalMonth && lastCalMonth - calMonth > 6) {
+          year = lastYear + 1;
+        } else if (calMonth < lastCalMonth && calMonth <= 3 && lastCalMonth >= 10) {
+          year = lastYear + 1;
+        } else {
+          year = lastYear;
+        }
+      }
+    }
+
+    const v = parseValue(row[valueCol]);
+    if (v === null) continue;
+
+    // Skip total rows (value column might be a sum)
+    const monthStr = String(row[monthCol]).toLowerCase();
+    if (monthStr.includes('total') || monthStr.includes('grand')) continue;
+
+    data.push({ year, calMonth, value: Math.abs(v) });
+    lastYear = year; lastCalMonth = calMonth;
+  }
+
+  // Deduplicate: keep last entry for each month
+  const seen = new Map();
+  for (const d of data) {
+    const key = `${d.year}-${d.calMonth}`;
+    seen.set(key, d);
+  }
+
+  return Array.from(seen.values()).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.calMonth - b.calMonth;
+  });
+}
+
+// ── FY Utility ────────────────────────────────────────────────────
+function fyPosition(calMonth) {
+  // Apr=0, May=1...Mar=11
+  return calMonth >= 4 ? calMonth - 4 : calMonth + 8;
+}
+function fyYear(calMonth, year) {
+  return calMonth >= 4 ? year : year - 1;
+}
+function calMonthName(calMonth) {
+  const names = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+  return names[calMonth] || '?';
+}
+function shortMonthName(calMonth) {
+  return FY_MONTHS[fyPosition(calMonth)] || '?';
+}
+function addMonths(year, calMonth, n) {
+  let total = (year * 12 + calMonth - 1) + n;
+  return { year: Math.floor(total / 12), calMonth: (total % 12) + 1 };
+}
+
+// ── INR Formatting ────────────────────────────────────────────────
+function fmtINR(v, brief = true) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  const sign = v < 0 ? '-' : '';
+  const abs = Math.abs(v);
+  if (brief) {
+    if (abs >= 1e7) return sign + '₹' + (abs / 1e7).toFixed(2) + 'Cr';
+    if (abs >= 1e5) return sign + '₹' + (abs / 1e5).toFixed(2) + 'L';
+    if (abs >= 1e3) return sign + '₹' + (abs / 1e3).toFixed(1) + 'K';
+    return sign + '₹' + abs.toFixed(0);
+  }
+  return sign + '₹' + abs.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+}
+function fmtPct(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+}
+function fmtIdx(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return v.toFixed(2);
+}
+
+// ── Linear Regression ─────────────────────────────────────────────
+function linearRegression(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return { slope: 0, intercept: ys[0] || 0 };
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = ys.reduce((a, b) => a + b, 0);
+  const sumXY = xs.reduce((a, b, i) => a + b * ys[i], 0);
+  const sumX2 = xs.reduce((a, b) => a + b * b, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (denom === 0) return { slope: 0, intercept: sumY / n };
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
+// ── Seasonality Computation ───────────────────────────────────────
+function computeSeasonality(data, field) {
+  // Group by calendar month
+  const byMonth = {};
+  for (const d of data) {
+    if (!byMonth[d.calMonth]) byMonth[d.calMonth] = [];
+    byMonth[d.calMonth].push(d[field] || 0);
+  }
+
+  // Average per calendar month
+  const monthAvgs = {};
+  for (const [cm, vals] of Object.entries(byMonth)) {
+    monthAvgs[+cm] = vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  // Overall average (mean of 12 monthly averages)
+  const allMonths = Object.keys(monthAvgs).map(Number);
+  const overall = allMonths.reduce((a, cm) => a + monthAvgs[cm], 0) / allMonths.length;
+
+  // Indices
+  const indices = {};
+  for (const cm of allMonths) {
+    indices[cm] = overall > 0 ? monthAvgs[cm] / overall : 1;
+  }
+  const sum = Object.values(indices).reduce((a, b) => a + b, 0);
+
+  return { indices, sum, overall, monthAvgs };
+}
+
+// ── Trend Computation ─────────────────────────────────────────────
+function computeTrend(data, field, indices) {
+  const xs = data.map((_, i) => i + 1);
+  const ys = data.map(d => (indices[d.calMonth] || 1) > 0 ? (d[field] || 0) / (indices[d.calMonth] || 1) : 0);
+  const { slope, intercept } = linearRegression(xs, ys);
+  const avgY = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const growthMonthly = avgY > 0 ? slope / avgY : 0;
+  const growthAnnual = (Math.pow(1 + growthMonthly, 12) - 1) * 100;
+  const trendLine = xs.map(x => slope * x + intercept);
+  return { slope, intercept, growthMonthly, growthAnnual, trendLine, deseasoned: ys };
+}
+
+// ── YoY Computation ───────────────────────────────────────────────
+function computeYoY(data, field) {
+  const result = [];
+  for (const d of data) {
+    const prev = data.find(p => p.calMonth === d.calMonth && p.year === d.year - 1);
+    if (!prev) continue;
+    const curr = d[field] || 0;
+    const prv = prev[field] || 0;
+    const change = prv > 0 ? ((curr - prv) / prv) * 100 : null;
+    result.push({
+      year: d.year, calMonth: d.calMonth, current: curr, previous: prv,
+      yoyChange: change, isSignificant: change !== null && Math.abs(change) > 20
+    });
+  }
+  return result;
+}
+
+// ── Cycle Detection ───────────────────────────────────────────────
+function computeCycles(data, field) {
+  const byFY = {};
+  for (const d of data) {
+    const fy = fyYear(d.calMonth, d.year);
+    if (!byFY[fy]) byFY[fy] = [];
+    byFY[fy].push(d);
+  }
+
+  const peakMonths = [], troughMonths = [];
+  for (const [fy, rows] of Object.entries(byFY)) {
+    if (rows.length < 6) continue; // skip partial years
+    const peak = rows.reduce((a, b) => (b[field] || 0) > (a[field] || 0) ? b : a);
+    const trough = rows.reduce((a, b) => (b[field] || 0) < (a[field] || 0) ? b : a);
+    peakMonths.push(peak.calMonth);
+    troughMonths.push(trough.calMonth);
+  }
+
+  function modeOf(arr) {
+    if (!arr.length) return null;
+    const c = {};
+    for (const v of arr) c[v] = (c[v] || 0) + 1;
+    return +Object.entries(c).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  const peakMode = modeOf(peakMonths);
+  const troughMode = modeOf(troughMonths);
+  const peakCons = peakMonths.length ? peakMonths.filter(m => m === peakMode).length / peakMonths.length : 0;
+  const troughCons = troughMonths.length ? troughMonths.filter(m => m === troughMode).length / troughMonths.length : 0;
+  const reliabilityScore = Math.round(((peakCons + troughCons) / 2) * 100);
+
+  return { peakMonths, troughMonths, peakMode, troughMode, reliabilityScore, peakCons, troughCons };
+}
+
+// ── 12-Month Forecast ─────────────────────────────────────────────
+function computeForecast(data, trendRev, trendCOGS, seasRev, seasCOGS) {
+  const n = data.length;
+  const last = data[data.length - 1];
+  const forecast = [];
+  for (let i = 1; i <= 12; i++) {
+    const { year, calMonth } = addMonths(last.year, last.calMonth, i);
+    const si = seasRev.indices[calMonth] || 1;
+    const trendRevVal = trendRev.slope * (n + i) + trendRev.intercept;
+    const trendCogsVal = trendCOGS.slope * (n + i) + trendCOGS.intercept;
+    const projRev = Math.max(0, trendRevVal * si);
+    const projCOGS = Math.max(0, trendCogsVal * (seasCOGS.indices[calMonth] || 1));
+    const projContrib = projRev - projCOGS;
+    forecast.push({ year, calMonth, si, projRev, projCOGS, projContrib });
+  }
+  return forecast;
+}
+
+// ── Rolling 12-Month Revenue ──────────────────────────────────────
+function computeRolling(data, field) {
+  const sorted = data;
+  const result = [];
+  for (let i = 11; i < sorted.length; i++) {
+    const slice = sorted.slice(i - 11, i + 1);
+    const sum = slice.reduce((a, d) => a + (d[field] || 0), 0);
+    result.push({ year: sorted[i].year, calMonth: sorted[i].calMonth, rolling: sum });
+  }
+  return result;
+}
+
+// ── Commentary Engine ─────────────────────────────────────────────
+function generateCommentary(result) {
+  const { seasRev, trendRev, cycle, forecast, metrics } = result;
+  const idxEntries = Object.entries(seasRev.indices).map(([cm, v]) => ({ cm: +cm, v }));
+  const peakEntry = idxEntries.sort((a, b) => b.v - a.v)[0];
+  const troughEntry = [...idxEntries].sort((a, b) => a.v - b.v)[0];
+
+  const peakName = calMonthName(peakEntry.cm);
+  const troughName = calMonthName(troughEntry.cm);
+  const growth = trendRev.growthAnnual;
+  const growthDir = growth >= 0 ? 'growing' : 'declining';
+  const growthAbs = Math.abs(growth).toFixed(1);
+
+  const relLabel = cycle.reliabilityScore >= 75 ? 'highly predictable' :
+                   cycle.reliabilityScore >= 50 ? 'moderately predictable' :
+                   'unpredictable / lumpy';
+
+  // RM purchase months = 1-2 months before peak
+  const rm1 = addMonths(2000, peakEntry.cm, -2).calMonth;
+  const rm2 = addMonths(2000, peakEntry.cm, -1).calMonth;
+  const rmStr = `${calMonthName(rm1)}–${calMonthName(rm2)}`;
+
+  const peakRevMonth = forecast.reduce((a, b) => b.projRev > a.projRev ? b : a);
+  const troughRevMonth = forecast.reduce((a, b) => b.projRev < a.projRev ? b : a);
+
+  const totalForecastRev = forecast.reduce((a, b) => a + b.projRev, 0);
+  const avgMargin = forecast.length ? (forecast.reduce((a, b) => a + b.projContrib, 0) / totalForecastRev) * 100 : 0;
+
+  let commentary = `Your business <strong>peaks in ${peakName}</strong> (seasonality index: <strong>${fmtIdx(peakEntry.v)}</strong>) `;
+  commentary += `and <strong>troughs in ${troughName}</strong> (index: <strong>${fmtIdx(troughEntry.v)}</strong>). `;
+  commentary += `Underlying revenue is <strong>${growthDir} at ${growthAbs}% per year</strong> after stripping out seasonality. `;
+  commentary += `Seasonality patterns are <strong>${relLabel}</strong> (reliability score: <strong>${cycle.reliabilityScore}/100</strong>). `;
+
+  if (cycle.reliabilityScore < 50) {
+    commentary += `Revenue appears event-driven — plan for significant variability rather than relying on fixed peak months. `;
+  } else {
+    commentary += `Cash planning should prepare for peak RM purchases in <strong>${rmStr}</strong>, ahead of the seasonal revenue surge. `;
+  }
+
+  commentary += `Over the next 12 months, projected revenue peaks in <strong>${calMonthName(peakRevMonth.calMonth)} ${peakRevMonth.year}</strong> `;
+  commentary += `(${fmtINR(peakRevMonth.projRev)}) with an average projected gross margin of <strong>${avgMargin.toFixed(1)}%</strong>.`;
+
+  return commentary;
+}
+
+// ── Main Analysis ─────────────────────────────────────────────────
+async function startAnalysis() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'block';
+  document.getElementById('resultsSection').style.display = 'none';
+
+  const steps = [
+    'Reading Sales Register…',
+    'Reading Purchase Register…',
+    'Parsing monthly data…',
+    'Computing seasonality indices…',
+    'De-seasonalising and fitting trend…',
+    'Running YoY analysis…',
+    'Detecting seasonal cycles…',
+    'Building 12-month forecast…',
+    'Generating commentary…'
+  ];
+  let si = 0;
+  const interval = setInterval(() => {
+    document.getElementById('processingMsg').textContent = steps[si++ % steps.length];
+  }, 600);
+
+  try {
+    // Parse files
+    const salesRows = await parseExcelFile(FILES.sales);
+    const purchaseRows = await parseExcelFile(FILES.purchase);
+    const stockRows = FILES.stock ? await parseExcelFile(FILES.stock) : null;
+
+    const salesData = extractMonthlyData(salesRows);
+    const purchaseData = extractMonthlyData(purchaseRows);
+    const stockData = stockRows ? extractMonthlyData(stockRows) : null;
+
+    if (salesData.length < 12) throw new Error(`Not enough monthly data in Sales Register (found ${salesData.length} months, need ≥ 12)`);
+    if (purchaseData.length < 12) throw new Error(`Not enough monthly data in Purchase Register (found ${purchaseData.length} months, need ≥ 12)`);
+
+    // Align data: build combined metrics by month
+    const metrics = [];
+    for (const s of salesData) {
+      const key = `${s.year}-${s.calMonth}`;
+      // Find matching purchase
+      const p = purchaseData.find(d => d.year === s.year && d.calMonth === s.calMonth);
+      let cogs = p ? p.value : 0;
+      // If stock data available, prefer consumption
+      if (stockData) {
+        const st = stockData.find(d => d.year === s.year && d.calMonth === s.calMonth);
+        if (st) cogs = st.value;
+      }
+      metrics.push({
+        year: s.year,
+        calMonth: s.calMonth,
+        revenue: s.value,
+        cogs: cogs,
+        contribution: s.value - cogs
+      });
+    }
+
+    // Sort by date
+    metrics.sort((a, b) => a.year !== b.year ? a.year - b.year : a.calMonth - b.calMonth);
+
+    // Seasonality
+    const seasRev  = computeSeasonality(metrics, 'revenue');
+    const seasCOGS = computeSeasonality(metrics, 'cogs');
+    const seasContrib = computeSeasonality(metrics, 'contribution');
+
+    // Trend (on de-seasonalised data)
+    const trendRev    = computeTrend(metrics, 'revenue', seasRev.indices);
+    const trendCOGS   = computeTrend(metrics, 'cogs', seasCOGS.indices);
+    const trendContrib = computeTrend(metrics, 'contribution', seasContrib.indices);
+
+    // YoY
+    const yoyRev    = computeYoY(metrics, 'revenue');
+    const yoyCOGS   = computeYoY(metrics, 'cogs');
+    const yoyContrib = computeYoY(metrics, 'contribution');
+
+    // Cycles
+    const cycle = computeCycles(metrics, 'revenue');
+
+    // Forecast
+    const forecast = computeForecast(metrics, trendRev, trendCOGS, seasRev, seasCOGS);
+
+    // Rolling 12-month
+    const rolling = computeRolling(metrics, 'revenue');
+
+    RESULT = {
+      metrics, seasRev, seasCOGS, seasContrib,
+      trendRev, trendCOGS, trendContrib,
+      yoyRev, yoyCOGS, yoyContrib,
+      cycle, forecast, rolling
+    };
+
+    // Generate commentary
+    RESULT.commentary = generateCommentary(RESULT);
+
+    clearInterval(interval);
+    renderResults();
+
+  } catch (err) {
+    clearInterval(interval);
+    alert('Analysis error: ' + err.message);
+    resetApp();
+  }
+}
+
+// ── Render Results ────────────────────────────────────────────────
+function renderResults() {
+  const R = RESULT;
+  const m = R.metrics;
+
+  document.getElementById('processingSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'block';
+
+  // Meta
+  const first = m[0], last = m[m.length - 1];
+  document.getElementById('resultsMeta').textContent =
+    `${shortMonthName(first.calMonth)} ${first.year} – ${shortMonthName(last.calMonth)} ${last.year} · ${m.length} months`;
+
+  // File info bar
+  const cogsSource = FILES.stock ? 'Stock Consumption (precise)' : 'Purchase Register (approximation)';
+  document.getElementById('fileInfoBar').innerHTML = `
+    <div class="fi-item"><div class="fi-dot"></div><span class="fi-label">Period:</span><span class="fi-value">${m.length} months</span></div>
+    <div class="fi-item"><div class="fi-dot"></div><span class="fi-label">COGS Source:</span><span class="fi-value">${cogsSource}</span></div>
+    <div class="fi-item"><div class="fi-dot"></div><span class="fi-label">Total Revenue:</span><span class="fi-value">${fmtINR(m.reduce((a,d)=>a+d.revenue,0))}</span></div>
+    <div class="fi-item"><div class="fi-dot"></div><span class="fi-label">Avg Monthly:</span><span class="fi-value">${fmtINR(m.reduce((a,d)=>a+d.revenue,0)/m.length)}</span></div>
+  `;
+
+  // KPI cards
+  const idxArr = Object.entries(R.seasRev.indices).map(([cm, v]) => ({ cm: +cm, v }));
+  const peakEntry = idxArr.reduce((a, b) => b.v > a.v ? b : a);
+  const troughEntry = idxArr.reduce((a, b) => b.v < a.v ? b : a);
+  const growth = R.trendRev.growthAnnual;
+
+  document.getElementById('kpiPeak').textContent = calMonthName(peakEntry.cm);
+  document.getElementById('kpiPeakSub').textContent = `Index ${fmtIdx(peakEntry.v)}`;
+
+  document.getElementById('kpiTrough').textContent = calMonthName(troughEntry.cm);
+  document.getElementById('kpiTroughSub').textContent = `Index ${fmtIdx(troughEntry.v)}`;
+
+  const growthEl = document.getElementById('kpiGrowth');
+  growthEl.textContent = fmtPct(growth);
+  growthEl.className = 'sum-value ' + (growth >= 0 ? 'color-green' : 'color-red');
+
+  document.getElementById('kpiReliability').textContent = R.cycle.reliabilityScore + '/100';
+  document.getElementById('kpiReliabilitySub').textContent =
+    R.cycle.reliabilityScore >= 75 ? 'Highly predictable' :
+    R.cycle.reliabilityScore >= 50 ? 'Moderately predictable' : 'Lumpy / event-driven';
+
+  // Commentary
+  document.getElementById('commentaryText').innerHTML = R.commentary;
+
+  // Render all tabs
+  renderHeatmap('revenue');
+  renderSeasonGrid('revenue');
+  renderSeasonChart('revenue');
+  renderTrendChart('revenue');
+  renderRollingChart();
+  renderTrendStats();
+  renderYoYChart('revenue');
+  renderYoYFlags('revenue');
+  renderForecastTable();
+  renderForecastChart();
+}
+
+// ── Tab Switching ─────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── HEATMAP ───────────────────────────────────────────────────────
+let currentHeatmapField = 'revenue';
+function switchHeatmap(field, btn) {
+  document.querySelectorAll('#hmToggle .mtgl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHeatmap(field);
+}
+
+function renderHeatmap(field) {
+  currentHeatmapField = field;
+  const m = RESULT.metrics;
+  const table = document.getElementById('heatmapTable');
+
+  // Build year × calMonth matrix
+  const years = [...new Set(m.map(d => d.year))].sort((a, b) => a - b);
+  const calMonths = [4,5,6,7,8,9,10,11,12,1,2,3]; // FY order
+
+  const matrixData = {};
+  for (const d of m) {
+    const key = `${d.year}-${d.calMonth}`;
+    matrixData[key] = d[field];
+  }
+
+  // Compute min/max for color scaling
+  const allVals = m.map(d => d[field]).filter(v => v !== null && !isNaN(v));
+  const minVal = Math.min(...allVals);
+  const maxVal = Math.max(...allVals);
+  const range = maxVal - minVal || 1;
+
+  // Seasonality indices for this field
+  const seas = field === 'revenue' ? RESULT.seasRev : field === 'cogs' ? RESULT.seasCOGS : RESULT.seasContrib;
+
+  let html = '<thead><tr><th class="row-header">FY Year</th>';
+  for (const cm of calMonths) {
+    html += `<th>${FY_MONTHS[fyPosition(cm)]}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for (const year of years) {
+    html += `<tr><td class="year-label">FY ${year}-${String(year+1).slice(2)}</td>`;
+    for (const cm of calMonths) {
+      // For Jan/Feb/Mar, they belong to FY year+1
+      const dataYear = cm >= 4 ? year : year + 1;
+      const key = `${dataYear}-${cm}`;
+      const val = matrixData[key];
+      if (val === undefined) {
+        html += '<td><div class="hm-cell" style="background:var(--surface2);color:var(--muted);">—</div></td>';
+      } else {
+        const norm = (val - minVal) / range;
+        const alpha = 0.08 + norm * 0.82;
+        const textColor = norm > 0.5 ? '#0b0f1a' : 'var(--text)';
+        const idx = seas.indices[cm];
+        const idxLabel = idx ? `idx ${fmtIdx(idx)}` : '';
+        const bgColor = field === 'contribution' && val < 0
+          ? `rgba(255,76,106,${0.1 + Math.abs(norm) * 0.7})`
+          : `rgba(0,212,170,${alpha})`;
+        html += `<td>
+          <div class="hm-cell" style="background:${bgColor};color:${field==='contribution'&&val<0?'#ff4c6a':norm>0.55?'#0b0f1a':'var(--text)'}">
+            <span class="hm-val">${fmtINR(val)}</span>
+            <span class="hm-idx">${idxLabel}</span>
+          </div>
+        </td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+// ── SEASONALITY CHART & GRID ──────────────────────────────────────
+let seasonChartInstance = null;
+let currentSeasonField = 'revenue';
+
+function switchSeasonChart(field, btn) {
+  document.querySelectorAll('#tab-seasonality .metric-toggle .mtgl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSeasonGrid(field);
+  renderSeasonChart(field);
+}
+
+function renderSeasonGrid(field) {
+  currentSeasonField = field;
+  const seas = field === 'revenue' ? RESULT.seasRev : field === 'cogs' ? RESULT.seasCOGS : RESULT.seasContrib;
+  const calMonths = [4,5,6,7,8,9,10,11,12,1,2,3];
+  let html = '';
+  for (const cm of calMonths) {
+    const idx = seas.indices[cm] || 1;
+    const cls = idx > 1.15 ? 'peak' : idx < 0.85 ? 'trough' : 'normal';
+    const tag = idx > 1.15 ? 'PEAK' : idx < 0.85 ? 'TROUGH' : 'NORMAL';
+    html += `<div class="season-tile ${cls}">
+      <div class="st-month">${FY_MONTHS[fyPosition(cm)]}</div>
+      <div class="st-idx">${fmtIdx(idx)}</div>
+      <div class="st-tag">${tag}</div>
+    </div>`;
+  }
+  document.getElementById('seasonGrid').innerHTML = html;
+
+  // Reliability bar
+  const rel = RESULT.cycle.reliabilityScore;
+  document.getElementById('relScore').textContent = rel + '/100';
+  document.getElementById('relFill').style.width = rel + '%';
+  const fillColor = rel >= 75 ? 'var(--green)' : rel >= 50 ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('relFill').style.background = fillColor;
+  document.getElementById('relScore').style.color = fillColor;
+  document.getElementById('relLabel').textContent =
+    rel >= 75 ? 'Peak and trough months are consistent across years — highly reliable for planning.' :
+    rel >= 50 ? 'Moderate consistency — patterns are visible but with year-to-year variation.' :
+    'Low consistency — business appears lumpy or event-driven. Plan for variability.';
+
+  // Sum check
+  document.getElementById('seasonSum').textContent = seas.sum.toFixed(4);
+  document.getElementById('seasonSum').style.color = Math.abs(seas.sum - 12) < 0.01 ? 'var(--green)' : 'var(--red)';
+}
+
+function renderSeasonChart(field) {
+  const seas = field === 'revenue' ? RESULT.seasRev : field === 'cogs' ? RESULT.seasCOGS : RESULT.seasContrib;
+  const calMonths = [4,5,6,7,8,9,10,11,12,1,2,3];
+  const labels = calMonths.map(cm => FY_MONTHS[fyPosition(cm)]);
+  const values = calMonths.map(cm => seas.indices[cm] || 1);
+  const colors = values.map(v => v > 1.15 ? 'rgba(34,197,94,0.7)' : v < 0.85 ? 'rgba(255,76,106,0.7)' : 'rgba(0,212,170,0.6)');
+
+  if (seasonChartInstance) seasonChartInstance.destroy();
+  const ctx = document.getElementById('seasonChart').getContext('2d');
+  seasonChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Seasonality Index',
+        data: values,
+        backgroundColor: colors,
+        borderColor: colors.map(c => c.replace('0.7', '1').replace('0.6', '1')),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Index: ${ctx.raw.toFixed(3)} (${ctx.raw > 1.15 ? 'Peak' : ctx.raw < 0.85 ? 'Trough' : 'Normal'})`
+          }
+        },
+        annotation: {}
+      },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,66,0.6)' }, ticks: { color: '#8899aa' } },
+        y: {
+          min: 0, grid: { color: 'rgba(31,45,66,0.6)' }, ticks: { color: '#8899aa' },
+          afterFit: ctx => { ctx.paddingTop = 10; }
+        }
+      }
+    },
+    plugins: [{
+      id: 'refLines',
+      afterDraw: chart => {
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        [1.0, 1.15, 0.85].forEach((v, i) => {
+          const yPos = y.getPixelForValue(v);
+          ctx.save();
+          ctx.strokeStyle = i === 0 ? 'rgba(255,255,255,0.4)' : 'rgba(255,140,66,0.5)';
+          ctx.lineWidth = i === 0 ? 1.5 : 1;
+          ctx.setLineDash(i === 0 ? [] : [4, 4]);
+          ctx.beginPath(); ctx.moveTo(left, yPos); ctx.lineTo(right, yPos); ctx.stroke();
+          ctx.restore();
+        });
+      }
+    }]
+  });
+}
+
+// ── TREND CHART ───────────────────────────────────────────────────
+let trendChartInstance = null;
+let currentTrendField = 'revenue';
+
+function switchTrendChart(field, btn) {
+  document.querySelectorAll('#tab-trend .metric-toggle .mtgl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTrendChart(field);
+}
+
+function renderTrendChart(field) {
+  currentTrendField = field;
+  const m = RESULT.metrics;
+  const trend = field === 'revenue' ? RESULT.trendRev : field === 'cogs' ? RESULT.trendCOGS : RESULT.trendContrib;
+  const seas = field === 'revenue' ? RESULT.seasRev : field === 'cogs' ? RESULT.seasCOGS : RESULT.seasContrib;
+
+  const labels = m.map(d => `${FY_MONTHS[fyPosition(d.calMonth)]} ${d.year}`);
+  const actuals = m.map(d => d[field]);
+  const deseasoned = m.map((d, i) => (seas.indices[d.calMonth] || 1) > 0 ? d[field] / (seas.indices[d.calMonth] || 1) : 0);
+  const trendLine = m.map((_, i) => trend.slope * (i + 1) + trend.intercept);
+
+  if (trendChartInstance) trendChartInstance.destroy();
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  trendChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Actual ' + field.charAt(0).toUpperCase() + field.slice(1),
+          data: actuals,
+          borderColor: 'rgba(0,212,170,0.9)', backgroundColor: 'rgba(0,212,170,0.08)',
+          borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3
+        },
+        {
+          label: 'De-seasonalised',
+          data: deseasoned,
+          borderColor: 'rgba(96,165,250,0.8)', backgroundColor: 'transparent',
+          borderWidth: 1.5, pointRadius: 0, borderDash: [6, 4], fill: false, tension: 0.3
+        },
+        {
+          label: 'Linear Trend',
+          data: trendLine,
+          borderColor: 'rgba(245,197,24,0.85)', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 0, borderDash: [2, 3], fill: false, tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: {
+          labels: { color: '#8899aa', boxWidth: 20, padding: 15 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${fmtINR(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,66,0.5)' }, ticks: { color: '#8899aa', maxTicksLimit: 12, maxRotation: 45 } },
+        y: {
+          grid: { color: 'rgba(31,45,66,0.5)' }, ticks: {
+            color: '#8899aa',
+            callback: v => fmtINR(v)
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendStats() {
+  const t = RESULT.trendRev;
+  const m = RESULT.metrics;
+  const totalRev = m.reduce((a, d) => a + d.revenue, 0);
+  const totalCOGS = m.reduce((a, d) => a + d.cogs, 0);
+  const avgMargin = totalRev > 0 ? ((totalRev - totalCOGS) / totalRev) * 100 : 0;
+
+  document.getElementById('trendStatsRevenue').innerHTML = `
+    <table style="width:100%;font-size:0.83rem;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.4rem 0;color:var(--muted);">Monthly Growth Rate</td>
+        <td style="padding:0.4rem 0;text-align:right;font-weight:700;color:${t.growthMonthly>=0?'var(--green)':'var(--red)'};">${fmtPct(t.growthMonthly*100)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.4rem 0;color:var(--muted);">Annual Growth Rate (de-seasonalised)</td>
+        <td style="padding:0.4rem 0;text-align:right;font-weight:700;color:${t.growthAnnual>=0?'var(--green)':'var(--red)'};">${fmtPct(t.growthAnnual)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.4rem 0;color:var(--muted);">Average Monthly Revenue</td>
+        <td style="padding:0.4rem 0;text-align:right;font-weight:700;">${fmtINR(totalRev/m.length)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.4rem 0;color:var(--muted);">Average Gross Margin</td>
+        <td style="padding:0.4rem 0;text-align:right;font-weight:700;color:${avgMargin>=0?'var(--accent)':'var(--red)'};">${avgMargin.toFixed(1)}%</td>
+      </tr>
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);">Trend Direction</td>
+        <td style="padding:0.4rem 0;text-align:right;font-weight:700;">${t.slope > 0 ? '↑ Upward' : '↓ Downward'}</td>
+      </tr>
+    </table>
+  `;
+}
+
+let rollingChartInstance = null;
+function renderRollingChart() {
+  const rolling = RESULT.rolling;
+  const labels = rolling.map(d => `${FY_MONTHS[fyPosition(d.calMonth)]} ${d.year}`);
+  const values = rolling.map(d => d.rolling);
+
+  if (rollingChartInstance) rollingChartInstance.destroy();
+  const ctx = document.getElementById('rollingChart').getContext('2d');
+  rollingChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Rolling 12-Month Revenue',
+        data: values,
+        borderColor: 'rgba(167,139,250,0.9)', backgroundColor: 'rgba(167,139,250,0.1)',
+        borderWidth: 2, pointRadius: 0, fill: true, tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => fmtINR(ctx.raw) } }
+      },
+      scales: {
+        x: { display: false },
+        y: { grid: { color: 'rgba(31,45,66,0.5)' }, ticks: { color: '#8899aa', callback: v => fmtINR(v) } }
+      }
+    }
+  });
+}
+
+// ── YOY CHART ─────────────────────────────────────────────────────
+let yoyChartInstance = null;
+let currentYoYField = 'revenue';
+
+function switchYoYChart(field, btn) {
+  document.querySelectorAll('#tab-yoy .metric-toggle .mtgl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderYoYChart(field);
+  renderYoYFlags(field);
+}
+
+function renderYoYChart(field) {
+  currentYoYField = field;
+  const yoy = field === 'revenue' ? RESULT.yoyRev : field === 'cogs' ? RESULT.yoyCOGS : RESULT.yoyContrib;
+  const labels = yoy.map(d => `${FY_MONTHS[fyPosition(d.calMonth)]} ${d.year}`);
+  const values = yoy.map(d => d.yoyChange);
+  const colors = yoy.map(d => {
+    if (d.yoyChange === null) return 'rgba(136,153,170,0.4)';
+    const isPos = d.yoyChange >= 0;
+    const isSig = Math.abs(d.yoyChange) > 20;
+    if (isPos) return isSig ? 'rgba(34,197,94,0.85)' : 'rgba(34,197,94,0.5)';
+    return isSig ? 'rgba(255,76,106,0.85)' : 'rgba(255,76,106,0.5)';
+  });
+
+  if (yoyChartInstance) yoyChartInstance.destroy();
+  const ctx = document.getElementById('yoyChart').getContext('2d');
+  yoyChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'YoY % Change',
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `YoY: ${ctx.raw !== null ? fmtPct(ctx.raw) : '—'}` } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,66,0.5)' }, ticks: { color: '#8899aa', maxRotation: 45, maxTicksLimit: 14 } },
+        y: {
+          grid: { color: 'rgba(31,45,66,0.5)' },
+          ticks: { color: '#8899aa', callback: v => v + '%' }
+        }
+      }
+    },
+    plugins: [{
+      id: 'zeroLine',
+      afterDraw: chart => {
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        const yZero = y.getPixelForValue(0);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(left, yZero); ctx.lineTo(right, yZero); ctx.stroke();
+        // ±20% lines
+        [20, -20].forEach(v => {
+          const yy = y.getPixelForValue(v);
+          ctx.strokeStyle = 'rgba(255,140,66,0.4)';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(left, yy); ctx.lineTo(right, yy); ctx.stroke();
+        });
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function renderYoYFlags(field) {
+  const yoy = field === 'revenue' ? RESULT.yoyRev : field === 'cogs' ? RESULT.yoyCOGS : RESULT.yoyContrib;
+  const significant = yoy.filter(d => d.isSignificant);
+  const container = document.getElementById('yoyFlags');
+  if (!significant.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">No months with YoY deviation > ±20% detected.</div>';
+    return;
+  }
+  container.innerHTML = significant.map(d => `
+    <div class="yoy-flag-item ${d.yoyChange >= 0 ? 'positive' : 'negative'}">
+      <span class="yoy-month">${calMonthName(d.calMonth)} ${d.year}</span>
+      <span class="yoy-pct" style="color:${d.yoyChange >= 0 ? 'var(--green)' : 'var(--red)'};">${fmtPct(d.yoyChange)}</span>
+      <span class="yoy-detail">vs ${calMonthName(d.calMonth)} ${d.year - 1}: ${fmtINR(d.previous)} → ${fmtINR(d.current)}</span>
+    </div>
+  `).join('');
+}
+
+// ── FORECAST TABLE & CHART ────────────────────────────────────────
+let forecastChartInstance = null;
+
+function renderForecastTable() {
+  const fc = RESULT.forecast;
+  const seasRev = RESULT.seasRev;
+  const peakIdx = fc.reduce((maxI, d, i) => d.projRev > fc[maxI].projRev ? i : maxI, 0);
+  const troughIdx = fc.reduce((minI, d, i) => d.projRev < fc[minI].projRev ? i : minI, 0);
+
+  let body = '';
+  for (let i = 0; i < fc.length; i++) {
+    const d = fc[i];
+    const margin = d.projRev > 0 ? (d.projContrib / d.projRev) * 100 : 0;
+    const rowClass = i === peakIdx ? 'peak-row' : i === troughIdx ? 'trough-row' : '';
+    const icon = i === peakIdx ? '🟢 ' : i === troughIdx ? '🔴 ' : '';
+    body += `<tr class="${rowClass}">
+      <td>${icon}${calMonthName(d.calMonth)} ${d.year}</td>
+      <td style="color:${d.si>1.15?'var(--green)':d.si<0.85?'var(--red)':'var(--text)'};">${fmtIdx(d.si)}</td>
+      <td>${fmtINR(d.projRev, false)}</td>
+      <td>${fmtINR(d.projCOGS, false)}</td>
+      <td style="color:${d.projContrib>=0?'var(--accent)':'var(--red)'};">${fmtINR(d.projContrib, false)}</td>
+      <td style="color:${margin>=0?'var(--accent)':'var(--red)'};">${margin.toFixed(1)}%</td>
+    </tr>`;
+  }
+  document.getElementById('forecastBody').innerHTML = body;
+
+  const totRev = fc.reduce((a, d) => a + d.projRev, 0);
+  const totCOGS = fc.reduce((a, d) => a + d.projCOGS, 0);
+  const totContrib = fc.reduce((a, d) => a + d.projContrib, 0);
+  const totMargin = totRev > 0 ? (totContrib / totRev) * 100 : 0;
+  document.getElementById('forecastFoot').innerHTML = `<tr>
+    <td>12-Month Total</td>
+    <td>—</td>
+    <td>${fmtINR(totRev, false)}</td>
+    <td>${fmtINR(totCOGS, false)}</td>
+    <td style="color:${totContrib>=0?'var(--accent)':'var(--red)'};">${fmtINR(totContrib, false)}</td>
+    <td style="color:${totMargin>=0?'var(--accent)':'var(--red)'};">${totMargin.toFixed(1)}%</td>
+  </tr>`;
+}
+
+function renderForecastChart() {
+  const fc = RESULT.forecast;
+  const labels = fc.map(d => `${FY_MONTHS[fyPosition(d.calMonth)]} ${d.year}`);
+
+  if (forecastChartInstance) forecastChartInstance.destroy();
+  const ctx = document.getElementById('forecastChart').getContext('2d');
+  forecastChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Projected COGS',
+          data: fc.map(d => d.projCOGS),
+          backgroundColor: 'rgba(255,76,106,0.5)', borderRadius: 4, stack: 'stack'
+        },
+        {
+          label: 'Projected Contribution',
+          data: fc.map(d => d.projContrib),
+          backgroundColor: 'rgba(0,212,170,0.6)', borderRadius: 4, stack: 'stack'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8899aa', boxWidth: 16 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtINR(ctx.raw)}` } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(31,45,66,0.5)' }, ticks: { color: '#8899aa', maxRotation: 45 }, stacked: true },
+        y: { grid: { color: 'rgba(31,45,66,0.5)' }, ticks: { color: '#8899aa', callback: v => fmtINR(v) }, stacked: true }
+      }
+    }
+  });
+}
+
+// ── EXPORTS ───────────────────────────────────────────────────────
+function exportExcel() {
+  if (!RESULT) return;
+  const R = RESULT;
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Raw Data
+  const raw = [['Month', 'Year', 'Revenue', 'COGS', 'Gross Contribution', 'Margin%']];
+  for (const d of R.metrics) {
+    const margin = d.revenue > 0 ? ((d.contribution / d.revenue) * 100).toFixed(1) : 0;
+    raw.push([`${calMonthName(d.calMonth)} ${d.year}`, d.year, d.revenue, d.cogs, d.contribution, margin + '%']);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(raw), 'Monthly Data');
+
+  // Sheet 2: Seasonality Indices
+  const seasHdr = ['Calendar Month', 'Revenue Index', 'COGS Index', 'Contribution Index', 'Classification'];
+  const seasData = [seasHdr];
+  const calMonths = [4,5,6,7,8,9,10,11,12,1,2,3];
+  for (const cm of calMonths) {
+    const ri = R.seasRev.indices[cm] || 1;
+    seasData.push([
+      calMonthName(cm),
+      +ri.toFixed(4),
+      +(R.seasCOGS.indices[cm] || 1).toFixed(4),
+      +(R.seasContrib.indices[cm] || 1).toFixed(4),
+      ri > 1.15 ? 'PEAK' : ri < 0.85 ? 'TROUGH' : 'NORMAL'
+    ]);
+  }
+  seasData.push(['SUM', +R.seasRev.sum.toFixed(4), +R.seasCOGS.sum.toFixed(4), +R.seasContrib.sum.toFixed(4), '(must = 12)']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(seasData), 'Seasonality Indices');
+
+  // Sheet 3: De-seasonalised + Trend
+  const trendHdr = ['Month', 'Actual Revenue', 'De-seasonalised Revenue', 'Trend Value', 'YoY % Change'];
+  const trendData = [trendHdr];
+  for (let i = 0; i < R.metrics.length; i++) {
+    const d = R.metrics[i];
+    const ds = (R.seasRev.indices[d.calMonth] || 1) > 0 ? d.revenue / (R.seasRev.indices[d.calMonth] || 1) : 0;
+    const tv = R.trendRev.slope * (i + 1) + R.trendRev.intercept;
+    const yoy = R.yoyRev.find(y => y.year === d.year && y.calMonth === d.calMonth);
+    trendData.push([
+      `${calMonthName(d.calMonth)} ${d.year}`,
+      d.revenue, +ds.toFixed(0), +tv.toFixed(0),
+      yoy ? +(yoy.yoyChange || 0).toFixed(2) : ''
+    ]);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trendData), 'Trend Analysis');
+
+  // Sheet 4: 12-Month Forecast
+  const fcHdr = ['Month', 'Seasonality Index', 'Projected Revenue', 'Projected COGS', 'Projected Contribution', 'Margin %'];
+  const fcData = [fcHdr];
+  for (const d of R.forecast) {
+    const margin = d.projRev > 0 ? ((d.projContrib / d.projRev) * 100).toFixed(1) : 0;
+    fcData.push([
+      `${calMonthName(d.calMonth)} ${d.year}`,
+      +d.si.toFixed(4), +d.projRev.toFixed(0), +d.projCOGS.toFixed(0),
+      +d.projContrib.toFixed(0), +margin
+    ]);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fcData), '12-Month Forecast');
+
+  XLSX.writeFile(wb, 'Seasonality_Trend_Report.xlsx');
+  showToast('Excel exported successfully');
+}
+
+function exportPDF() {
+  window.print();
+}
+
+// ── RESET ─────────────────────────────────────────────────────────
+function resetApp() {
+  RESULT = null;
+  FILES.sales = FILES.purchase = FILES.stock = null;
+  ['sales','purchase','stock'].forEach(t => {
+    document.getElementById('mod-' + t).classList.remove('has-file');
+    document.getElementById('file-' + t).value = '';
+    document.getElementById('name-' + t).textContent = '✓ File loaded';
+  });
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('processingSection').style.display = 'none';
+  document.getElementById('uploadSection').style.display = 'block';
+  // Destroy charts
+  [trendChartInstance, yoyChartInstance, seasonChartInstance, rollingChartInstance, forecastChartInstance].forEach(c => { if (c) c.destroy(); });
+  trendChartInstance = yoyChartInstance = seasonChartInstance = rollingChartInstance = forecastChartInstance = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── PRINT STYLES ──────────────────────────────────────────────────
+const printCSS = `@media print {
+  nav, .upload-section, #processingSection, .action-bar, .tab-bar, .btn-outline, .btn-primary-sm { display: none !important; }
+  #resultsSection { display: block !important; }
+  .tab-panel { display: block !important; }
+  body { background: white !important; color: black !important; }
+  .chart-wrap { border: 1px solid #ddd !important; background: white !important; page-break-inside: avoid; }
+  .commentary-box { border: 1px solid #ddd !important; background: #f9f9f9 !important; }
+  canvas { max-height: 280px !important; }
+}`;
+const style = document.createElement('style');
+style.textContent = printCSS;
+document.head.appendChild(style);
+</script>
+
+</body>
+</html>
