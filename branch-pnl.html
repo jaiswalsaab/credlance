@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Branch / Cost Centre P&L | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #00a884;
+      --text: #e2e8f0;
+      --muted: #8899aa;
+      --red: #ff4c6a;
+      --orange: #ff8c42;
+      --yellow: #f5c518;
+      --green: #22c55e;
+      --red-bg: rgba(255,76,106,0.1);
+      --orange-bg: rgba(255,140,66,0.1);
+      --yellow-bg: rgba(245,197,24,0.1);
+      --green-bg: rgba(34,197,94,0.1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,15,26,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px;
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge {
+      background: var(--surface2); color: var(--accent);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border);
+    }
+    .nav-right { display: flex; gap: 0.75rem; align-items: center; }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; transition: all 0.2s; }
+    .nav-back:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* HERO */
+    .hero {
+      padding: 3.5rem 2rem 2.5rem;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 580px; margin: 0 auto; }
+
+    /* UPLOAD */
+    .upload-section { max-width: 700px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: var(--surface);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(0,212,170,0.04);
+    }
+    .upload-icon { font-size: 2.8rem; margin-bottom: 1rem; }
+    .upload-zone h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+    .upload-btn {
+      display: inline-block; margin-top: 1.25rem;
+      background: var(--accent); color: #0b0f1a;
+      font-weight: 700; font-size: 0.9rem;
+      padding: 0.6rem 1.6rem; border-radius: 8px;
+      border: none; cursor: pointer; letter-spacing: 0.03em;
+    }
+    .upload-btn:hover { background: var(--accent2); }
+    #fileInput { display: none; }
+
+    .format-hint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.25rem;
+      text-align: left;
+    }
+    .format-hint h4 { font-size: 0.82rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.7rem; }
+    .format-hint ul { color: var(--muted); font-size: 0.84rem; list-style: disc; padding-left: 1.2rem; }
+    .format-hint li { margin-bottom: 0.3rem; }
+
+    /* PROCESSING */
+    #processingSection { display: none; text-align: center; padding: 4rem 2rem; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #processingMsg { color: var(--text); font-size: 1.05rem; }
+    .processing-steps { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+
+    /* ALLOCATION PANEL */
+    #allocationSection { display: none; max-width: 960px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+    .allocation-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .allocation-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .allocation-subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+
+    .alloc-rule-bar {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.5rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    }
+    .alloc-rule-bar label { font-size: 0.88rem; color: var(--muted); }
+    .alloc-rule-bar select {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.88rem; cursor: pointer;
+    }
+    .alloc-rule-bar select:focus { border-color: var(--accent); outline: none; }
+    .alloc-info { font-size: 0.82rem; color: var(--muted); }
+
+    .alloc-table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.25rem; }
+    .alloc-table { width: 100%; border-collapse: collapse; }
+    .alloc-table th { padding: 0.7rem 1rem; text-align: left; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    .alloc-table td { padding: 0.6rem 1rem; font-size: 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .alloc-table tr:last-child td { border-bottom: none; }
+    .alloc-table tr:hover td { background: rgba(0,212,170,0.03); }
+    .amt-positive { color: var(--green); }
+    .amt-negative { color: var(--red); }
+    .alloc-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.83rem; cursor: pointer; width: 100%; max-width: 200px; }
+    .alloc-select:focus { border-color: var(--accent); outline: none; }
+    .alloc-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+    /* RESULTS */
+    #resultsSection { display: none; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .results-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .results-meta { color: var(--muted); font-size: 0.85rem; }
+    .action-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent); color: #0b0f1a;
+      border: none; padding: 0.5rem 1.1rem;
+      border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+
+    /* KPI STRIP */
+    .kpi-strip {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    @media (max-width: 900px) { .kpi-strip { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 540px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.25rem;
+    }
+    .kpi-card.kpi-profit { border-color: rgba(34,197,94,0.3); }
+    .kpi-card.kpi-loss { border-color: rgba(255,76,106,0.3); }
+    .kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .kpi-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    .kpi-green { color: var(--green); }
+    .kpi-red { color: var(--red); }
+    .kpi-accent { color: var(--accent); }
+    .kpi-yellow { color: var(--yellow); }
+
+    /* TABS */
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0; flex-wrap: wrap; }
+    .tab-btn {
+      background: none; border: none; color: var(--muted); font-size: 0.88rem;
+      padding: 0.6rem 1.1rem; cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* BRANCH CARDS GRID */
+    .branch-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .branch-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.4rem;
+      transition: all 0.2s; position: relative; overflow: hidden;
+    }
+    .branch-card:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,0,0,0.35); }
+    .branch-card.profitable { border-top: 3px solid var(--green); }
+    .branch-card.loss-making { border-top: 3px solid var(--red); }
+    .branch-card.breakeven { border-top: 3px solid var(--yellow); }
+
+    .bc-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+    .bc-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .bc-badge-profit { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .bc-badge-loss { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .bc-badge-breakeven { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,197,24,0.3); }
+
+    .bc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.9rem; }
+    .bc-metric { background: var(--surface2); border-radius: 8px; padding: 0.55rem 0.75rem; }
+    .bc-metric-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .bc-metric-value { font-size: 1rem; font-weight: 700; margin-top: 0.1rem; }
+
+    .bc-bar-wrap { margin-top: 0.75rem; }
+    .bc-bar-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.3rem; }
+    .bc-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .bc-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+    .bc-bar-revenue { background: var(--accent); }
+    .bc-bar-gp { background: var(--green); }
+
+    /* RANKED TABLE */
+    .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 2rem; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em;
+      border-bottom: 1px solid var(--border); background: var(--surface2);
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .data-table th:hover { color: var(--accent); }
+    .data-table th .sort-icon { margin-left: 4px; opacity: 0.5; }
+    .data-table th.sort-asc .sort-icon::after { content: '▲'; }
+    .data-table th.sort-desc .sort-icon::after { content: '▼'; }
+    .data-table th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
+    .data-table td { padding: 0.7rem 1rem; font-size: 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(0,212,170,0.03); }
+    .rank-num { width: 28px; height: 28px; border-radius: 6px; background: var(--surface2); display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+    .rank-1 { background: rgba(245,197,24,0.15); color: var(--yellow); }
+    .rank-2 { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .rank-3 { background: rgba(205,127,50,0.15); color: #cd7f32; }
+    .margin-bar { width: 80px; height: 8px; background: var(--surface2); border-radius: 4px; display: inline-block; vertical-align: middle; overflow: hidden; }
+    .margin-fill { height: 100%; border-radius: 4px; }
+    .margin-fill.positive { background: var(--green); }
+    .margin-fill.negative { background: var(--red); }
+    .revenue-share-bar { width: 60px; height: 6px; background: var(--surface2); border-radius: 3px; display: inline-block; vertical-align: middle; overflow: hidden; margin-left: 6px; }
+    .revenue-share-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+
+    /* COMPARISON VIEW */
+    .compare-controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .compare-controls select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
+    .compare-controls select:focus { border-color: var(--accent); outline: none; }
+
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+
+    .compare-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .compare-panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1.2rem; color: var(--accent); }
+    .pnl-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    .pnl-row:last-child { border-bottom: none; }
+    .pnl-row.subtotal { font-weight: 700; background: var(--surface2); padding: 0.5rem 0.75rem; margin: 0 -0.75rem; border-radius: 6px; }
+    .pnl-row.total { font-weight: 800; font-size: 1rem; background: rgba(0,212,170,0.08); padding: 0.6rem 0.75rem; margin: 0.5rem -0.75rem 0; border-radius: 6px; }
+    .pnl-label { color: var(--text); }
+    .pnl-label.indent { padding-left: 1rem; color: var(--muted); font-size: 0.85rem; }
+    .pnl-value { font-weight: 600; }
+
+    /* SUBSIDISATION DIAGRAM */
+    .subsidy-wrap { margin-bottom: 2rem; }
+    .subsidy-canvas-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; overflow-x: auto; }
+    #subsidisationDiagram { min-width: 500px; }
+
+    .subsidy-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+    .subsidy-legend-item { display: flex; align-items: center; gap: 0.4rem; }
+    .sl-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .sl-green { background: var(--green); }
+    .sl-red { background: var(--red); }
+
+    /* TREND VIEW */
+    .trend-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 2rem; }
+    .trend-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .trend-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .no-trend-msg { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.9rem; }
+
+    /* RECONCILIATION */
+    .recon-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem 1.5rem; margin-bottom: 2rem; }
+    .recon-row { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    .recon-row:last-child { border-bottom: none; }
+    .recon-row.recon-match { background: rgba(34,197,94,0.06); padding: 0.5rem 0.75rem; margin: 0 -0.75rem; border-radius: 8px; }
+    .recon-row.recon-diff { background: rgba(255,76,106,0.06); padding: 0.5rem 0.75rem; margin: 0 -0.75rem; border-radius: 8px; }
+
+    /* FILE INFO BAR */
+    .file-info-bar {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 1.25rem;
+      display: flex; align-items: center; gap: 1.5rem;
+      flex-wrap: wrap; margin-bottom: 1.5rem; font-size: 0.85rem;
+    }
+    .file-info-item { display: flex; align-items: center; gap: 0.4rem; }
+    .fi-label { color: var(--muted); }
+    .fi-value { font-weight: 600; color: var(--text); }
+    .fi-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--accent); color: #0b0f1a;
+      padding: 0.8rem 1.4rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.35s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* SCOPE FOOTER */
+    .scope-footer {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.5rem;
+      margin-top: 2rem; color: var(--muted); font-size: 0.8rem;
+      line-height: 1.6; font-style: italic;
+    }
+    .scope-footer strong { color: var(--text); font-style: normal; }
+
+    /* WARN BOX */
+    .warn-box { background: rgba(255,76,106,0.08); border: 1px solid rgba(255,76,106,0.3); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-size: 0.875rem; color: var(--red); }
+    .warn-box strong { font-weight: 700; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+    @media (max-width: 640px) {
+      .compare-grid { grid-template-columns: 1fr; }
+      .kpi-strip { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="index.html">Cred<span>lance</span></a>
+  <div class="nav-badge">Branch P&L</div>
+  <div class="nav-right">
+    <a class="nav-back" href="index.html">← All Apps</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Branch / <span>Cost Centre P&L</span></h1>
+  <p>Upload your Tally Cost Centre report and instantly get individual P&L statements per branch — ranked by profitability, with subsidisation analysis and allocation controls.</p>
+</div>
+
+<!-- UPLOAD SECTION -->
+<div class="upload-section" id="uploadSection">
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📂</div>
+    <h3>Upload Cost Centre Report</h3>
+    <p>Drag & drop your Tally export here, or click to browse</p>
+    <button class="upload-btn">Choose File</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+  </div>
+  <div class="format-hint">
+    <h4>Accepted Tally Exports</h4>
+    <ul>
+      <li><strong>Cost Centre Break-up:</strong> Gateway → Display More Reports → Statements of Accounts → Cost Centres → Category Summary → Alt+E</li>
+      <li><strong>Day Book with cost centre column:</strong> Gateway → Display → Day Book → F12 Show Cost Centres: Yes → Alt+E</li>
+      <li><strong>Trial Balance with cost centre:</strong> Gateway → Display → Trial Balance → F12 Show Cost Centres: Yes → Alt+E</li>
+      <li>Expected columns: Cost Centre, Ledger/Group, Amount (or separate Income/Expense amounts)</li>
+      <li>Pre-requisite: Cost Centres enabled in Tally (F11 → Accounting Features → Maintain Cost Centres: Yes)</li>
+    </ul>
+  </div>
+  <div style="text-align:center; margin-top:1.5rem;">
+    <button class="btn-outline" onclick="loadSampleData()" style="font-size:0.85rem;">▶ Try with Sample Data</button>
+  </div>
+</div>
+
+<!-- PROCESSING -->
+<div id="processingSection">
+  <div class="spinner"></div>
+  <div id="processingMsg">Parsing cost centre data…</div>
+  <div class="processing-steps">Building per-branch P&L statements</div>
+</div>
+
+<!-- ALLOCATION SECTION -->
+<div id="allocationSection">
+  <div class="allocation-header">
+    <div>
+      <h2>Unallocated Items — Step 2 of 3</h2>
+      <div class="allocation-subtitle">These line items have no cost centre tag. Assign them or use the pro-rata rule.</div>
+    </div>
+    <div class="alloc-actions">
+      <button class="btn-outline" onclick="showUpload()">← Re-upload</button>
+      <button class="btn-primary" onclick="applyAllocations()">Apply & View Results →</button>
+    </div>
+  </div>
+
+  <div class="alloc-rule-bar">
+    <label>Default allocation rule:</label>
+    <select id="allocRuleSelect">
+      <option value="prorata">Pro-rata by Revenue</option>
+      <option value="equal">Equal Split</option>
+      <option value="manual">Manual Only</option>
+    </select>
+    <div class="alloc-info" id="allocInfo">All unallocated items will be distributed proportionally by each branch's revenue share.</div>
+  </div>
+
+  <div id="allocWarnBox" class="warn-box" style="display:none;"></div>
+
+  <div class="alloc-table-wrap">
+    <table class="alloc-table">
+      <thead>
+        <tr>
+          <th>Ledger / Item</th>
+          <th>Group</th>
+          <th>Type</th>
+          <th style="text-align:right">Amount (₹)</th>
+          <th>Assign to Branch</th>
+        </tr>
+      </thead>
+      <tbody id="allocTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="alloc-actions" style="justify-content:flex-end;">
+    <button class="btn-outline" onclick="applyDefaultAllocation()">Apply Default Rule to All</button>
+    <button class="btn-primary" onclick="applyAllocations()">Confirm & Build P&L →</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="resultsSection">
+  <div class="file-info-bar" id="fileInfoBar"></div>
+
+  <div class="results-header">
+    <div>
+      <h2>Branch P&L Analysis</h2>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-outline" onclick="exportExcel()">⬇ Export Excel</button>
+      <button class="btn-outline" onclick="exportPDF()">📄 Export PDF</button>
+      <button class="btn-outline" onclick="showUpload()">↺ New File</button>
+    </div>
+  </div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip" id="kpiStrip"></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">Branch Cards</button>
+    <button class="tab-btn" onclick="switchTab('table')">Ranked Table</button>
+    <button class="tab-btn" onclick="switchTab('compare')">Side-by-Side P&L</button>
+    <button class="tab-btn" onclick="switchTab('subsidy')">Subsidisation</button>
+    <button class="tab-btn" onclick="switchTab('trend')">Trend</button>
+    <button class="tab-btn" onclick="switchTab('recon')">Reconciliation</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="branch-cards-grid" id="branchCardsGrid"></div>
+  </div>
+
+  <!-- RANKED TABLE TAB -->
+  <div class="tab-panel" id="tab-table">
+    <div class="table-wrap">
+      <table class="data-table" id="rankedTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable('rank')" data-col="rank"># <span class="sort-icon"></span></th>
+            <th onclick="sortTable('name')" data-col="name">Branch <span class="sort-icon"></span></th>
+            <th onclick="sortTable('revenue')" data-col="revenue" style="text-align:right">Revenue <span class="sort-icon"></span></th>
+            <th onclick="sortTable('gp')" data-col="gp" style="text-align:right">Gross Profit <span class="sort-icon"></span></th>
+            <th onclick="sortTable('gpPct')" data-col="gpPct" style="text-align:right">GP% <span class="sort-icon"></span></th>
+            <th onclick="sortTable('np')" data-col="np" style="text-align:right">Net Profit <span class="sort-icon"></span></th>
+            <th onclick="sortTable('npPct')" data-col="npPct" style="text-align:right">NP% <span class="sort-icon"></span></th>
+            <th onclick="sortTable('revShare')" data-col="revShare" style="text-align:right">Rev Share <span class="sort-icon"></span></th>
+          </tr>
+        </thead>
+        <tbody id="rankedTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COMPARE TAB -->
+  <div class="tab-panel" id="tab-compare">
+    <div class="compare-controls">
+      <span style="color:var(--muted);font-size:0.88rem;">Compare:</span>
+      <select id="compareA" onchange="renderCompare()"></select>
+      <span style="color:var(--muted)">vs</span>
+      <select id="compareB" onchange="renderCompare()"></select>
+    </div>
+    <div class="compare-grid" id="compareGrid"></div>
+  </div>
+
+  <!-- SUBSIDY TAB -->
+  <div class="tab-panel" id="tab-subsidy">
+    <div class="subsidy-wrap">
+      <div class="subsidy-canvas-wrap">
+        <canvas id="subsidisationDiagram" height="300"></canvas>
+      </div>
+      <div class="subsidy-legend">
+        <div class="subsidy-legend-item"><div class="sl-dot sl-green"></div> Profitable branch (net contributor)</div>
+        <div class="subsidy-legend-item"><div class="sl-dot sl-red"></div> Loss-making branch (subsidised)</div>
+      </div>
+      <div id="subsidyNarrative" style="margin-top:1.25rem; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.25rem 1.5rem; font-size:0.875rem; color:var(--muted); line-height:1.7;"></div>
+    </div>
+  </div>
+
+  <!-- TREND TAB -->
+  <div class="tab-panel" id="tab-trend">
+    <div class="trend-wrap">
+      <div class="trend-title">Monthly Net Profit by Branch</div>
+      <div class="trend-sub">Available when monthly columnar data is uploaded.</div>
+      <div id="trendContent"></div>
+    </div>
+  </div>
+
+  <!-- RECON TAB -->
+  <div class="tab-panel" id="tab-recon">
+    <div class="recon-box" id="reconBox"></div>
+  </div>
+
+  <div class="scope-footer">
+    <strong>Scope note:</strong> Branch P&L accuracy depends on cost centre tagging in Tally. Unallocated items are distributed per your chosen rule — review before acting. Direct cost mapping assumes ledger group names follow standard Tally conventions; manually reclassify if your chart of accounts differs.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════
+let parsedData = [];       // raw rows from file
+let branches = [];         // list of branch names (excl Unallocated)
+let branchPnL = {};        // { branchName: { revenue, directCosts, gp, indirectExp, np, … } }
+let unallocatedRows = [];  // rows without a cost centre
+let allocAssignments = {}; // { rowIndex: branchName or 'prorata' }
+let allocRule = 'prorata';
+let hasTrend = false;
+let monthlyData = {};      // { branchName: { [YYYY-MM]: np } }
+let trendChart = null;
+let subsidyChart = null;
+let sortCol = 'np';
+let sortDir = 'desc';
+let entitySlug = 'default';
+
+const INCOME_GROUPS = ['sales', 'revenue', 'income', 'turnover', 'receipts', 'direct income', 'indirect income', 'other income', 'sundry debtors', 'service'];
+const DIRECT_COST_GROUPS = ['purchase', 'purchases', 'direct expenses', 'cost of goods', 'raw material', 'freight inward', 'direct wages', 'manufacturing', 'labour'];
+const INDIRECT_EXP_GROUPS = ['indirect expenses', 'operating expenses', 'admin', 'selling', 'general', 'depreciation', 'finance charges', 'interest', 'salary', 'rent', 'utilities', 'employee', 'staff', 'overhead'];
+
+// ═══════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  entitySlug = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30) || 'entity';
+  showProcessing('Reading file…');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows = [];
+      if (file.name.endsWith('.csv')) {
+        rows = parseCSV(e.target.result);
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      }
+      processRows(rows);
+    } catch (err) {
+      showUpload();
+      alert('Could not parse file: ' + err.message);
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    return obj;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// PARSE & BUILD P&L
+// ═══════════════════════════════════════════════
+function processRows(rows) {
+  setMsg('Detecting columns…');
+  if (!rows.length) { alert('File appears empty.'); showUpload(); return; }
+
+  const headers = Object.keys(rows[0]);
+  const colMap = detectColumns(headers);
+
+  if (!colMap.amount) { alert('Could not detect an Amount column. Please ensure your export has a numeric column for amounts.'); showUpload(); return; }
+
+  parsedData = rows.map((r, i) => ({
+    idx: i,
+    cc: normalize(r[colMap.cc] || ''),
+    ledger: normalize(r[colMap.ledger] || r[colMap.group] || ''),
+    group: normalize(r[colMap.group] || ''),
+    amount: parseAmt(r[colMap.amount]),
+    crAmount: colMap.crAmount ? parseAmt(r[colMap.crAmount]) : null,
+    drAmount: colMap.drAmount ? parseAmt(r[colMap.drAmount]) : null,
+    month: colMap.month ? normalize(r[colMap.month] || '') : null,
+    raw: r
+  }));
+
+  // Filter empty rows
+  parsedData = parsedData.filter(r => r.ledger || r.amount !== 0);
+
+  // Separate allocated vs unallocated
+  unallocatedRows = parsedData.filter(r => !r.cc || r.cc === '' || r.cc === '-' || r.cc === 'n/a' || r.cc === 'na' || r.cc === 'unallocated' || r.cc === 'common');
+  const allocatedRows = parsedData.filter(r => r.cc && r.cc !== '' && r.cc !== '-' && r.cc !== 'n/a' && r.cc !== 'na' && r.cc !== 'unallocated' && r.cc !== 'common');
+
+  branches = [...new Set(allocatedRows.map(r => r.cc))].filter(Boolean).sort();
+
+  // Check for monthly data
+  hasTrend = parsedData.some(r => r.month && r.month.match(/\d{4}[-\/]\d{1,2}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i));
+
+  // Load saved allocations from localStorage
+  loadSavedAllocations();
+
+  if (branches.length === 0) {
+    showWarn('No cost centre data found in this file. Please ensure cost centres are enabled in Tally (F11 → Maintain Cost Centres: Yes) and allocated to ledgers before exporting.');
+    showUpload();
+    return;
+  }
+
+  setMsg('Building P&L statements…');
+
+  if (unallocatedRows.length > 0) {
+    // Show allocation panel
+    renderAllocationPanel();
+    showSection('allocation');
+  } else {
+    buildFinalPnL([]);
+  }
+}
+
+function detectColumns(headers) {
+  const h = headers.map(x => x.toLowerCase());
+  const find = (...terms) => {
+    for (const t of terms) {
+      const i = h.findIndex(x => x.includes(t));
+      if (i >= 0) return headers[i];
+    }
+    return null;
+  };
+  return {
+    cc: find('cost centre', 'cost center', 'costcentre', 'costcenter', 'branch', 'centre', 'center', 'cc'),
+    ledger: find('ledger', 'particulars', 'account', 'narration', 'description', 'name'),
+    group: find('group', 'category', 'nature', 'type'),
+    amount: find('net amount', 'net amt', 'amount', 'amt', 'value', 'net'),
+    crAmount: find('credit amount', 'credit amt', 'cr amount', 'cr amt', 'credit', 'income amount', 'income amt'),
+    drAmount: find('debit amount', 'debit amt', 'dr amount', 'dr amt', 'debit', 'expense amount', 'expense amt'),
+    month: find('month', 'period', 'date'),
+  };
+}
+
+function parseAmt(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const s = String(v).replace(/[₹,\s]/g, '').replace(/\(([^)]+)\)/, '-$1');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function normalize(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+// ═══════════════════════════════════════════════
+// ALLOCATION PANEL
+// ═══════════════════════════════════════════════
+function renderAllocationPanel() {
+  const tbody = document.getElementById('allocTableBody');
+  tbody.innerHTML = '';
+  const savedKey = `credlance_branchpnl_${entitySlug}_allocations`;
+  const savedMap = JSON.parse(localStorage.getItem(savedKey) || '{}');
+
+  const branchOptions = ['<option value="prorata">-- Pro-rata by revenue --</option>',
+    '<option value="equal">-- Equal split --</option>',
+    ...branches.map(b => `<option value="${b}">${titleCase(b)}</option>`)
+  ].join('');
+
+  unallocatedRows.forEach(r => {
+    const savedVal = savedMap[r.ledger] || 'prorata';
+    allocAssignments[r.idx] = savedVal;
+    const amtClass = r.amount >= 0 ? 'amt-positive' : 'amt-negative';
+    const typeLabel = classifyLedger(r.ledger, r.group);
+    tbody.innerHTML += `
+      <tr>
+        <td>${titleCase(r.ledger)}</td>
+        <td>${titleCase(r.group) || '—'}</td>
+        <td><span style="font-size:0.75rem; padding:2px 8px; border-radius:12px; background:var(--surface2); color:var(--muted);">${typeLabel}</span></td>
+        <td style="text-align:right;" class="${amtClass}">${fmt(r.amount)}</td>
+        <td>
+          <select class="alloc-select" data-idx="${r.idx}" onchange="allocAssignments[${r.idx}]=this.value">
+            ${branchOptions}
+          </select>
+        </td>
+      </tr>`;
+  });
+
+  // Set saved values
+  document.querySelectorAll('.alloc-select').forEach(sel => {
+    const idx = parseInt(sel.dataset.idx);
+    sel.value = allocAssignments[idx] || 'prorata';
+  });
+
+  updateAllocInfo();
+  document.getElementById('allocRuleSelect').addEventListener('change', () => {
+    allocRule = document.getElementById('allocRuleSelect').value;
+    updateAllocInfo();
+  });
+}
+
+function updateAllocInfo() {
+  const info = document.getElementById('allocInfo');
+  const msgs = {
+    prorata: 'All unallocated items will be distributed proportionally by each branch\'s revenue share.',
+    equal: 'All unallocated items will be split equally across all branches.',
+    manual: 'Only items manually assigned above will be allocated. The rest go into "Unallocated" pool.'
+  };
+  info.textContent = msgs[allocRule];
+}
+
+function applyDefaultAllocation() {
+  allocRule = document.getElementById('allocRuleSelect').value;
+  document.querySelectorAll('.alloc-select').forEach(sel => {
+    sel.value = allocRule === 'manual' ? 'prorata' : allocRule;
+    allocAssignments[parseInt(sel.dataset.idx)] = sel.value;
+  });
+  showToast('Default rule applied to all items');
+}
+
+function applyAllocations() {
+  // Save to localStorage
+  const savedKey = `credlance_branchpnl_${entitySlug}_allocations`;
+  const map = {};
+  unallocatedRows.forEach(r => { map[r.ledger] = allocAssignments[r.idx] || 'prorata'; });
+  localStorage.setItem(savedKey, JSON.stringify(map));
+
+  buildFinalPnL(unallocatedRows);
+}
+
+function loadSavedAllocations() {
+  const savedKey = `credlance_branchpnl_${entitySlug}_allocations`;
+  const savedMap = JSON.parse(localStorage.getItem(savedKey) || '{}');
+  unallocatedRows.forEach(r => {
+    allocAssignments[r.idx] = savedMap[r.ledger] || 'prorata';
+  });
+}
+
+// ═══════════════════════════════════════════════
+// BUILD P&L
+// ═══════════════════════════════════════════════
+function buildFinalPnL(unallocRows) {
+  showProcessing('Computing P&L per branch…');
+
+  branchPnL = {};
+  branches.forEach(b => {
+    branchPnL[b] = { revenue: 0, directCosts: 0, gp: 0, indirectExp: 0, np: 0, ledgers: [] };
+  });
+
+  // Pass 1: allocated rows
+  const allocatedRows = parsedData.filter(r => r.cc && r.cc !== '' && r.cc !== '-' && r.cc !== 'n/a' && r.cc !== 'unallocated' && r.cc !== 'common');
+  allocatedRows.forEach(r => {
+    const b = r.cc;
+    if (!branchPnL[b]) { branchPnL[b] = { revenue: 0, directCosts: 0, gp: 0, indirectExp: 0, np: 0, ledgers: [] }; branches.push(b); }
+    classifyAndAdd(branchPnL[b], r);
+  });
+
+  // Pass 2: unallocated rows — distribute per assignment
+  const totalRevenue = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  unallocRows.forEach(r => {
+    const assignment = allocAssignments[r.idx] || 'prorata';
+    if (assignment === 'prorata') {
+      branches.forEach(b => {
+        const share = totalRevenue > 0 ? branchPnL[b].revenue / totalRevenue : 1 / branches.length;
+        const partial = { ...r, amount: r.amount * share, ledger: r.ledger + ' (pro-rata)', group: r.group };
+        classifyAndAdd(branchPnL[b], partial);
+      });
+    } else if (assignment === 'equal') {
+      branches.forEach(b => {
+        const partial = { ...r, amount: r.amount / branches.length, ledger: r.ledger + ' (equal split)', group: r.group };
+        classifyAndAdd(branchPnL[b], partial);
+      });
+    } else {
+      // manually assigned to a specific branch
+      const b = assignment;
+      if (branchPnL[b]) classifyAndAdd(branchPnL[b], r);
+    }
+  });
+
+  // Compute GP and NP
+  branches.forEach(b => {
+    const p = branchPnL[b];
+    p.gp = p.revenue - p.directCosts;
+    p.np = p.gp - p.indirectExp;
+    p.gpPct = p.revenue !== 0 ? (p.gp / p.revenue) * 100 : 0;
+    p.npPct = p.revenue !== 0 ? (p.np / p.revenue) * 100 : 0;
+  });
+
+  // Trend data if available
+  if (hasTrend) buildTrendData();
+
+  setTimeout(() => {
+    renderResults();
+    showSection('results');
+  }, 400);
+}
+
+function classifyAndAdd(pnl, r) {
+  const type = classifyLedger(r.ledger, r.group);
+  const amt = Math.abs(r.amount);
+  const sign = r.amount;
+
+  if (type === 'Income') {
+    pnl.revenue += (sign >= 0 ? amt : -amt);
+  } else if (type === 'Direct Cost') {
+    pnl.directCosts += (sign >= 0 ? amt : -amt);
+  } else if (type === 'Indirect Expense') {
+    pnl.indirectExp += (sign >= 0 ? amt : -amt);
+  }
+  pnl.ledgers.push({ ledger: r.ledger, group: r.group, type, amount: r.amount });
+}
+
+function classifyLedger(ledger, group) {
+  const l = (ledger + ' ' + group).toLowerCase();
+  if (INCOME_GROUPS.some(k => l.includes(k))) return 'Income';
+  if (DIRECT_COST_GROUPS.some(k => l.includes(k))) return 'Direct Cost';
+  if (INDIRECT_EXP_GROUPS.some(k => l.includes(k))) return 'Indirect Expense';
+  return 'Indirect Expense'; // default
+}
+
+function buildTrendData() {
+  monthlyData = {};
+  branches.forEach(b => { monthlyData[b] = {}; });
+
+  parsedData.filter(r => r.month && r.cc && branchPnL[r.cc]).forEach(r => {
+    const b = r.cc;
+    const m = extractMonth(r.month);
+    if (!m) return;
+    if (!monthlyData[b][m]) monthlyData[b][m] = 0;
+    const type = classifyLedger(r.ledger, r.group);
+    if (type === 'Income') monthlyData[b][m] += r.amount;
+    else monthlyData[b][m] -= Math.abs(r.amount);
+  });
+}
+
+function extractMonth(s) {
+  const str = String(s);
+  const m = str.match(/(\d{4})[-\/](\d{1,2})/);
+  if (m) return m[1] + '-' + m[2].padStart(2, '0');
+  const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const mi = months.findIndex(mn => str.toLowerCase().includes(mn));
+  if (mi >= 0) {
+    const yr = str.match(/\d{4}/);
+    return (yr ? yr[0] : new Date().getFullYear()) + '-' + String(mi + 1).padStart(2, '0');
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════════
+function renderResults() {
+  renderFileInfoBar();
+  renderKPIs();
+  renderBranchCards();
+  renderRankedTable();
+  renderCompareSelects();
+  renderCompare();
+  renderSubsidisation();
+  renderTrend();
+  renderRecon();
+}
+
+function renderFileInfoBar() {
+  const totalBranches = branches.length;
+  const profitable = branches.filter(b => branchPnL[b].np > 0).length;
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  document.getElementById('fileInfoBar').innerHTML = `
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Branches:</span><span class="fi-value">${totalBranches}</span></div>
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Profitable:</span><span class="fi-value" style="color:var(--green)">${profitable}</span></div>
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Loss-making:</span><span class="fi-value" style="color:var(--red)">${totalBranches - profitable}</span></div>
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Total Revenue:</span><span class="fi-value">${fmt(totalRev)}</span></div>
+    <div class="file-info-item"><div class="fi-dot"></div><span class="fi-label">Unallocated items:</span><span class="fi-value">${unallocatedRows.length}</span></div>
+  `;
+  document.getElementById('resultsMeta').textContent = `${totalBranches} cost centres analysed`;
+}
+
+function renderKPIs() {
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  const totalGP = branches.reduce((s, b) => s + branchPnL[b].gp, 0);
+  const totalNP = branches.reduce((s, b) => s + branchPnL[b].np, 0);
+  const profitable = branches.filter(b => branchPnL[b].np > 0);
+  const lossMaking = branches.filter(b => branchPnL[b].np < 0);
+  const totalLoss = lossMaking.reduce((s, b) => s + branchPnL[b].np, 0);
+  const npPct = totalRev > 0 ? (totalNP / totalRev) * 100 : 0;
+
+  document.getElementById('kpiStrip').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-value kpi-accent">${fmt(totalRev)}</div>
+      <div class="kpi-label">Total Revenue</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value ${totalGP >= 0 ? 'kpi-green' : 'kpi-red'}">${fmt(totalGP)}</div>
+      <div class="kpi-label">Total Gross Profit</div>
+    </div>
+    <div class="kpi-card ${totalNP >= 0 ? 'kpi-profit' : 'kpi-loss'}">
+      <div class="kpi-value ${totalNP >= 0 ? 'kpi-green' : 'kpi-red'}">${fmt(totalNP)}</div>
+      <div class="kpi-label">Total Net Profit (${fmtPct(npPct)})</div>
+    </div>
+    <div class="kpi-card kpi-profit">
+      <div class="kpi-value kpi-green">${profitable.length}</div>
+      <div class="kpi-label">Profitable Branches</div>
+    </div>
+    <div class="kpi-card ${lossMaking.length > 0 ? 'kpi-loss' : ''}">
+      <div class="kpi-value ${lossMaking.length > 0 ? 'kpi-red' : 'kpi-green'}">${lossMaking.length}</div>
+      <div class="kpi-label">Loss-making ${lossMaking.length > 0 ? '(₹' + fmtK(Math.abs(totalLoss)) + ' drain)' : 'Branches'}</div>
+    </div>
+  `;
+}
+
+function renderBranchCards() {
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  const sorted = [...branches].sort((a, b) => branchPnL[b].np - branchPnL[a].np);
+  const grid = document.getElementById('branchCardsGrid');
+  grid.innerHTML = '';
+
+  sorted.forEach(b => {
+    const p = branchPnL[b];
+    const cls = p.np > 0 ? 'profitable' : p.np < 0 ? 'loss-making' : 'breakeven';
+    const badgeCls = p.np > 0 ? 'bc-badge-profit' : p.np < 0 ? 'bc-badge-loss' : 'bc-badge-breakeven';
+    const badgeTxt = p.np > 0 ? '✓ Profitable' : p.np < 0 ? '⚠ Loss' : '~ Break-even';
+    const revShare = totalRev > 0 ? (p.revenue / totalRev) * 100 : 0;
+    const gpBarW = p.revenue > 0 ? Math.min(100, Math.max(0, (p.gp / p.revenue) * 100)) : 0;
+    const revBarW = revShare;
+
+    grid.innerHTML += `
+      <div class="branch-card ${cls}">
+        <div class="bc-name">
+          ${titleCase(b)}
+          <span class="bc-badge ${badgeCls}">${badgeTxt}</span>
+        </div>
+        <div class="bc-metrics">
+          <div class="bc-metric">
+            <div class="bc-metric-label">Revenue</div>
+            <div class="bc-metric-value kpi-accent">${fmtK(p.revenue)}</div>
+          </div>
+          <div class="bc-metric">
+            <div class="bc-metric-label">Gross Profit</div>
+            <div class="bc-metric-value ${p.gp >= 0 ? 'kpi-green' : 'kpi-red'}">${fmtK(p.gp)}</div>
+          </div>
+          <div class="bc-metric">
+            <div class="bc-metric-label">Net Profit</div>
+            <div class="bc-metric-value ${p.np >= 0 ? 'kpi-green' : 'kpi-red'}">${fmtK(p.np)}</div>
+          </div>
+          <div class="bc-metric">
+            <div class="bc-metric-label">NP Margin</div>
+            <div class="bc-metric-value ${p.npPct >= 0 ? 'kpi-green' : 'kpi-red'}">${fmtPct(p.npPct)}</div>
+          </div>
+        </div>
+        <div class="bc-bar-wrap">
+          <div class="bc-bar-label"><span>GP Margin</span><span>${fmtPct(p.gpPct)}</span></div>
+          <div class="bc-bar"><div class="bc-bar-fill bc-bar-gp" style="width:${gpBarW}%"></div></div>
+        </div>
+        <div class="bc-bar-wrap" style="margin-top:0.5rem;">
+          <div class="bc-bar-label"><span>Revenue Share</span><span>${fmtPct(revShare)}</span></div>
+          <div class="bc-bar"><div class="bc-bar-fill bc-bar-revenue" style="width:${revBarW}%"></div></div>
+        </div>
+      </div>`;
+  });
+}
+
+function renderRankedTable() {
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  const sorted = [...branches].sort((a, b) => {
+    const va = sortVal(a), vb = sortVal(b);
+    return sortDir === 'desc' ? vb - va : va - vb;
+  });
+
+  const tbody = document.getElementById('rankedTableBody');
+  tbody.innerHTML = '';
+
+  sorted.forEach((b, i) => {
+    const p = branchPnL[b];
+    const revShare = totalRev > 0 ? (p.revenue / totalRev) * 100 : 0;
+    const rank = i + 1;
+    const rankCls = rank <= 3 ? `rank-${rank}` : '';
+    const gpBarW = Math.min(100, Math.abs(p.gpPct));
+    const npBarW = Math.min(100, Math.abs(p.npPct));
+
+    tbody.innerHTML += `
+      <tr>
+        <td><span class="rank-num ${rankCls}">${rank}</span></td>
+        <td style="font-weight:600">${titleCase(b)}</td>
+        <td style="text-align:right">${fmt(p.revenue)}</td>
+        <td style="text-align:right; color:${p.gp >= 0 ? 'var(--green)' : 'var(--red)'}">
+          ${fmt(p.gp)}
+          <div class="margin-bar" style="margin-left:6px;"><div class="margin-fill ${p.gp >= 0 ? 'positive' : 'negative'}" style="width:${gpBarW}%"></div></div>
+        </td>
+        <td style="text-align:right; color:${p.gpPct >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtPct(p.gpPct)}</td>
+        <td style="text-align:right; color:${p.np >= 0 ? 'var(--green)' : 'var(--red)'}">
+          ${fmt(p.np)}
+          <div class="margin-bar" style="margin-left:6px;"><div class="margin-fill ${p.np >= 0 ? 'positive' : 'negative'}" style="width:${npBarW}%"></div></div>
+        </td>
+        <td style="text-align:right; color:${p.npPct >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtPct(p.npPct)}</td>
+        <td style="text-align:right">
+          ${fmtPct(revShare)}
+          <div class="revenue-share-bar"><div class="revenue-share-fill" style="width:${revShare}%"></div></div>
+        </td>
+      </tr>`;
+  });
+
+  // Update sort header states
+  document.querySelectorAll('#rankedTable th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+function sortVal(b) {
+  const p = branchPnL[b];
+  const m = { revenue: p.revenue, gp: p.gp, gpPct: p.gpPct, np: p.np, npPct: p.npPct, name: b.charCodeAt(0), rank: -p.np, revShare: p.revenue };
+  return m[sortCol] !== undefined ? m[sortCol] : p.np;
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  else { sortCol = col; sortDir = 'desc'; }
+  renderRankedTable();
+}
+
+function renderCompareSelects() {
+  const opts = branches.map(b => `<option value="${b}">${titleCase(b)}</option>`).join('');
+  document.getElementById('compareA').innerHTML = opts;
+  document.getElementById('compareB').innerHTML = opts;
+  if (branches.length > 1) document.getElementById('compareB').value = branches[1];
+}
+
+function renderCompare() {
+  const bA = document.getElementById('compareA').value;
+  const bB = document.getElementById('compareB').value;
+  const grid = document.getElementById('compareGrid');
+  grid.innerHTML = renderPnLPanel(bA) + renderPnLPanel(bB);
+}
+
+function renderPnLPanel(b) {
+  const p = branchPnL[b];
+  if (!p) return '';
+  return `
+    <div class="compare-panel">
+      <h3>${titleCase(b)}</h3>
+      ${pnlRow('Revenue', p.revenue, '', 'subtotal')}
+      ${pnlRow('Direct Costs', -p.directCosts, 'indent')}
+      ${pnlRow('Gross Profit', p.gp, '', 'subtotal')}
+      ${pnlRow('GP Margin', '', '', '', fmtPct(p.gpPct))}
+      ${pnlRow('Indirect Expenses', -p.indirectExp, 'indent')}
+      ${pnlRow('Net Profit / (Loss)', p.np, '', 'total')}
+      ${pnlRow('NP Margin', '', '', '', fmtPct(p.npPct))}
+    </div>`;
+}
+
+function pnlRow(label, val, labelClass, rowClass, override) {
+  const display = override !== undefined ? override : (val !== '' ? fmt(val) : '');
+  const color = val !== '' && !override ? (val >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)';
+  return `<div class="pnl-row ${rowClass || ''}">
+    <span class="pnl-label ${labelClass || ''}">${label}</span>
+    <span class="pnl-value" style="color:${color}">${display}</span>
+  </div>`;
+}
+
+function renderSubsidisation() {
+  const canvas = document.getElementById('subsidisationDiagram');
+  const ctx = canvas.getContext('2d');
+  if (subsidyChart) { subsidyChart.destroy(); subsidyChart = null; }
+
+  const profitable = branches.filter(b => branchPnL[b].np > 0).sort((a, b) => branchPnL[b].np - branchPnL[a].np);
+  const lossMaking = branches.filter(b => branchPnL[b].np <= 0).sort((a, b) => branchPnL[a].np - branchPnL[b].np);
+
+  const labels = [...profitable, ...lossMaking].map(b => titleCase(b));
+  const values = [...profitable, ...lossMaking].map(b => branchPnL[b].np);
+  const colors = values.map(v => v >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(255,76,106,0.7)');
+  const borders = values.map(v => v >= 0 ? '#22c55e' : '#ff4c6a');
+
+  subsidyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Net Profit (₹)',
+        data: values,
+        backgroundColor: colors,
+        borderColor: borders,
+        borderWidth: 1,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ₹' + ctx.parsed.y.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8899aa', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          ticks: {
+            color: '#8899aa', font: { size: 11 },
+            callback: v => '₹' + (Math.abs(v) >= 1e5 ? (v / 1e5).toFixed(1) + 'L' : v.toLocaleString('en-IN'))
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+
+  // Narrative
+  const totalProfit = profitable.reduce((s, b) => s + branchPnL[b].np, 0);
+  const totalLoss = lossMaking.reduce((s, b) => s + Math.abs(branchPnL[b].np), 0);
+  const narrative = document.getElementById('subsidyNarrative');
+
+  if (lossMaking.length === 0) {
+    narrative.innerHTML = `<span style="color:var(--green)">✓ All branches are profitable.</span> No cross-subsidisation required. The group's combined net profit is <strong>${fmt(totalProfit)}</strong>.`;
+  } else if (profitable.length === 0) {
+    narrative.innerHTML = `<span style="color:var(--red)">⚠ All branches are loss-making.</span> Total group loss: <strong>${fmt(-totalLoss)}</strong>. Review cost allocations and revenue recognition.`;
+  } else {
+    const topProfit = profitable[0];
+    const topLoss = lossMaking[0];
+    narrative.innerHTML = `
+      Profitable branches (<strong>${profitable.map(b => titleCase(b)).join(', ')}</strong>) generate a combined net profit of <strong>${fmt(totalProfit)}</strong>.
+      Loss-making branches (<strong>${lossMaking.map(b => titleCase(b)).join(', ')}</strong>) consume <strong>${fmt(totalLoss)}</strong> of that profit.
+      <br><br>
+      <strong>${titleCase(topProfit)}</strong> is the largest contributor (NP: ${fmt(branchPnL[topProfit].np)}).
+      <strong>${titleCase(topLoss)}</strong> is the biggest drain (loss: ${fmt(branchPnL[topLoss].np)}).
+      ${totalProfit > totalLoss
+        ? `<br><br><span style="color:var(--green)">✓ The group is net profitable by ${fmt(totalProfit - totalLoss)} after absorbing all losses.</span>`
+        : `<br><br><span style="color:var(--red)">⚠ Group is net loss-making. Profitable branches cannot fully cover losses by ${fmt(totalLoss - totalProfit)}.</span>`
+      }`;
+  }
+}
+
+function renderTrend() {
+  const trendContent = document.getElementById('trendContent');
+  if (!hasTrend || Object.keys(monthlyData).length === 0) {
+    trendContent.innerHTML = '<div class="no-trend-msg">📅 Monthly trend data not detected. For trend analysis, export from Tally with monthly columns (Alt+N for monthly display).</div>';
+    return;
+  }
+
+  const allMonths = [...new Set(Object.values(monthlyData).flatMap(m => Object.keys(m)))].sort();
+  const colors = ['#00d4aa','#ff4c6a','#f5c518','#ff8c42','#60a5fa','#c084fc','#fb923c','#4ade80'];
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'trendChart';
+  canvas.style.maxHeight = '350px';
+  trendContent.innerHTML = '';
+  trendContent.appendChild(canvas);
+
+  if (trendChart) trendChart.destroy();
+
+  trendChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: allMonths,
+      datasets: branches.map((b, i) => ({
+        label: titleCase(b),
+        data: allMonths.map(m => monthlyData[b]?.[m] ?? null),
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length] + '22',
+        tension: 0.3,
+        pointRadius: 4,
+        fill: false,
+        spanGaps: true,
+      }))
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#8899aa', font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ₹${ctx.parsed.y?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#8899aa', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: {
+          ticks: { color: '#8899aa', font: { size: 11 }, callback: v => '₹' + (Math.abs(v) >= 1e5 ? (v / 1e5).toFixed(1) + 'L' : v.toLocaleString('en-IN')) },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+function renderRecon() {
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  const totalGP = branches.reduce((s, b) => s + branchPnL[b].gp, 0);
+  const totalNP = branches.reduce((s, b) => s + branchPnL[b].np, 0);
+  const totalDirectCosts = branches.reduce((s, b) => s + branchPnL[b].directCosts, 0);
+  const totalIndirect = branches.reduce((s, b) => s + branchPnL[b].indirectExp, 0);
+
+  // Gross check: revenue - direct = GP, GP - indirect = NP
+  const gpCheck = Math.abs(totalRev - totalDirectCosts - totalGP) < 1;
+  const npCheck = Math.abs(totalGP - totalIndirect - totalNP) < 1;
+
+  document.getElementById('reconBox').innerHTML = `
+    <div style="font-weight:700; font-size:1rem; margin-bottom:1rem;">Consolidated P&L Reconciliation</div>
+    ${reconRow('Total Revenue (sum of all branches)', fmt(totalRev))}
+    ${reconRow('Less: Total Direct Costs', fmt(-totalDirectCosts))}
+    ${reconRow('= Gross Profit', fmt(totalGP), gpCheck)}
+    ${reconRow('Less: Total Indirect Expenses', fmt(-totalIndirect))}
+    ${reconRow('= Net Profit / (Loss)', fmt(totalNP), npCheck)}
+    <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); font-size:0.82rem; color:${gpCheck && npCheck ? 'var(--green)' : 'var(--red)'};">
+      ${gpCheck && npCheck
+        ? '✓ P&L ties out correctly across all branches.'
+        : '⚠ Reconciliation gap detected. Check ledger classification or re-upload with complete data.'}
+    </div>`;
+}
+
+function reconRow(label, value, isMatch) {
+  const cls = isMatch === true ? 'recon-match' : isMatch === false ? 'recon-diff' : '';
+  return `<div class="recon-row ${cls}"><span style="color:var(--muted)">${label}</span><span style="font-weight:600">${value}</span></div>`;
+}
+
+// ═══════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  const summaryData = [
+    ['Branch / Cost Centre P&L — Consolidated Summary', '', '', '', '', '', ''],
+    [''],
+    ['Branch', 'Revenue (₹)', 'Direct Costs (₹)', 'Gross Profit (₹)', 'GP %', 'Indirect Expenses (₹)', 'Net Profit (₹)', 'NP %'],
+  ];
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  [...branches].sort((a, b) => branchPnL[b].np - branchPnL[a].np).forEach(b => {
+    const p = branchPnL[b];
+    summaryData.push([titleCase(b), p.revenue, p.directCosts, p.gp, (p.gpPct / 100).toFixed(4), p.indirectExp, p.np, (p.npPct / 100).toFixed(4)]);
+  });
+  summaryData.push(['', '', '', '', '', '', '']);
+  summaryData.push(['TOTAL',
+    branches.reduce((s, b) => s + branchPnL[b].revenue, 0),
+    branches.reduce((s, b) => s + branchPnL[b].directCosts, 0),
+    branches.reduce((s, b) => s + branchPnL[b].gp, 0),
+    '',
+    branches.reduce((s, b) => s + branchPnL[b].indirectExp, 0),
+    branches.reduce((s, b) => s + branchPnL[b].np, 0),
+    ''
+  ]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Summary');
+
+  // Per-branch sheets
+  branches.forEach(b => {
+    const p = branchPnL[b];
+    const sheetData = [
+      [`P&L — ${titleCase(b)}`, ''],
+      [''],
+      ['Revenue', fmt(p.revenue)],
+      ['Less: Direct Costs', fmt(-p.directCosts)],
+      ['Gross Profit', fmt(p.gp)],
+      ['GP Margin', fmtPct(p.gpPct)],
+      ['Less: Indirect Expenses', fmt(-p.indirectExp)],
+      ['Net Profit / (Loss)', fmt(p.np)],
+      ['NP Margin', fmtPct(p.npPct)],
+      [''],
+      ['Ledger Detail', 'Group', 'Type', 'Amount (₹)'],
+      ...p.ledgers.map(l => [titleCase(l.ledger), titleCase(l.group), l.type, l.amount])
+    ];
+    const sheetName = titleCase(b).slice(0, 30);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), sheetName);
+  });
+
+  XLSX.writeFile(wb, `Branch_PnL_${entitySlug}.xlsx`);
+  showToast('Excel exported successfully');
+}
+
+function exportPDF() {
+  const totalRev = branches.reduce((s, b) => s + branchPnL[b].revenue, 0);
+  const totalNP = branches.reduce((s, b) => s + branchPnL[b].np, 0);
+  const profitable = branches.filter(b => branchPnL[b].np > 0).sort((a, b) => branchPnL[b].np - branchPnL[a].np);
+  const lossMaking = branches.filter(b => branchPnL[b].np < 0).sort((a, b) => branchPnL[a].np - branchPnL[b].np);
+
+  const printWin = window.open('', '', 'width=900,height=700');
+  printWin.document.write(`
+    <html><head><title>Branch P&L Report</title>
+    <style>
+      body { font-family: 'Segoe UI', sans-serif; padding: 2rem; color: #1a1a2e; }
+      h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+      h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; border-bottom: 2px solid #00d4aa; padding-bottom: 0.3rem; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+      th { background: #f0f4f8; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.78rem; text-transform: uppercase; }
+      td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; }
+      .green { color: #16a34a; } .red { color: #dc2626; }
+      .footer { margin-top: 2rem; font-size: 0.75rem; color: #64748b; font-style: italic; }
+    </style></head><body>
+    <h1>Branch / Cost Centre P&L Report</h1>
+    <p style="color:#64748b; margin-bottom:1rem">Generated: ${new Date().toLocaleString('en-IN')} | ${branches.length} cost centres</p>
+    <p>Total Revenue: <strong>${fmt(totalRev)}</strong> | Total Net Profit: <strong class="${totalNP >= 0 ? 'green' : 'red'}">${fmt(totalNP)}</strong></p>
+
+    <h2>Summary — All Branches (ranked by Net Profit)</h2>
+    <table>
+      <tr><th>Branch</th><th align="right">Revenue</th><th align="right">Gross Profit</th><th align="right">GP%</th><th align="right">Net Profit</th><th align="right">NP%</th></tr>
+      ${[...branches].sort((a, b) => branchPnL[b].np - branchPnL[a].np).map(b => {
+        const p = branchPnL[b];
+        return `<tr>
+          <td>${titleCase(b)}</td>
+          <td align="right">${fmt(p.revenue)}</td>
+          <td align="right" class="${p.gp >= 0 ? 'green' : 'red'}">${fmt(p.gp)}</td>
+          <td align="right" class="${p.gpPct >= 0 ? 'green' : 'red'}">${fmtPct(p.gpPct)}</td>
+          <td align="right" class="${p.np >= 0 ? 'green' : 'red'}">${fmt(p.np)}</td>
+          <td align="right" class="${p.npPct >= 0 ? 'green' : 'red'}">${fmtPct(p.npPct)}</td>
+        </tr>`;
+      }).join('')}
+    </table>
+
+    ${profitable.length > 0 ? `<h2>Top Performing Branches</h2><ul>${profitable.slice(0, 5).map(b => `<li><strong>${titleCase(b)}</strong> — NP: ${fmt(branchPnL[b].np)} (${fmtPct(branchPnL[b].npPct)})</li>`).join('')}</ul>` : ''}
+    ${lossMaking.length > 0 ? `<h2>Loss-making Branches</h2><ul>${lossMaking.map(b => `<li><strong>${titleCase(b)}</strong> — Loss: ${fmt(branchPnL[b].np)} (${fmtPct(branchPnL[b].npPct)}). Requires ${fmt(Math.abs(branchPnL[b].np))} from other branches to break even.</li>`).join('')}</ul>` : ''}
+
+    <div class="footer">Branch P&L accuracy depends on cost centre tagging in Tally. Unallocated items are distributed per your chosen rule — review before acting.</div>
+    </body></html>`);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(() => printWin.print(), 500);
+}
+
+// ═══════════════════════════════════════════════
+// SAMPLE DATA
+// ═══════════════════════════════════════════════
+function loadSampleData() {
+  showProcessing('Loading sample data…');
+  entitySlug = 'sample_entity';
+  // Simulate a cost centre report with 4 branches
+  const rows = [];
+  const config = [
+    { cc: 'Mumbai', ledger: 'Sales - Retail', group: 'Sales Accounts', amount: 4200000 },
+    { cc: 'Mumbai', ledger: 'Sales - Wholesale', group: 'Sales Accounts', amount: 1800000 },
+    { cc: 'Mumbai', ledger: 'Purchase - RM', group: 'Purchase Accounts', amount: 2100000 },
+    { cc: 'Mumbai', ledger: 'Direct Wages', group: 'Direct Expenses', amount: 420000 },
+    { cc: 'Mumbai', ledger: 'Salary', group: 'Indirect Expenses', amount: 380000 },
+    { cc: 'Mumbai', ledger: 'Rent', group: 'Indirect Expenses', amount: 240000 },
+    { cc: 'Mumbai', ledger: 'Utilities', group: 'Indirect Expenses', amount: 90000 },
+    { cc: 'Pune', ledger: 'Sales - Retail', group: 'Sales Accounts', amount: 2800000 },
+    { cc: 'Pune', ledger: 'Purchase - RM', group: 'Purchase Accounts', amount: 1400000 },
+    { cc: 'Pune', ledger: 'Direct Wages', group: 'Direct Expenses', amount: 280000 },
+    { cc: 'Pune', ledger: 'Salary', group: 'Indirect Expenses', amount: 290000 },
+    { cc: 'Pune', ledger: 'Rent', group: 'Indirect Expenses', amount: 180000 },
+    { cc: 'Pune', ledger: 'Utilities', group: 'Indirect Expenses', amount: 60000 },
+    { cc: 'Nashik', ledger: 'Sales - Retail', group: 'Sales Accounts', amount: 1500000 },
+    { cc: 'Nashik', ledger: 'Purchase - RM', group: 'Purchase Accounts', amount: 900000 },
+    { cc: 'Nashik', ledger: 'Direct Wages', group: 'Direct Expenses', amount: 200000 },
+    { cc: 'Nashik', ledger: 'Salary', group: 'Indirect Expenses', amount: 260000 },
+    { cc: 'Nashik', ledger: 'Rent', group: 'Indirect Expenses', amount: 150000 },
+    { cc: 'Nashik', ledger: 'Utilities', group: 'Indirect Expenses', amount: 70000 },
+    { cc: 'Aurangabad', ledger: 'Sales - Retail', group: 'Sales Accounts', amount: 850000 },
+    { cc: 'Aurangabad', ledger: 'Purchase - RM', group: 'Purchase Accounts', amount: 520000 },
+    { cc: 'Aurangabad', ledger: 'Direct Wages', group: 'Direct Expenses', amount: 180000 },
+    { cc: 'Aurangabad', ledger: 'Salary', group: 'Indirect Expenses', amount: 280000 },
+    { cc: 'Aurangabad', ledger: 'Rent', group: 'Indirect Expenses', amount: 200000 },
+    { cc: 'Aurangabad', ledger: 'Utilities', group: 'Indirect Expenses', amount: 80000 },
+    // Unallocated
+    { cc: '', ledger: 'Head Office Admin', group: 'Indirect Expenses', amount: 350000 },
+    { cc: '', ledger: 'Central Marketing', group: 'Indirect Expenses', amount: 180000 },
+    { cc: '', ledger: 'Audit & Legal Fees', group: 'Indirect Expenses', amount: 120000 },
+  ];
+  config.forEach(r => rows.push({ 'Cost Centre': r.cc, 'Ledger': r.ledger, 'Group': r.group, 'Amount': r.amount }));
+
+  setTimeout(() => processRows(rows), 500);
+}
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function showSection(s) {
+  document.getElementById('uploadSection').style.display = s === 'upload' ? 'block' : 'none';
+  document.getElementById('processingSection').style.display = s === 'processing' ? 'block' : 'none';
+  document.getElementById('allocationSection').style.display = s === 'allocation' ? 'block' : 'none';
+  document.getElementById('resultsSection').style.display = s === 'results' ? 'block' : 'none';
+}
+
+function showUpload() { showSection('upload'); }
+function showProcessing(msg) { document.getElementById('processingMsg').textContent = msg; showSection('processing'); }
+function setMsg(m) { document.getElementById('processingMsg').textContent = m; }
+
+function showWarn(msg) {
+  const box = document.getElementById('allocWarnBox');
+  if (box) { box.style.display = 'block'; box.innerHTML = `<strong>⚠ Warning:</strong> ${msg}`; }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function fmt(v) {
+  if (v === '' || v === undefined || v === null) return '';
+  const n = parseFloat(v);
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  return sign + '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtK(v) {
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (abs >= 1e7) return sign + '₹' + (abs / 1e7).toFixed(2) + 'Cr';
+  if (abs >= 1e5) return sign + '₹' + (abs / 1e5).toFixed(2) + 'L';
+  if (abs >= 1000) return sign + '₹' + (abs / 1000).toFixed(1) + 'K';
+  return sign + '₹' + abs.toFixed(0);
+}
+
+function fmtPct(v) { return (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1) + '%'; }
+
+function titleCase(s) {
+  return String(s || '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+</script>
+</body>
+</html>

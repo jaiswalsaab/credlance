@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSCR / Lender Ratio Checker | Credlance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --surface: #111827; --surface2: #1a2235; --border: #1f2d42;
+      --accent: #00d4aa; --accent2: #00a884;
+      --text: #e2e8f0; --muted: #8899aa;
+      --red: #ff4c6a; --orange: #ff8c42; --yellow: #f5c518; --green: #22c55e;
+      --red-bg: rgba(255,76,106,0.10); --orange-bg: rgba(255,140,66,0.10);
+      --yellow-bg: rgba(245,197,24,0.10); --green-bg: rgba(34,197,94,0.10);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* NAV */
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(11,15,26,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 60px; }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-badge { background: var(--surface2); color: var(--accent); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+    .nav-back:hover { color: var(--accent); }
+
+    /* HERO */
+    .hero { padding: 3rem 2rem 2rem; text-align: center; max-width: 760px; margin: 0 auto; }
+    .hero h1 { font-size: 2rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 560px; margin: 0 auto; }
+
+    /* STEPPER */
+    .stepper { display: flex; align-items: center; justify-content: center; gap: 0; max-width: 700px; margin: 2rem auto 0; padding: 0 1.5rem; }
+    .step-item { display: flex; align-items: center; flex: 1; }
+    .step-circle { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--muted); font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s; }
+    .step-circle.active { border-color: var(--accent); background: var(--accent); color: #0b0f1a; }
+    .step-circle.done { border-color: var(--accent); background: rgba(0,212,170,0.15); color: var(--accent); }
+    .step-label { font-size: 0.72rem; color: var(--muted); margin-left: 0.4rem; white-space: nowrap; }
+    .step-label.active { color: var(--text); font-weight: 600; }
+    .step-line { flex: 1; height: 2px; background: var(--border); margin: 0 0.5rem; }
+    .step-line.done { background: var(--accent); }
+
+    /* WIZARD SECTIONS */
+    .wizard-section { display: none; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .wizard-section.active { display: block; }
+
+    /* SECTION CARD */
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; }
+    .form-card-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
+    .form-card-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+    /* UPLOAD ZONE */
+    .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+    @media (max-width: 600px) { .upload-row { grid-template-columns: 1fr; } }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 1.5rem 1rem; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface2); position: relative; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+    .upload-zone.has-file { border-color: var(--green); background: var(--green-bg); }
+    .upload-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .upload-zone h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.78rem; }
+    .upload-zone .file-name { color: var(--green); font-size: 0.78rem; font-weight: 600; margin-top: 0.4rem; }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    /* INPUTS GRID */
+    .inputs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 700px) { .inputs-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 420px) { .inputs-grid { grid-template-columns: 1fr; } }
+    .input-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .input-group label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+    .input-group input, .input-group select {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.875rem;
+      width: 100%; transition: border-color 0.2s;
+    }
+    .input-group input:focus, .input-group select:focus { border-color: var(--accent); outline: none; }
+    .input-group input::placeholder { color: #445566; }
+    .input-hint { font-size: 0.68rem; color: #445566; margin-top: 0.15rem; }
+    .input-prefix { position: relative; }
+    .input-prefix span { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.8rem; pointer-events: none; }
+    .input-prefix input { padding-left: 1.5rem; }
+
+    /* LOAN TABLE */
+    .loan-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 1rem; }
+    .loan-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    .loan-table th { background: var(--surface2); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.65rem 0.85rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .loan-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid rgba(31,45,66,0.5); vertical-align: middle; }
+    .loan-table tr:last-child td { border-bottom: none; }
+    .loan-table .total-row td { background: var(--surface2); font-weight: 700; font-size: 0.875rem; border-top: 2px solid var(--border); }
+    .loan-table input { background: var(--surface2); border: 1px solid transparent; color: var(--text); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.84rem; width: 100%; transition: border-color 0.2s; }
+    .loan-table input:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+    .computed-cell { font-size: 0.84rem; color: var(--muted); text-align: right; padding-right: 0.85rem; white-space: nowrap; }
+    .computed-cell.accent { color: var(--accent); }
+    .btn-del-row { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.1rem; padding: 0.2rem; transition: opacity 0.2s; }
+    .btn-del-row:hover { opacity: 0.7; }
+
+    /* BUTTONS */
+    .btn-primary { background: var(--accent); color: #0b0f1a; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem; transition: background 0.2s; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost { background: none; border: none; color: var(--muted); padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.84rem; transition: color 0.2s; }
+    .btn-ghost:hover { color: var(--accent); }
+    .step-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    .step-actions-right { display: flex; gap: 0.75rem; }
+
+    /* TOGGLE SWITCH */
+    .toggle-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .toggle-label { font-size: 0.88rem; color: var(--text); font-weight: 500; }
+    .toggle-desc { font-size: 0.78rem; color: var(--muted); margin-left: 0.25rem; }
+    input[type=checkbox].toggle { appearance: none; width: 42px; height: 24px; background: var(--border); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.25s; }
+    input[type=checkbox].toggle:checked { background: var(--accent); }
+    input[type=checkbox].toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left 0.25s; }
+    input[type=checkbox].toggle:checked::after { left: 21px; }
+
+    /* RESULTS */
+    #step4 .traffic-banner { border-radius: 12px; padding: 1.25rem 1.75rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    .traffic-banner.green { background: var(--green-bg); border: 1px solid rgba(34,197,94,0.3); }
+    .traffic-banner.amber { background: var(--orange-bg); border: 1px solid rgba(255,140,66,0.3); }
+    .traffic-banner.red { background: var(--red-bg); border: 1px solid rgba(255,76,106,0.3); }
+    .traffic-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+    .traffic-dot.green { background: var(--green); box-shadow: 0 0 10px rgba(34,197,94,0.5); }
+    .traffic-dot.amber { background: var(--orange); box-shadow: 0 0 10px rgba(255,140,66,0.5); }
+    .traffic-dot.red { background: var(--red); box-shadow: 0 0 10px rgba(255,76,106,0.5); }
+    .traffic-text strong { font-size: 1rem; font-weight: 700; }
+    .traffic-text p { font-size: 0.84rem; color: var(--muted); margin-top: 0.1rem; }
+
+    /* RATIO GRID */
+    .ratio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .ratio-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid; border-radius: 12px; padding: 1rem 1.25rem; transition: transform 0.2s; }
+    .ratio-card:hover { transform: translateY(-2px); }
+    .ratio-card.pass { border-left-color: var(--green); }
+    .ratio-card.warn { border-left-color: var(--orange); }
+    .ratio-card.fail { border-left-color: var(--red); }
+    .ratio-card.info { border-left-color: var(--accent); }
+    .ratio-name { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; font-weight: 600; }
+    .ratio-value { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 0.35rem; }
+    .ratio-value.pass { color: var(--green); }
+    .ratio-value.warn { color: var(--orange); }
+    .ratio-value.fail { color: var(--red); }
+    .ratio-value.info { color: var(--accent); }
+    .ratio-threshold { font-size: 0.72rem; color: var(--muted); }
+    .ratio-status-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-top: 0.35rem; letter-spacing: 0.05em; }
+    .badge-pass { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-warn { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(255,140,66,0.3); }
+    .badge-fail { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,76,106,0.3); }
+    .badge-info { background: rgba(0,212,170,0.1); color: var(--accent); border: 1px solid rgba(0,212,170,0.3); }
+
+    /* WATERFALL */
+    .waterfall-container { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 2rem; }
+    .waterfall-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem; }
+    .waterfall-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+    .wf-row { display: grid; grid-template-columns: 200px 1fr 110px; align-items: center; gap: 1rem; }
+    @media (max-width: 600px) { .wf-row { grid-template-columns: 140px 1fr 90px; } }
+    .wf-label { font-size: 0.82rem; color: var(--muted); text-align: right; padding-right: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wf-label.header { color: var(--text); font-weight: 600; }
+    .wf-bar-wrap { height: 24px; background: var(--surface2); border-radius: 4px; overflow: hidden; position: relative; }
+    .wf-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; position: absolute; left: 0; }
+    .wf-bar.profit { background: rgba(34,197,94,0.5); }
+    .wf-bar.depreciation { background: rgba(0,212,170,0.5); }
+    .wf-bar.interest { background: rgba(245,197,24,0.5); }
+    .wf-bar.total { background: rgba(0,212,170,0.7); }
+    .wf-bar.debt { background: rgba(255,76,106,0.5); }
+    .wf-amount { font-size: 0.82rem; font-weight: 600; text-align: right; color: var(--text); }
+    .wf-divider { height: 1px; background: var(--border); margin: 0.4rem 0; }
+    .wf-dscr-row { background: var(--surface2); border-radius: 8px; padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem; }
+    .wf-dscr-label { font-size: 0.88rem; color: var(--muted); }
+    .wf-dscr-value { font-size: 1.5rem; font-weight: 800; }
+
+    /* STRESS TEST */
+    .stress-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 2rem; }
+    .stress-table { width: 100%; border-collapse: collapse; }
+    .stress-table th { background: var(--surface2); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .stress-table th.current { color: var(--accent); }
+    .stress-table th.post { color: var(--orange); }
+    .stress-table td { padding: 0.7rem 1rem; border-bottom: 1px solid rgba(31,45,66,0.5); font-size: 0.875rem; }
+    .stress-table tr:last-child td { border-bottom: none; }
+    .stress-table tr:hover td { background: rgba(0,212,170,0.02); }
+    .stress-val { font-weight: 700; }
+    .stress-val.pass { color: var(--green); }
+    .stress-val.warn { color: var(--orange); }
+    .stress-val.fail { color: var(--red); }
+    .stress-change { font-size: 0.75rem; }
+    .stress-change.worse { color: var(--red); }
+    .stress-change.better { color: var(--green); }
+    .stress-change.neutral { color: var(--muted); }
+
+    /* WORKING CAPITAL */
+    .wc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 600px) { .wc-grid { grid-template-columns: 1fr; } }
+    .wc-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+    .wc-card-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    .wc-card-value { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+    .wc-card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .wc-utilisation { background: var(--surface2); border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; font-size: 0.875rem; }
+    .util-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .util-label { font-size: 0.72rem; color: var(--muted); }
+    .util-value { font-weight: 700; color: var(--text); }
+    .util-bar-wrap { flex: 1; min-width: 120px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .util-bar { height: 100%; border-radius: 4px; }
+    .util-bar.ok { background: var(--green); }
+    .util-bar.high { background: var(--orange); }
+    .util-bar.over { background: var(--red); }
+
+    /* COMMENTARY */
+    .commentary-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 2rem; }
+    .commentary-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .commentary-icon { font-size: 1.4rem; }
+    .commentary-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+    .commentary-subtitle { font-size: 0.75rem; color: var(--muted); }
+    .commentary-text { font-size: 0.875rem; color: #a0aec0; line-height: 1.8; }
+    .commentary-text p { margin-bottom: 0.75rem; }
+    .commentary-text p:last-child { margin-bottom: 0; }
+    .highlight-pass { color: var(--green); font-weight: 600; }
+    .highlight-warn { color: var(--orange); font-weight: 600; }
+    .highlight-fail { color: var(--red); font-weight: 600; }
+
+    /* EXPORT BAR */
+    .export-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; padding: 1.25rem 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; align-items: center; }
+    .export-bar-label { font-size: 0.82rem; color: var(--muted); margin-right: 0.5rem; }
+    .btn-export { display: flex; align-items: center; gap: 0.4rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.84rem; font-weight: 600; transition: all 0.2s; }
+    .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-export-primary { background: var(--accent); color: #0b0f1a; border-color: var(--accent); }
+    .btn-export-primary:hover { background: var(--accent2); border-color: var(--accent2); color: #0b0f1a; }
+
+    /* SECTION HEADING */
+    .section-heading { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+    .section-heading .sh-icon { font-size: 1.1rem; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; background: var(--accent); color: #0b0f1a; padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.875rem; box-shadow: 0 8px 32px rgba(0,212,170,0.3); transform: translateY(100px); opacity: 0; transition: all 0.35s ease; pointer-events: none; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--red); box-shadow: 0 8px 32px rgba(255,76,106,0.3); }
+
+    /* SCOPE FOOTER */
+    .scope-footer { text-align: center; font-size: 0.72rem; color: #334455; padding: 2rem 1.5rem 1rem; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+    footer { background: var(--surface); border-top: 1px solid var(--border); padding: 1.5rem 2rem; }
+    .footer-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+    .footer-copy { font-size: 0.8rem; color: var(--muted); }
+
+    /* ENTITY BAR */
+    .entity-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1.25rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; font-size: 0.85rem; }
+    .entity-bar-item { display: flex; align-items: center; gap: 0.4rem; }
+    .eb-label { color: var(--muted); }
+    .eb-value { font-weight: 600; color: var(--text); }
+    .eb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    /* PROPOSED LOAN PREVIEW */
+    .proposed-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1rem; display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+    @media (max-width: 500px) { .proposed-preview { grid-template-columns: 1fr; } }
+    .pp-item { text-align: center; }
+    .pp-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .pp-value { font-size: 1.1rem; font-weight: 800; color: var(--accent); margin-top: 0.15rem; }
+
+    /* PRINT */
+    @media print {
+      nav, .step-actions, .stepper, .export-bar, .hero { display: none !important; }
+      body { background: white; color: black; }
+      .ratio-card, .waterfall-container, .commentary-box, .stress-table-wrap, .wc-card { border: 1px solid #ddd !important; }
+    }
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 1.6rem; }
+      .inputs-grid { grid-template-columns: 1fr 1fr; }
+      .form-card { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="index.html">Cred<span>lance</span></a>
+  <span class="nav-badge">DSCR / Lender Ratio Checker</span>
+  <a class="nav-back" href="index.html">← All Apps</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>DSCR / <span>Lender Ratio</span> Checker</h1>
+  <p>Compute all ratios banks & NBFCs use in credit appraisal. Stress-test with a proposed loan and generate a lender-ready summary report.</p>
+</div>
+
+<!-- STEPPER -->
+<div class="stepper" id="stepper">
+  <div class="step-item">
+    <div class="step-circle active" id="sc1">1</div>
+    <span class="step-label active" id="sl1">Financials</span>
+  </div>
+  <div class="step-line" id="sline1"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc2">2</div>
+    <span class="step-label" id="sl2">Loan Schedule</span>
+  </div>
+  <div class="step-line" id="sline2"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc3">3</div>
+    <span class="step-label" id="sl3">Proposed Loan</span>
+  </div>
+  <div class="step-line" id="sline3"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc4">4</div>
+    <span class="step-label" id="sl4">Results</span>
+  </div>
+</div>
+
+<!-- ═══════════════ STEP 1: FINANCIALS ═══════════════ -->
+<div class="wizard-section active" id="step1">
+
+  <!-- Entity Info -->
+  <div class="form-card">
+    <div class="form-card-title">Entity Details</div>
+    <div class="inputs-grid">
+      <div class="input-group" style="grid-column: span 2;">
+        <label>Entity / Company Name *</label>
+        <input type="text" id="entityName" placeholder="e.g. ABC Manufacturing Pvt Ltd" />
+      </div>
+      <div class="input-group">
+        <label>Financial Year</label>
+        <select id="fySelect">
+          <option value="FY 2024-25">FY 2024-25</option>
+          <option value="FY 2023-24">FY 2023-24</option>
+          <option value="FY 2022-23">FY 2022-23</option>
+          <option value="FY 2025-26">FY 2025-26</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Promoter / Entity Type</label>
+        <select id="promoterType">
+          <option value="Company">Company</option>
+          <option value="LLP">LLP</option>
+          <option value="Individual/HUF">Individual / HUF</option>
+          <option value="Partnership">Partnership Firm</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Files -->
+  <div class="form-card">
+    <div class="form-card-title">Upload Tally Exports (Optional — Auto-Fills Fields Below)</div>
+    <div class="upload-row">
+      <div class="upload-zone" id="tbZone">
+        <input type="file" accept=".xlsx,.xls,.csv" id="tbFile" onchange="handleTBUpload(event)" />
+        <div class="upload-icon">📊</div>
+        <h4>Trial Balance</h4>
+        <p>Gateway → Display → Trial Balance → Alt+E Excel</p>
+        <div class="file-name" id="tbFileName"></div>
+      </div>
+      <div class="upload-zone" id="plZone">
+        <input type="file" accept=".xlsx,.xls,.csv" id="plFile" onchange="handlePLUpload(event)" />
+        <div class="upload-icon">📋</div>
+        <h4>Profit & Loss A/c</h4>
+        <p>Gateway → Display → P&L A/c → Alt+E Excel</p>
+        <div class="file-name" id="plFileName"></div>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);">💡 All amounts below should be entered in <strong style="color:var(--text);">₹ Lakhs</strong> (1 Lakh = ₹1,00,000). Upload attempts auto-extraction; review and correct all values before proceeding.</p>
+  </div>
+
+  <!-- Balance Sheet Inputs -->
+  <div class="form-card">
+    <div class="form-card-title">Balance Sheet Data (₹ Lakhs)</div>
+    <div style="margin-bottom:1rem;font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Current Assets</div>
+    <div class="inputs-grid" style="margin-bottom:1.25rem;">
+      <div class="input-group">
+        <label>Inventory / Stock-in-Trade</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="inventory" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Sundry Debtors (≤ 90 days)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="debtorsLt90" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Sundry Debtors (&gt; 90 days)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="debtorsGt90" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Cash & Bank Balances</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="cashBank" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Loans & Advances (Given)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="loansGiven" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Other Current Assets</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="otherCA" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1.25rem;font-size:0.84rem;display:flex;align-items:center;justify-content:space-between;">
+      <span style="color:var(--muted);">Total Current Assets (auto-computed)</span>
+      <strong id="totalCADisplay" style="color:var(--accent);">₹ 0.00 L</strong>
+    </div>
+
+    <div style="margin-bottom:1rem;font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Current Liabilities</div>
+    <div class="inputs-grid" style="margin-bottom:1.25rem;">
+      <div class="input-group">
+        <label>Sundry Creditors / Trade Payables</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="sundryCreditors" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Duties & Taxes Payable</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="taxesPayable" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+      <div class="input-group">
+        <label>Other Current Liabilities</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="otherCL" placeholder="0.00" step="0.01" min="0" oninput="updateDerived()" /></div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1.25rem;font-size:0.84rem;display:flex;align-items:center;justify-content:space-between;">
+      <span style="color:var(--muted);">Current Liabilities excl. Bank Borrowings (auto-computed)</span>
+      <strong id="totalCLExclDisplay" style="color:var(--accent);">₹ 0.00 L</strong>
+    </div>
+
+    <div style="margin-bottom:1rem;font-size:0.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Borrowings & Net Worth</div>
+    <div class="inputs-grid">
+      <div class="input-group">
+        <label>Working Capital / Bank OD / CC Limit Used</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="bankBorrowings" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">From Bank Statement / Tally — Current portion only</div>
+      </div>
+      <div class="input-group">
+        <label>Term Loans Outstanding (All)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="termLoans" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">Total outstanding principal across all term loans</div>
+      </div>
+      <div class="input-group">
+        <label>Unsecured Loans</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="unsecuredLoans" placeholder="0.00" step="0.01" min="0" /></div>
+      </div>
+      <div class="input-group">
+        <label>Tangible Net Worth</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="tangibleNetWorth" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">Equity + Reserves − Intangibles − Fictitious Assets</div>
+      </div>
+      <div class="input-group">
+        <label>Total Outside Liabilities (TOL)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="totalOutsideLiab" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">Total Liabilities − Net Worth (all external obligations)</div>
+      </div>
+      <div class="input-group">
+        <label>Average Inventory (for Turnover)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="avgInventory" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">(Opening + Closing Stock) ÷ 2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P&L Inputs -->
+  <div class="form-card">
+    <div class="form-card-title">Profit & Loss Data (₹ Lakhs, Full Year)</div>
+    <div class="inputs-grid">
+      <div class="input-group">
+        <label>Net Revenue / Net Sales</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="revenue" placeholder="0.00" step="0.01" min="0" /></div>
+      </div>
+      <div class="input-group">
+        <label>Cost of Goods Sold (COGS)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="cogs" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">Purchases + Opening Stock − Closing Stock + Direct Exp</div>
+      </div>
+      <div class="input-group">
+        <label>EBITDA</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="ebitda" placeholder="0.00" step="0.01" /></div>
+        <div class="input-hint">Earnings before Interest, Tax, Depreciation & Amortisation</div>
+      </div>
+      <div class="input-group">
+        <label>Depreciation & Amortisation</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="depreciation" placeholder="0.00" step="0.01" min="0" /></div>
+      </div>
+      <div class="input-group">
+        <label>Interest & Finance Charges (P&L)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="interest" placeholder="0.00" step="0.01" min="0" /></div>
+        <div class="input-hint">As appearing in P&L account — used in DSCR numerator</div>
+      </div>
+      <div class="input-group">
+        <label>Net Profit After Tax (PAT)</label>
+        <div class="input-prefix"><span>₹</span><input type="number" id="netProfit" placeholder="0.00" step="0.01" /></div>
+        <div class="input-hint">After all deductions including taxation</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-actions">
+    <div style="font-size:0.8rem;color:var(--muted);">* Entity name required to proceed</div>
+    <div class="step-actions-right">
+      <button class="btn-primary" onclick="goToStep(2)">Next: Loan Schedule →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ STEP 2: LOAN SCHEDULE ═══════════════ -->
+<div class="wizard-section" id="step2">
+  <div class="form-card">
+    <div class="form-card-title">Existing Loan Schedule</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;">Enter each loan / credit facility. Annual Interest = Outstanding × Rate. Annual Principal = Annual EMI − Annual Interest. All amounts in ₹ Lakhs.</p>
+    <div class="loan-table-wrap">
+      <table class="loan-table" id="loanTable">
+        <thead>
+          <tr>
+            <th>Lender / Facility</th>
+            <th>Outstanding (₹L)</th>
+            <th>Monthly EMI (₹L)</th>
+            <th>Rate (% p.a.)</th>
+            <th>Months Left</th>
+            <th style="color:var(--accent);">Ann. Interest (₹L)</th>
+            <th style="color:var(--accent);">Ann. Principal (₹L)</th>
+            <th style="color:var(--accent);">Ann. Debt Svc (₹L)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="loanTbody"></tbody>
+        <tfoot>
+          <tr class="total-row" id="loanTotalRow">
+            <td colspan="5" style="color:var(--muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">Totals</td>
+            <td class="computed-cell accent" id="totalAnnInt">—</td>
+            <td class="computed-cell accent" id="totalAnnPrin">—</td>
+            <td class="computed-cell accent" id="totalAnnDS">—</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.75rem;">
+      <button class="btn-outline" onclick="addLoanRow()">+ Add Loan</button>
+      <span style="font-size:0.78rem;color:var(--muted);">Add one row per loan / credit facility</span>
+    </div>
+  </div>
+
+  <div class="step-actions">
+    <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
+    <div class="step-actions-right">
+      <button class="btn-primary" onclick="goToStep(3)">Next: Proposed Loan →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ STEP 3: PROPOSED LOAN ═══════════════ -->
+<div class="wizard-section" id="step3">
+  <div class="form-card">
+    <div class="form-card-title">Proposed / Additional Loan (Stress Test)</div>
+    <div class="toggle-row">
+      <input type="checkbox" class="toggle" id="hasProposedLoan" onchange="toggleProposedLoan()" />
+      <span class="toggle-label">Include a proposed loan in the stress test</span>
+      <span class="toggle-desc">(Optional — shows impact on all key ratios)</span>
+    </div>
+    <div id="proposedLoanInputs" style="display:none;">
+      <div class="inputs-grid">
+        <div class="input-group">
+          <label>Proposed Loan Principal (₹ Lakhs)</label>
+          <div class="input-prefix"><span>₹</span><input type="number" id="propPrincipal" placeholder="0.00" step="0.01" min="0" oninput="updateProposedEMI()" /></div>
+        </div>
+        <div class="input-group">
+          <label>Interest Rate (% per annum)</label>
+          <input type="number" id="propRate" placeholder="e.g. 12.50" step="0.01" min="0" max="36" oninput="updateProposedEMI()" />
+        </div>
+        <div class="input-group">
+          <label>Tenure (months)</label>
+          <input type="number" id="propTenure" placeholder="e.g. 60" step="1" min="1" oninput="updateProposedEMI()" />
+        </div>
+      </div>
+      <div class="proposed-preview" id="proposedPreview">
+        <div class="pp-item">
+          <div class="pp-label">Monthly EMI</div>
+          <div class="pp-value" id="propEMI">—</div>
+        </div>
+        <div class="pp-item">
+          <div class="pp-label">Annual Debt Service</div>
+          <div class="pp-value" id="propAnnualDS">—</div>
+        </div>
+        <div class="pp-item">
+          <div class="pp-label">Annual Interest (Yr 1)</div>
+          <div class="pp-value" id="propAnnualInt">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-actions">
+    <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
+    <div class="step-actions-right">
+      <button class="btn-primary" onclick="computeAndRender()">Compute Ratios →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ STEP 4: RESULTS ═══════════════ -->
+<div class="wizard-section" id="step4">
+  <!-- Entity bar, export bar, traffic light, ratio grid, waterfall, stress test, WC, commentary -->
+  <div id="resultsContent"></div>
+  <div class="step-actions" style="margin-top:0;">
+    <button class="btn-ghost" onclick="goToStep(3)">← Back</button>
+    <button class="btn-outline" onclick="goToStep(1)">↺ Start Over</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SCOPE FOOTER -->
+<div class="scope-footer">
+  DSCR / Lender Ratio Checker by Credlance — Thresholds reflect typical bank practice and may vary by specific lender. Not a substitute for formal bank appraisal. Verify with your banker before applying.
+</div>
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2025 Credlance · Built for Indian Credit Appraisal</span>
+    <a href="index.html" style="font-size:0.82rem;color:var(--muted);text-decoration:none;">← Back to All Apps</a>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════ */
+let loans = [];   // [{name, outstanding, monthlyEMI, rate, months}]
+let nextLoanId = 1;
+let computedRatios = null;
+
+/* ═══════════════════════════════════════════════════
+   UTILITIES
+════════════════════════════════════════════════════ */
+const fL = (n, d=2) => n === null || isNaN(n) ? '—' : '₹' + parseFloat(n).toFixed(d) + ' L';
+const fR = (n, d=2) => n === null || isNaN(n) ? '—' : parseFloat(n).toFixed(d) + 'x';
+const fD = n => n === null || isNaN(n) ? '—' : Math.round(n) + ' days';
+const fN = (n, d=2) => n === null || isNaN(n) ? '—' : parseFloat(n).toFixed(d);
+
+function gv(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const v = parseFloat(el.value);
+  return isNaN(v) ? 0 : v;
+}
+
+function computeEMI(principal, annualRatePct, months) {
+  if (!months || months <= 0 || !principal || principal <= 0) return 0;
+  if (!annualRatePct || annualRatePct <= 0) return principal / months;
+  const r = annualRatePct / 12 / 100;
+  return principal * r * Math.pow(1 + r, months) / (Math.pow(1 + r, months) - 1);
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+/* ═══════════════════════════════════════════════════
+   DERIVED DISPLAY (STEP 1)
+════════════════════════════════════════════════════ */
+function updateDerived() {
+  const inv = gv('inventory'), dlt = gv('debtorsLt90'), dgt = gv('debtorsGt90');
+  const cb = gv('cashBank'), lg = gv('loansGiven'), oca = gv('otherCA');
+  const totalCA = inv + dlt + dgt + cb + lg + oca;
+  document.getElementById('totalCADisplay').textContent = '₹ ' + totalCA.toFixed(2) + ' L';
+
+  const sc = gv('sundryCreditors'), tp = gv('taxesPayable'), ocl = gv('otherCL');
+  const totalCLExcl = sc + tp + ocl;
+  document.getElementById('totalCLExclDisplay').textContent = '₹ ' + totalCLExcl.toFixed(2) + ' L';
+}
+
+/* ═══════════════════════════════════════════════════
+   FILE PARSING — TALLY EXCEL
+════════════════════════════════════════════════════ */
+function flattenSheet(wb, sheetName) {
+  const ws = wb.Sheets[sheetName || wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  return rows;
+}
+
+function extractKeywordAmount(rows, keywords, col) {
+  // col: which column index to take the amount from (default: look for first numeric)
+  let total = 0;
+  for (const row of rows) {
+    const label = String(row[0] || row[1] || '').toLowerCase().trim();
+    if (keywords.some(k => label.includes(k))) {
+      // find first numeric value in the row after col 0
+      for (let c = 1; c < row.length; c++) {
+        const v = parseFloat(String(row[c]).replace(/,/g,''));
+        if (!isNaN(v) && v !== 0) { total += v; break; }
+      }
+    }
+  }
+  return total;
+}
+
+function toL(v) { return Math.abs(v) / 100000; }  // assuming amounts in full rupees from Tally
+
+function handleTBUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  document.getElementById('tbFileName').textContent = '✓ ' + file.name;
+  document.getElementById('tbZone').classList.add('has-file');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const rows = flattenSheet(wb);
+      // Balance Sheet extraction
+      const inv   = toL(extractKeywordAmount(rows, ['stock-in-trade','closing stock','inventory','stock in trade']));
+      const dltors= toL(extractKeywordAmount(rows, ['sundry debtor','trade receivable','debtor']));
+      const cash  = toL(extractKeywordAmount(rows, ['cash-in-hand','cash in hand','bank account','bank balance']));
+      const terml = toL(extractKeywordAmount(rows, ['term loan','secured loan','vehicle loan','machinery loan']));
+      const cc    = toL(extractKeywordAmount(rows, ['bank od','overdraft','cash credit','cc limit','working capital loan','wc loan']));
+      const cred  = toL(extractKeywordAmount(rows, ['sundry creditor','trade payable','creditor']));
+      const cap   = toL(extractKeywordAmount(rows, ['capital account','equity share capital','share capital']));
+      const res   = toL(extractKeywordAmount(rows, ['reserves & surplus','reserves and surplus','retained earning','profit & loss a/c']));
+
+      if (inv > 0) document.getElementById('inventory').value = inv.toFixed(2);
+      if (dltors > 0) { document.getElementById('debtorsLt90').value = (dltors * 0.85).toFixed(2); document.getElementById('debtorsGt90').value = (dltors * 0.15).toFixed(2); }
+      if (cash > 0) document.getElementById('cashBank').value = cash.toFixed(2);
+      if (terml > 0) document.getElementById('termLoans').value = terml.toFixed(2);
+      if (cc > 0) document.getElementById('bankBorrowings').value = cc.toFixed(2);
+      if (cred > 0) document.getElementById('sundryCreditors').value = cred.toFixed(2);
+      if (cap > 0 || res > 0) document.getElementById('tangibleNetWorth').value = (cap + res).toFixed(2);
+      updateDerived();
+      showToast('Trial Balance parsed. Please review all extracted values.');
+    } catch(err) { showToast('Could not parse file. Please enter values manually.', true); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handlePLUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  document.getElementById('plFileName').textContent = '✓ ' + file.name;
+  document.getElementById('plZone').classList.add('has-file');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const rows = flattenSheet(wb);
+      const rev  = toL(extractKeywordAmount(rows, ['sales','revenue','turnover','gross sales']));
+      const dep  = toL(extractKeywordAmount(rows, ['depreciation','amortisation','amortization']));
+      const int  = toL(extractKeywordAmount(rows, ['interest','finance charge','bank charge','bank interest']));
+      const pat  = toL(extractKeywordAmount(rows, ['net profit','profit for the year','profit after tax','net loss']));
+      const cogs = toL(extractKeywordAmount(rows, ['purchase','cost of goods','direct cost','raw material']));
+
+      if (rev > 0)  document.getElementById('revenue').value = rev.toFixed(2);
+      if (dep > 0)  document.getElementById('depreciation').value = dep.toFixed(2);
+      if (int > 0)  document.getElementById('interest').value = int.toFixed(2);
+      if (pat !== 0) document.getElementById('netProfit').value = pat.toFixed(2);
+      if (cogs > 0) document.getElementById('cogs').value = cogs.toFixed(2);
+      // Estimate EBITDA
+      if (pat !== 0 && dep > 0 && int > 0) {
+        document.getElementById('ebitda').value = (pat + dep + int).toFixed(2);
+      }
+      showToast('P&L parsed. Please review extracted values.');
+    } catch(err) { showToast('Could not parse file. Please enter values manually.', true); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ═══════════════════════════════════════════════════
+   LOAN TABLE
+════════════════════════════════════════════════════ */
+function addLoanRow(data) {
+  const id = nextLoanId++;
+  const d = data || {};
+  const tbody = document.getElementById('loanTbody');
+  const tr = document.createElement('tr');
+  tr.id = 'loan-row-' + id;
+  tr.innerHTML = `
+    <td><input type="text" placeholder="e.g. SBI Term Loan" value="${d.name||''}" oninput="updateLoanTotals()" /></td>
+    <td><input type="number" placeholder="0.00" step="0.01" min="0" value="${d.outstanding||''}" class="loan-out" oninput="updateLoanRow(${id})" /></td>
+    <td><input type="number" placeholder="0.00" step="0.01" min="0" value="${d.emi||''}" class="loan-emi" oninput="updateLoanRow(${id})" /></td>
+    <td><input type="number" placeholder="0.00" step="0.01" min="0" max="36" value="${d.rate||''}" class="loan-rate" oninput="updateLoanRow(${id})" /></td>
+    <td><input type="number" placeholder="0" step="1" min="1" value="${d.months||''}" class="loan-months" oninput="updateLoanTotals()" /></td>
+    <td class="computed-cell" id="lr-int-${id}">—</td>
+    <td class="computed-cell" id="lr-prin-${id}">—</td>
+    <td class="computed-cell accent" id="lr-ds-${id}">—</td>
+    <td><button class="btn-del-row" onclick="removeLoanRow(${id})">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  updateLoanRow(id);
+}
+
+function removeLoanRow(id) {
+  const row = document.getElementById('loan-row-' + id);
+  if (row) row.remove();
+  updateLoanTotals();
+}
+
+function updateLoanRow(id) {
+  const row = document.getElementById('loan-row-' + id);
+  if (!row) return;
+  const out  = parseFloat(row.querySelector('.loan-out').value) || 0;
+  const emi  = parseFloat(row.querySelector('.loan-emi').value) || 0;
+  const rate = parseFloat(row.querySelector('.loan-rate').value) || 0;
+  const annInt  = out * rate / 100;
+  const annEMI  = emi * 12;
+  const annPrin = Math.max(0, annEMI - annInt);
+  document.getElementById('lr-int-' + id).textContent  = fN(annInt)  + ' L';
+  document.getElementById('lr-prin-' + id).textContent = fN(annPrin) + ' L';
+  document.getElementById('lr-ds-' + id).textContent   = fN(annEMI)  + ' L';
+  updateLoanTotals();
+}
+
+function updateLoanTotals() {
+  let totalInt = 0, totalPrin = 0, totalDS = 0;
+  const rows = document.querySelectorAll('#loanTbody tr');
+  rows.forEach(tr => {
+    const out  = parseFloat(tr.querySelector('.loan-out')?.value) || 0;
+    const emi  = parseFloat(tr.querySelector('.loan-emi')?.value) || 0;
+    const rate = parseFloat(tr.querySelector('.loan-rate')?.value) || 0;
+    const annInt  = out * rate / 100;
+    const annEMI  = emi * 12;
+    const annPrin = Math.max(0, annEMI - annInt);
+    totalInt  += annInt;
+    totalPrin += annPrin;
+    totalDS   += annEMI;
+  });
+  document.getElementById('totalAnnInt').textContent  = fN(totalInt)  + ' L';
+  document.getElementById('totalAnnPrin').textContent = fN(totalPrin) + ' L';
+  document.getElementById('totalAnnDS').textContent   = fN(totalDS)   + ' L';
+}
+
+function getLoanTotals() {
+  let totalInt = 0, totalDS = 0, totalOut = 0;
+  const rows = document.querySelectorAll('#loanTbody tr');
+  rows.forEach(tr => {
+    const out  = parseFloat(tr.querySelector('.loan-out')?.value) || 0;
+    const emi  = parseFloat(tr.querySelector('.loan-emi')?.value) || 0;
+    const rate = parseFloat(tr.querySelector('.loan-rate')?.value) || 0;
+    totalOut += out;
+    totalInt += out * rate / 100;
+    totalDS  += emi * 12;
+  });
+  return { totalAnnualInterest: totalInt, totalAnnualDebtService: totalDS, totalOutstanding: totalOut };
+}
+
+/* ═══════════════════════════════════════════════════
+   PROPOSED LOAN
+════════════════════════════════════════════════════ */
+function toggleProposedLoan() {
+  const checked = document.getElementById('hasProposedLoan').checked;
+  document.getElementById('proposedLoanInputs').style.display = checked ? 'block' : 'none';
+}
+
+function updateProposedEMI() {
+  const p = gv('propPrincipal'), r = gv('propRate'), n = gv('propTenure');
+  if (!p || !r || !n) { document.getElementById('propEMI').textContent = '—'; return; }
+  const emi = computeEMI(p, r, n);
+  const annDS = emi * 12;
+  const annInt = p * r / 100;
+  document.getElementById('propEMI').textContent = '₹' + emi.toFixed(2) + ' L';
+  document.getElementById('propAnnualDS').textContent = '₹' + annDS.toFixed(2) + ' L';
+  document.getElementById('propAnnualInt').textContent = '₹' + annInt.toFixed(2) + ' L';
+}
+
+/* ═══════════════════════════════════════════════════
+   RATIO COMPUTATION
+════════════════════════════════════════════════════ */
+const THRESHOLDS = {
+  dscr:             { passVal: 1.50, warnVal: 1.33, direction: 'min', label: '> 1.50 (PSU) / > 1.33 (Pvt)' },
+  currentRatio:     { passVal: 1.33, warnVal: 1.10, direction: 'min', label: '> 1.33' },
+  quickRatio:       { passVal: 1.00, warnVal: 0.75, direction: 'min', label: '> 1.00' },
+  deRatio:          { passVal: 3.00, warnVal: 4.00, direction: 'max', label: '< 3.00 (MSME)' },
+  tolTnw:           { passVal: 4.00, warnVal: 5.00, direction: 'max', label: '< 4.00' },
+  interestCoverage: { passVal: 2.00, warnVal: 1.50, direction: 'min', label: '> 2.00' },
+  debtEbitda:       { passVal: 4.00, warnVal: 5.00, direction: 'max', label: '< 4.00' },
+  debtorDays:       { passVal: 90,   warnVal: 120,  direction: 'max', label: '< 90 days' },
+  inventoryTurnover:{ passVal: null, warnVal: null, direction: null,  label: 'Industry Dep.' },
+  netWorth:         { passVal: 0,    warnVal: null, direction: 'min', label: 'Positive & Growing' },
+};
+
+function getStatus(val, t) {
+  if (val === null || val === undefined || isNaN(val)) return 'na';
+  if (!t.direction) return 'info';
+  if (t.direction === 'min') {
+    if (val >= t.passVal) return 'pass';
+    if (t.warnVal !== null && val >= t.warnVal) return 'warn';
+    return 'fail';
+  } else {
+    if (val <= t.passVal) return 'pass';
+    if (t.warnVal !== null && val <= t.warnVal) return 'warn';
+    return 'fail';
+  }
+}
+
+function computeRatios(fin) {
+  const {
+    inventory, debtorsLt90, debtorsGt90, cashBank, loansGiven, otherCA,
+    sundryCreditors, taxesPayable, otherCL, bankBorrowings, termLoans, unsecuredLoans,
+    tangibleNetWorth, totalOutsideLiab, avgInventory,
+    revenue, cogs, ebitda, depreciation, interest, netProfit,
+    totalAnnualDebtService, totalAnnualInterest
+  } = fin;
+
+  const totalCA   = inventory + debtorsLt90 + debtorsGt90 + cashBank + loansGiven + otherCA;
+  const totalCLExcl = sundryCreditors + taxesPayable + otherCL;
+  const totalCL   = totalCLExcl + bankBorrowings;
+  const totalDebt = bankBorrowings + termLoans + unsecuredLoans;
+  const totalDebtors = debtorsLt90 + debtorsGt90;
+
+  // DSCR
+  const dscrNum = netProfit + depreciation + interest;
+  const dscrDen = totalAnnualDebtService || (interest + 0);
+  const dscr    = dscrDen > 0 ? dscrNum / dscrDen : null;
+
+  // Liquidity
+  const currentRatio = totalCL > 0 ? totalCA / totalCL : null;
+  const quickRatio   = totalCL > 0 ? (totalCA - inventory) / totalCL : null;
+
+  // Leverage
+  const deRatio = tangibleNetWorth > 0 ? totalDebt / tangibleNetWorth : null;
+  const tolTnw  = tangibleNetWorth > 0 ? totalOutsideLiab / tangibleNetWorth : null;
+
+  // Coverage
+  const interestCoverage = interest > 0 ? ebitda / interest : null;
+  const debtEbitda       = ebitda > 0   ? totalDebt / ebitda : null;
+
+  // Efficiency
+  const inventoryTurnover = avgInventory > 0 ? cogs / avgInventory : null;
+  const debtorDays        = revenue > 0 ? (totalDebtors * 365) / revenue : null;
+
+  // Working Capital
+  const dp   = 0.75 * inventory + 0.60 * debtorsLt90 - sundryCreditors;
+  const wcGap = totalCA - totalCLExcl;
+  const mpbf  = 0.75 * wcGap;
+  const utilPct = mpbf > 0 ? (bankBorrowings / mpbf) * 100 : null;
+
+  return {
+    dscr, currentRatio, quickRatio, deRatio, tolTnw,
+    interestCoverage, debtEbitda, inventoryTurnover, debtorDays,
+    netWorth: tangibleNetWorth,
+    totalCA, totalCL, totalCLExcl, totalDebt, totalDebtors,
+    dscrNum, dscrDen, netProfit, depreciation, interest,
+    dp, wcGap, mpbf, bankBorrowings, utilPct,
+    ebitda, revenue, cogs
+  };
+}
+
+function computeStressRatios(ratios, fin, proposed) {
+  const { propPrincipal, propAnnualDS, propAnnualInt } = proposed;
+  const newDebt = fin.termLoans + fin.bankBorrowings + fin.unsecuredLoans + propPrincipal;
+  const newDS   = (ratios.dscrDen || 0) + propAnnualDS;
+  const newInt  = fin.interest + propAnnualInt;
+  const newTOL  = fin.totalOutsideLiab + propPrincipal;
+
+  return {
+    dscr:             newDS > 0 ? ratios.dscrNum / newDS : null,
+    deRatio:          fin.tangibleNetWorth > 0 ? newDebt / fin.tangibleNetWorth : null,
+    tolTnw:           fin.tangibleNetWorth > 0 ? newTOL / fin.tangibleNetWorth : null,
+    interestCoverage: newInt > 0 ? fin.ebitda / newInt : null,
+    debtEbitda:       fin.ebitda > 0 ? newDebt / fin.ebitda : null,
+  };
+}
+
+/* ═══════════════════════════════════════════════════
+   COMMENTARY
+════════════════════════════════════════════════════ */
+function generateCommentary(r, fin, hasProposed, stressR) {
+  const paras = [];
+  const entity = document.getElementById('entityName').value.trim() || 'The entity';
+  const fy = document.getElementById('fySelect').value;
+
+  // DSCR
+  if (r.dscr !== null) {
+    const status = getStatus(r.dscr, THRESHOLDS.dscr);
+    if (status === 'pass') {
+      paras.push(`<p>DSCR of <span class="highlight-pass">${fN(r.dscr)}x</span> is comfortably above the SBI/PSU threshold of 1.50x and well within private bank requirements of 1.33x — indicating strong capacity to service existing debt from operating cash flows.</p>`);
+    } else if (status === 'warn') {
+      paras.push(`<p>DSCR of <span class="highlight-warn">${fN(r.dscr)}x</span> meets private bank requirements (>1.33x) but falls short of PSU/Government bank thresholds (>1.50x). The entity may face difficulty accessing PSU bank credit; private banks and NBFCs remain viable. Improving profitability or reducing debt service will strengthen this metric.</p>`);
+    } else {
+      paras.push(`<p>DSCR of <span class="highlight-fail">${fN(r.dscr)}x</span> is below the minimum threshold of 1.33x required by most lenders — this is a critical red flag. The business does not generate sufficient net cash accrual to cover existing debt obligations. A lender will typically require either equity infusion, restructuring of existing debt, or a material improvement in profitability before sanctioning additional credit.</p>`);
+    }
+  }
+
+  // Leverage
+  if (r.deRatio !== null) {
+    const status = getStatus(r.deRatio, THRESHOLDS.deRatio);
+    if (status === 'pass') {
+      paras.push(`<p>The D/E ratio of <span class="highlight-pass">${fN(r.deRatio)}x</span> is within acceptable MSME lending norms (<3.00x). The balance sheet is not over-leveraged, and there is headroom for additional borrowing if required.</p>`);
+    } else if (status === 'warn') {
+      paras.push(`<p>The D/E ratio of <span class="highlight-warn">${fN(r.deRatio)}x</span> exceeds the MSME ceiling of 3.00x — any incremental long-term borrowing should be backed by a corresponding equity infusion to prevent further deterioration of the leverage profile.</p>`);
+    } else {
+      paras.push(`<p>The D/E ratio of <span class="highlight-fail">${fN(r.deRatio)}x</span> is significantly above the 3.00x MSME norm. This level of leverage will concern credit committees and may limit access to institutional credit.</p>`);
+    }
+  }
+
+  // Liquidity
+  if (r.currentRatio !== null) {
+    const status = getStatus(r.currentRatio, THRESHOLDS.currentRatio);
+    if (status === 'pass') {
+      paras.push(`<p>Liquidity position is adequate with a Current Ratio of <span class="highlight-pass">${fN(r.currentRatio)}x</span> (>1.33x). The Quick Ratio of ${fN(r.quickRatio)}x indicates ${getStatus(r.quickRatio, THRESHOLDS.quickRatio) === 'pass' ? 'satisfactory' : 'tight'} liquid coverage excluding inventory.</p>`);
+    } else {
+      paras.push(`<p>The Current Ratio of <span class="highlight-${status}">${fN(r.currentRatio)}x</span> is below the lender threshold of 1.33x — suggesting potential working capital stress. The entity should review its short-term obligations and receivables cycle.</p>`);
+    }
+  }
+
+  // Debtor Days
+  if (r.debtorDays !== null) {
+    const status = getStatus(r.debtorDays, THRESHOLDS.debtorDays);
+    if (status === 'pass') {
+      paras.push(`<p>Debtor Days of <span class="highlight-pass">${fD(r.debtorDays)}</span> are within the 90-day norm, indicating healthy collections and a low risk of bad debts impacting working capital.</p>`);
+    } else if (status === 'warn') {
+      paras.push(`<p>Debtor Days of <span class="highlight-warn">${fD(r.debtorDays)}</span> are above 90 days — lenders will flag this for closer scrutiny. Consider tightening credit terms or initiating proactive collections to bring receivables below 90 days.</p>`);
+    } else {
+      paras.push(`<p>Debtor Days of <span class="highlight-fail">${fD(r.debtorDays)}</span> are significantly above acceptable norms. Lenders will reduce drawing power on debtors beyond 90 days and may question the quality of the receivables book. Urgent action on collections is required.</p>`);
+    }
+  }
+
+  // Stress Test commentary
+  if (hasProposed && stressR) {
+    const newDSCR = stressR.dscr;
+    if (newDSCR !== null) {
+      const postStatus = getStatus(newDSCR, THRESHOLDS.dscr);
+      paras.push(`<p><strong>Stress Test:</strong> After the proposed loan, DSCR would reduce to <span class="highlight-${postStatus}">${fN(newDSCR)}x</span>. ${postStatus === 'pass' ? 'The entity can comfortably absorb the additional debt service.' : postStatus === 'warn' ? 'The entity can marginally service the debt but has little buffer — a single adverse quarter would breach covenants.' : 'The entity would be unable to service the proposed debt from current cash flows. The proposed borrowing is not advisable without corresponding improvement in revenues or restructuring of existing obligations.'}</p>`);
+    }
+  }
+
+  return paras.join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER RESULTS
+════════════════════════════════════════════════════ */
+function renderResults(r, fin, hasProposed, stressR) {
+  const entity = document.getElementById('entityName').value.trim();
+  const fy = document.getElementById('fySelect').value;
+  const promoter = document.getElementById('promoterType').value;
+
+  // Traffic light
+  const allRatioKeys = ['dscr','currentRatio','quickRatio','deRatio','tolTnw','interestCoverage','debtEbitda','debtorDays'];
+  const statuses = allRatioKeys.map(k => r[k] !== null ? getStatus(r[k], THRESHOLDS[k]) : 'na').filter(s => s !== 'na' && s !== 'info');
+  const fails = statuses.filter(s => s === 'fail').length;
+  const warns = statuses.filter(s => s === 'warn').length;
+  const trafficClass = fails > 0 ? 'red' : warns > 0 ? 'amber' : 'green';
+  const trafficMsg   = fails > 0
+    ? `${fails} critical ratio${fails>1?'s':''} below lender thresholds — loan application will face resistance`
+    : warns > 0
+    ? `${warns} ratio${warns>1?'s':''} in review zone — strengthen before lender submission`
+    : 'All key ratios within acceptable lender thresholds — well-positioned for credit appraisal';
+  const trafficTitle = fails > 0 ? '🔴 Critical Issues Found' : warns > 0 ? '🟡 Requires Attention' : '🟢 Lender-Ready';
+
+  // Ratio cards
+  const ratioCards = [
+    { key:'dscr',             label:'DSCR',                  val: r.dscr,             fmt: v=>fN(v)+'x' },
+    { key:'currentRatio',     label:'Current Ratio',         val: r.currentRatio,     fmt: v=>fN(v)+'x' },
+    { key:'quickRatio',       label:'Quick Ratio',           val: r.quickRatio,       fmt: v=>fN(v)+'x' },
+    { key:'deRatio',          label:'Debt / Equity',         val: r.deRatio,          fmt: v=>fN(v)+'x' },
+    { key:'tolTnw',           label:'TOL / TNW',             val: r.tolTnw,           fmt: v=>fN(v)+'x' },
+    { key:'interestCoverage', label:'Interest Coverage',     val: r.interestCoverage, fmt: v=>fN(v)+'x' },
+    { key:'debtEbitda',       label:'Debt / EBITDA',         val: r.debtEbitda,       fmt: v=>fN(v)+'x' },
+    { key:'debtorDays',       label:'Debtor Days',           val: r.debtorDays,       fmt: v=>fD(v)     },
+    { key:'inventoryTurnover',label:'Inventory Turnover',    val: r.inventoryTurnover,fmt: v=>fN(v)+'x' },
+    { key:'netWorth',         label:'Tangible Net Worth',    val: r.netWorth,         fmt: v=>fL(v)     },
+  ];
+
+  const cardsHtml = ratioCards.map(rc => {
+    const t = THRESHOLDS[rc.key];
+    const st = rc.val !== null && !isNaN(rc.val) ? getStatus(rc.val, t) : 'na';
+    const badgeMap = {pass:'badge-pass PASS ✓',warn:'badge-warn REVIEW ⚠',fail:'badge-fail FAIL ✗',info:'badge-info INFO',na:'badge-info N/A'};
+    const [badgeClass, badgeText] = badgeMap[st].split(' ');
+    return `<div class="ratio-card ${st !== 'na' ? st : 'info'}">
+      <div class="ratio-name">${rc.label}</div>
+      <div class="ratio-value ${st !== 'na' ? st : 'info'}">${rc.val !== null && !isNaN(rc.val) ? rc.fmt(rc.val) : '—'}</div>
+      <div class="ratio-threshold">${t.label}</div>
+      <span class="ratio-status-badge ${badgeClass}">${badgeText.replace('_',' ')}</span>
+    </div>`;
+  }).join('');
+
+  // Waterfall
+  const dscrMax = Math.max(r.dscrNum, r.dscrDen, 1) * 1.1;
+  const pct = v => Math.max(0, Math.min(100, (v / dscrMax) * 100)).toFixed(1);
+  const dscrStatus = r.dscr !== null ? getStatus(r.dscr, THRESHOLDS.dscr) : 'na';
+  const dscrColor = {pass:'var(--green)',warn:'var(--orange)',fail:'var(--red)',na:'var(--muted)'}[dscrStatus];
+
+  const waterfallHtml = `
+    <div class="waterfall-container">
+      <div class="waterfall-title">⬇ DSCR Component Bridge</div>
+      <div class="waterfall-rows">
+        <div class="wf-row">
+          <div class="wf-label">Net Profit (PAT)</div>
+          <div class="wf-bar-wrap"><div class="wf-bar profit" style="width:${pct(Math.max(0,r.netProfit))}%"></div></div>
+          <div class="wf-amount">${fL(r.netProfit)}</div>
+        </div>
+        <div class="wf-row">
+          <div class="wf-label">+ Depreciation</div>
+          <div class="wf-bar-wrap"><div class="wf-bar depreciation" style="width:${pct(r.depreciation)}%"></div></div>
+          <div class="wf-amount">${fL(r.depreciation)}</div>
+        </div>
+        <div class="wf-row">
+          <div class="wf-label">+ Interest (add-back)</div>
+          <div class="wf-bar-wrap"><div class="wf-bar interest" style="width:${pct(r.interest)}%"></div></div>
+          <div class="wf-amount">${fL(r.interest)}</div>
+        </div>
+        <div class="wf-divider"></div>
+        <div class="wf-row">
+          <div class="wf-label header">= Net Cash Accrual</div>
+          <div class="wf-bar-wrap"><div class="wf-bar total" style="width:${pct(r.dscrNum)}%"></div></div>
+          <div class="wf-amount" style="color:var(--accent);font-weight:700;">${fL(r.dscrNum)}</div>
+        </div>
+        <div class="wf-row">
+          <div class="wf-label">÷ Annual Debt Service</div>
+          <div class="wf-bar-wrap"><div class="wf-bar debt" style="width:${pct(r.dscrDen)}%"></div></div>
+          <div class="wf-amount" style="color:var(--red);">${fL(r.dscrDen)}</div>
+        </div>
+      </div>
+      <div class="wf-dscr-row">
+        <div class="wf-dscr-label">DSCR = NCA ÷ Debt Service</div>
+        <div class="wf-dscr-value" style="color:${dscrColor};">${r.dscr !== null ? fN(r.dscr)+'x' : '—'} ${dscrStatus==='pass'?'✅':dscrStatus==='warn'?'⚠️':dscrStatus==='fail'?'❌':''}</div>
+      </div>
+    </div>`;
+
+  // Stress Test
+  let stressHtml = '';
+  if (hasProposed && stressR) {
+    const stressKeys = [
+      {key:'dscr',label:'DSCR',fmt:v=>fN(v)+'x',direction:'min'},
+      {key:'deRatio',label:'Debt / Equity',fmt:v=>fN(v)+'x',direction:'max'},
+      {key:'tolTnw',label:'TOL / TNW',fmt:v=>fN(v)+'x',direction:'max'},
+      {key:'interestCoverage',label:'Interest Coverage',fmt:v=>fN(v)+'x',direction:'min'},
+      {key:'debtEbitda',label:'Debt / EBITDA',fmt:v=>fN(v)+'x',direction:'max'},
+    ];
+    const rows = stressKeys.map(sk => {
+      const curr = r[sk.key];
+      const post = stressR[sk.key];
+      const currSt = curr !== null ? getStatus(curr, THRESHOLDS[sk.key]) : 'na';
+      const postSt = post !== null ? getStatus(post, THRESHOLDS[sk.key]) : 'na';
+      const worse = post !== null && curr !== null ? (sk.direction==='min' ? post < curr : post > curr) : false;
+      const delta = post !== null && curr !== null ? post - curr : null;
+      const changeClass = worse ? 'worse' : 'better';
+      const changeSymbol = worse ? '▼' : '▲';
+      return `<tr>
+        <td>${sk.label}</td>
+        <td><span class="stress-val ${currSt}">${curr!==null?sk.fmt(curr):'—'}</span></td>
+        <td><span class="stress-val ${postSt}">${post!==null?sk.fmt(post):'—'}</span></td>
+        <td><span class="stress-change ${changeClass}">${delta!==null?changeSymbol+' '+Math.abs(delta).toFixed(2):'-'}</span></td>
+        <td><span class="ratio-status-badge ${postSt==='pass'?'badge-pass':postSt==='warn'?'badge-warn':postSt==='fail'?'badge-fail':'badge-info'}">${postSt.toUpperCase()}</span></td>
+      </tr>`;
+    }).join('');
+    stressHtml = `
+      <div class="section-heading"><span class="sh-icon">⚡</span> Stress Test — Post Proposed Loan</div>
+      <div class="stress-table-wrap">
+        <table class="stress-table">
+          <thead><tr><th>Ratio</th><th class="current">Current</th><th class="post">Post-Loan</th><th>Change</th><th>Post Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // Working Capital
+  const utilColor = r.utilPct === null ? 'ok' : r.utilPct <= 80 ? 'ok' : r.utilPct <= 100 ? 'high' : 'over';
+  const wcHtml = `
+    <div class="section-heading"><span class="sh-icon">💧</span> Working Capital Analysis</div>
+    <div class="wc-grid">
+      <div class="wc-card">
+        <div class="wc-card-label">Drawing Power (DP)</div>
+        <div class="wc-card-value">${fL(r.dp)}</div>
+        <div class="wc-card-sub">75% Stock + 60% Debtors (≤90d) − Creditors</div>
+      </div>
+      <div class="wc-card">
+        <div class="wc-card-label">WC Gap</div>
+        <div class="wc-card-value">${fL(r.wcGap)}</div>
+        <div class="wc-card-sub">Total CA − Current Liabilities (excl. bank)</div>
+      </div>
+      <div class="wc-card">
+        <div class="wc-card-label">Max Permissible Bank Finance</div>
+        <div class="wc-card-value">${fL(r.mpbf)}</div>
+        <div class="wc-card-sub">75% of WC Gap (Tandon Committee method)</div>
+      </div>
+    </div>
+    <div class="wc-utilisation">
+      <div class="util-item"><div class="util-label">MPBF</div><div class="util-value">${fL(r.mpbf)}</div></div>
+      <div class="util-bar-wrap"><div class="util-bar ${utilColor}" style="width:${Math.min(100,r.utilPct||0).toFixed(0)}%"></div></div>
+      <div class="util-item"><div class="util-label">Current Utilisation</div><div class="util-value">${fL(r.bankBorrowings)} (${r.utilPct!==null?r.utilPct.toFixed(0)+'%':'—'})</div></div>
+      <div class="util-item"><div class="util-label">Headroom</div><div class="util-value" style="color:${r.mpbf - r.bankBorrowings >= 0 ? 'var(--green)':'var(--red)'};">${fL(Math.max(0,r.mpbf - r.bankBorrowings))}</div></div>
+    </div>`;
+
+  // Commentary
+  const commentary = generateCommentary(r, fin, hasProposed, stressR);
+
+  // Build full HTML
+  document.getElementById('resultsContent').innerHTML = `
+    <div class="entity-bar">
+      <div class="entity-bar-item"><div class="eb-dot"></div><span class="eb-label">Entity:</span><span class="eb-value">${entity}</span></div>
+      <div class="entity-bar-item"><span class="eb-label">Period:</span><span class="eb-value">${fy}</span></div>
+      <div class="entity-bar-item"><span class="eb-label">Type:</span><span class="eb-value">${promoter}</span></div>
+      <div class="entity-bar-item"><span class="eb-label">Generated:</span><span class="eb-value">${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+    </div>
+
+    <div class="traffic-banner ${trafficClass}">
+      <div class="traffic-dot ${trafficClass}"></div>
+      <div class="traffic-text"><strong>${trafficTitle}</strong><p>${trafficMsg}</p></div>
+    </div>
+
+    <div class="export-bar">
+      <span class="export-bar-label">Export:</span>
+      <button class="btn-export btn-export-primary" onclick="exportToPDF()">📄 Lender PDF Report</button>
+      <button class="btn-export" onclick="exportToExcel()">📊 Excel Workbook</button>
+      <button class="btn-export" onclick="window.print()">🖨 Print</button>
+    </div>
+
+    <div class="section-heading"><span class="sh-icon">📊</span> Ratio Scorecard</div>
+    <div class="ratio-grid">${cardsHtml}</div>
+
+    ${waterfallHtml}
+    ${stressHtml}
+
+    <div style="margin-bottom:2rem;">${wcHtml}</div>
+
+    <div class="commentary-box">
+      <div class="commentary-header">
+        <div class="commentary-icon">💬</div>
+        <div><div class="commentary-title">Credit Assessment Commentary</div><div class="commentary-subtitle">Auto-generated analysis based on computed ratios — review before use</div></div>
+      </div>
+      <div class="commentary-text">${commentary}</div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════
+   COMPUTE & RENDER (Main Entry)
+════════════════════════════════════════════════════ */
+function computeAndRender() {
+  const fin = {
+    inventory:       gv('inventory'),
+    debtorsLt90:     gv('debtorsLt90'),
+    debtorsGt90:     gv('debtorsGt90'),
+    cashBank:        gv('cashBank'),
+    loansGiven:      gv('loansGiven'),
+    otherCA:         gv('otherCA'),
+    sundryCreditors: gv('sundryCreditors'),
+    taxesPayable:    gv('taxesPayable'),
+    otherCL:         gv('otherCL'),
+    bankBorrowings:  gv('bankBorrowings'),
+    termLoans:       gv('termLoans'),
+    unsecuredLoans:  gv('unsecuredLoans'),
+    tangibleNetWorth:gv('tangibleNetWorth'),
+    totalOutsideLiab:gv('totalOutsideLiab'),
+    avgInventory:    gv('avgInventory'),
+    revenue:         gv('revenue'),
+    cogs:            gv('cogs'),
+    ebitda:          gv('ebitda'),
+    depreciation:    gv('depreciation'),
+    interest:        gv('interest'),
+    netProfit:       gv('netProfit'),
+    ...getLoanTotals()
+  };
+
+  const r = computeRatios(fin);
+  computedRatios = { r, fin };
+
+  const hasProposed = document.getElementById('hasProposedLoan').checked;
+  let stressR = null;
+  if (hasProposed) {
+    const p = gv('propPrincipal'), rate = gv('propRate'), tenure = gv('propTenure');
+    const emi = computeEMI(p, rate, tenure);
+    const proposed = { propPrincipal: p, propAnnualDS: emi * 12, propAnnualInt: p * rate / 100 };
+    stressR = computeStressRatios(r, fin, proposed);
+  }
+
+  renderResults(r, fin, hasProposed, stressR);
+  saveLoans();
+  goToStep(4);
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT — PDF
+════════════════════════════════════════════════════ */
+function exportToPDF() {
+  if (!computedRatios) { showToast('Run computation first', true); return; }
+  const { r, fin } = computedRatios;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const entity = document.getElementById('entityName').value.trim() || 'Entity';
+  const fy     = document.getElementById('fySelect').value;
+  const today  = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+
+  // Header
+  doc.setFillColor(11, 15, 26);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(0, 212, 170);
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text('Credlance', 14, 13);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(136, 153, 170);
+  doc.text('DSCR / Lender Ratio Checker', 14, 20);
+  doc.setTextColor(226, 232, 240);
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text(entity, 105, 11, {align:'center'});
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(136,153,170);
+  doc.text(`${fy}  |  Generated: ${today}`, 105, 17, {align:'center'});
+  doc.text(`Promoter Type: ${document.getElementById('promoterType').value}`, 105, 23, {align:'center'});
+
+  let y = 36;
+
+  // DSCR Highlight Box
+  const dscrStatus = r.dscr !== null ? getStatus(r.dscr, THRESHOLDS.dscr) : 'na';
+  const dscrColor = {pass:[34,197,94], warn:[255,140,66], fail:[255,76,106], na:[136,153,170]}[dscrStatus];
+  doc.setFillColor(...dscrColor); doc.setTextColor(255,255,255);
+  doc.roundedRect(14, y, 88, 18, 2, 2, 'F');
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('DSCR (Debt Service Coverage)', 58, y+6, {align:'center'});
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text(r.dscr !== null ? fN(r.dscr)+'x' : '—', 58, y+14, {align:'center'});
+  doc.setFillColor(30, 41, 59); doc.setTextColor(226,232,240);
+  doc.roundedRect(108, y, 88, 18, 2, 2, 'F');
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Net Cash Accrual / Annual Debt Service', 152, y+6, {align:'center'});
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text(`${fL(r.dscrNum)} ÷ ${fL(r.dscrDen)}`, 152, y+14, {align:'center'});
+  y += 25;
+
+  // Ratio Table
+  const ratioRows = [
+    ['DSCR', r.dscr!==null?fN(r.dscr)+'x':'—', '>1.50 (PSU) / >1.33 (Pvt)', getStatus(r.dscr,THRESHOLDS.dscr).toUpperCase()],
+    ['Current Ratio', r.currentRatio!==null?fN(r.currentRatio)+'x':'—', '>1.33', getStatus(r.currentRatio,THRESHOLDS.currentRatio).toUpperCase()],
+    ['Quick Ratio', r.quickRatio!==null?fN(r.quickRatio)+'x':'—', '>1.00', getStatus(r.quickRatio,THRESHOLDS.quickRatio).toUpperCase()],
+    ['Debt / Equity (D/E)', r.deRatio!==null?fN(r.deRatio)+'x':'—', '<3.00 (MSME)', getStatus(r.deRatio,THRESHOLDS.deRatio).toUpperCase()],
+    ['TOL / TNW', r.tolTnw!==null?fN(r.tolTnw)+'x':'—', '<4.00', getStatus(r.tolTnw,THRESHOLDS.tolTnw).toUpperCase()],
+    ['Interest Coverage', r.interestCoverage!==null?fN(r.interestCoverage)+'x':'—', '>2.00', getStatus(r.interestCoverage,THRESHOLDS.interestCoverage).toUpperCase()],
+    ['Debt / EBITDA', r.debtEbitda!==null?fN(r.debtEbitda)+'x':'—', '<4.00', getStatus(r.debtEbitda,THRESHOLDS.debtEbitda).toUpperCase()],
+    ['Debtor Days', r.debtorDays!==null?fD(r.debtorDays):'—', '<90 days', getStatus(r.debtorDays,THRESHOLDS.debtorDays).toUpperCase()],
+    ['Inventory Turnover', r.inventoryTurnover!==null?fN(r.inventoryTurnover)+'x':'—', 'Industry Dep.', 'INFO'],
+    ['Tangible Net Worth', fL(fin.tangibleNetWorth), 'Positive & Growing', fin.tangibleNetWorth > 0 ? 'PASS' : 'FAIL'],
+  ];
+
+  doc.autoTable({
+    startY: y,
+    head: [['Ratio', 'Value', 'Lender Threshold', 'Status']],
+    body: ratioRows,
+    theme: 'grid',
+    styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [30,41,59] },
+    headStyles: { fillColor: [11,15,26], textColor: [0,212,170], fontStyle:'bold', fontSize:8 },
+    columnStyles: {
+      0: { fontStyle:'bold', cellWidth:55 },
+      1: { cellWidth:35, halign:'center' },
+      2: { cellWidth:55, textColor:[100,116,139] },
+      3: { cellWidth:30, halign:'center' },
+    },
+    didParseCell: data => {
+      if (data.column.index === 3 && data.section === 'body') {
+        const v = data.cell.raw;
+        if (v === 'PASS') { data.cell.styles.textColor = [34,197,94]; data.cell.styles.fontStyle='bold'; }
+        else if (v === 'WARN') { data.cell.styles.textColor = [255,140,66]; data.cell.styles.fontStyle='bold'; }
+        else if (v === 'FAIL') { data.cell.styles.textColor = [255,76,106]; data.cell.styles.fontStyle='bold'; }
+      }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // Working Capital Section
+  if (y < 220) {
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(30,41,59);
+    doc.text('Working Capital Analysis', 14, y); y += 5;
+    doc.autoTable({
+      startY: y,
+      head: [['Metric', 'Value', 'Basis']],
+      body: [
+        ['Drawing Power (DP)', fL(r.dp), '75% Stock + 60% Debtors(≤90d) − Creditors'],
+        ['WC Gap', fL(r.wcGap), 'Total CA − Current Liabilities (excl. bank)'],
+        ['Max Permissible Bank Finance (MPBF)', fL(r.mpbf), '75% of WC Gap (Tandon Committee)'],
+        ['Current Bank Utilisation', fL(r.bankBorrowings), `${r.utilPct!==null?r.utilPct.toFixed(0)+'% of MPBF':'—'}`],
+        ['Headroom', fL(Math.max(0, r.mpbf - r.bankBorrowings)), 'MPBF − Utilisation'],
+      ],
+      theme:'grid',
+      styles: { fontSize:8, cellPadding:2, textColor:[30,41,59] },
+      headStyles: { fillColor:[30,41,59], textColor:[0,212,170], fontStyle:'bold', fontSize:8 },
+      columnStyles: { 0:{fontStyle:'bold',cellWidth:65}, 1:{cellWidth:35,halign:'center'}, 2:{cellWidth:76,textColor:[100,116,139]} },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // Footer disclaimer
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(148,163,184);
+  doc.text('DSCR / Lender Ratio Checker by Credlance — Thresholds reflect typical bank practice and may vary by specific lender.', 105, 285, {align:'center'});
+  doc.text('Not a substitute for formal bank appraisal. Verify with your banker before applying.', 105, 289, {align:'center'});
+
+  const slug = entity.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  doc.save(`Credlance_DSCR_${slug}_${fy.replace(/\s/g,'')}.pdf`);
+  showToast('PDF exported!');
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT — EXCEL
+════════════════════════════════════════════════════ */
+function exportToExcel() {
+  if (!computedRatios) { showToast('Run computation first', true); return; }
+  const { r, fin } = computedRatios;
+  const entity = document.getElementById('entityName').value.trim() || 'Entity';
+  const fy     = document.getElementById('fySelect').value;
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Summary
+  const summaryData = [
+    ['DSCR / Lender Ratio Checker — Credlance'],
+    ['Entity', entity], ['Financial Year', fy], ['Generated', new Date().toLocaleDateString('en-IN')],
+    [],
+    ['RATIO SCORECARD'],
+    ['Ratio', 'Current Value', 'Threshold', 'Status'],
+    ['DSCR', r.dscr!==null?fN(r.dscr):'—', '>1.50 (PSU) / >1.33 (Pvt)', r.dscr!==null?getStatus(r.dscr,THRESHOLDS.dscr).toUpperCase():'—'],
+    ['Current Ratio', r.currentRatio!==null?fN(r.currentRatio):'—', '>1.33', r.currentRatio!==null?getStatus(r.currentRatio,THRESHOLDS.currentRatio).toUpperCase():'—'],
+    ['Quick Ratio', r.quickRatio!==null?fN(r.quickRatio):'—', '>1.00', r.quickRatio!==null?getStatus(r.quickRatio,THRESHOLDS.quickRatio).toUpperCase():'—'],
+    ['Debt / Equity (D/E)', r.deRatio!==null?fN(r.deRatio):'—', '<3.00 (MSME)', r.deRatio!==null?getStatus(r.deRatio,THRESHOLDS.deRatio).toUpperCase():'—'],
+    ['TOL / TNW', r.tolTnw!==null?fN(r.tolTnw):'—', '<4.00', r.tolTnw!==null?getStatus(r.tolTnw,THRESHOLDS.tolTnw).toUpperCase():'—'],
+    ['Interest Coverage', r.interestCoverage!==null?fN(r.interestCoverage):'—', '>2.00', r.interestCoverage!==null?getStatus(r.interestCoverage,THRESHOLDS.interestCoverage).toUpperCase():'—'],
+    ['Debt / EBITDA', r.debtEbitda!==null?fN(r.debtEbitda):'—', '<4.00', r.debtEbitda!==null?getStatus(r.debtEbitda,THRESHOLDS.debtEbitda).toUpperCase():'—'],
+    ['Debtor Days', r.debtorDays!==null?fD(r.debtorDays):'—', '<90 days', r.debtorDays!==null?getStatus(r.debtorDays,THRESHOLDS.debtorDays).toUpperCase():'—'],
+    ['Inventory Turnover', r.inventoryTurnover!==null?fN(r.inventoryTurnover)+'x':'—', 'Industry Dep.', 'INFO'],
+    ['Tangible Net Worth (₹L)', fL(fin.tangibleNetWorth), 'Positive', fin.tangibleNetWorth>0?'PASS':'FAIL'],
+    [],
+    ['WORKING CAPITAL (₹ Lakhs)'],
+    ['Drawing Power (DP)', fL(r.dp)], ['WC Gap', fL(r.wcGap)], ['MPBF', fL(r.mpbf)],
+    ['Current Bank Utilisation', fL(r.bankBorrowings)], ['Headroom', fL(Math.max(0, r.mpbf-r.bankBorrowings))],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Summary');
+
+  // Sheet 2: DSCR Detail
+  const dscrData = [
+    ['DSCR COMPONENT BRIDGE (₹ Lakhs)'],
+    ['Component', 'Amount (₹L)', 'Notes'],
+    ['Net Profit (PAT)', fN(r.netProfit), 'From P&L Account'],
+    ['+ Depreciation & Amortisation', fN(r.depreciation), 'Non-cash charge'],
+    ['+ Interest (add-back)', fN(r.interest), 'Finance Charges from P&L'],
+    ['= Net Cash Accrual (NCA)', fN(r.dscrNum), 'DSCR Numerator'],
+    [],
+    ['Annual Debt Service', fN(r.dscrDen), 'DSCR Denominator — from Loan Schedule'],
+    [],
+    ['DSCR Ratio', fN(r.dscr), r.dscr!==null?getStatus(r.dscr,THRESHOLDS.dscr).toUpperCase():'—'],
+    ['SBI/PSU Threshold', '1.50', 'Minimum for PSU banks'],
+    ['Private Bank Threshold', '1.33', 'Minimum for Pvt/NBFC'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dscrData), 'DSCR Detail');
+
+  // Sheet 3: Loan Schedule
+  const loanRows = [['LOAN SCHEDULE (₹ Lakhs)'],['Lender','Outstanding','Monthly EMI','Rate (% p.a.)','Months Remaining','Annual Interest','Annual Principal','Annual Debt Service']];
+  document.querySelectorAll('#loanTbody tr').forEach(tr => {
+    const cells = tr.querySelectorAll('input');
+    if (cells.length < 5) return;
+    const name = cells[0].value || 'Loan';
+    const out  = parseFloat(cells[1].value)||0;
+    const emi  = parseFloat(cells[2].value)||0;
+    const rate = parseFloat(cells[3].value)||0;
+    const mos  = parseFloat(cells[4].value)||0;
+    const ai   = out*rate/100, aemi=emi*12, ap=Math.max(0,aemi-ai);
+    loanRows.push([name, fN(out), fN(emi), fN(rate), mos, fN(ai), fN(ap), fN(aemi)]);
+  });
+  loanRows.push(['Total','','','','', fN(r.totalAnnualInterest||0), '', fN(r.dscrDen)]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(loanRows), 'Loan Schedule');
+
+  // Sheet 4: Balance Sheet & P&L
+  const bsData = [
+    ['BALANCE SHEET & P&L INPUT DATA (₹ Lakhs)'],
+    [],['BALANCE SHEET'],
+    ['Inventory / Stock-in-Trade', fN(fin.inventory)],
+    ['Sundry Debtors (≤ 90 days)', fN(fin.debtorsLt90)],
+    ['Sundry Debtors (> 90 days)', fN(fin.debtorsGt90)],
+    ['Cash & Bank Balances', fN(fin.cashBank)],
+    ['Loans & Advances (Given)', fN(fin.loansGiven)],
+    ['Other Current Assets', fN(fin.otherCA)],
+    ['Total Current Assets', fN(r.totalCA)],
+    [],
+    ['Sundry Creditors', fN(fin.sundryCreditors)],
+    ['Duties & Taxes Payable', fN(fin.taxesPayable)],
+    ['Other Current Liabilities', fN(fin.otherCL)],
+    ['Bank Borrowings / CC / OD', fN(fin.bankBorrowings)],
+    ['Total Current Liabilities', fN(r.totalCL)],
+    [],
+    ['Term Loans Outstanding', fN(fin.termLoans)],
+    ['Unsecured Loans', fN(fin.unsecuredLoans)],
+    ['Tangible Net Worth', fN(fin.tangibleNetWorth)],
+    ['Total Outside Liabilities (TOL)', fN(fin.totalOutsideLiab)],
+    [],['PROFIT & LOSS'],
+    ['Net Revenue / Net Sales', fN(fin.revenue)],
+    ['Cost of Goods Sold (COGS)', fN(fin.cogs)],
+    ['EBITDA', fN(fin.ebitda)],
+    ['Depreciation', fN(fin.depreciation)],
+    ['Interest & Finance Charges', fN(fin.interest)],
+    ['Net Profit After Tax (PAT)', fN(fin.netProfit)],
+    ['Average Inventory', fN(fin.avgInventory)],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bsData), 'Input Data');
+
+  const slug = entity.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+  XLSX.writeFile(wb, `Credlance_DSCR_${slug}_${fy.replace(/\s/g,'')}.xlsx`);
+  showToast('Excel workbook exported!');
+}
+
+/* ═══════════════════════════════════════════════════
+   LOCAL STORAGE
+════════════════════════════════════════════════════ */
+function saveLoans() {
+  try {
+    const entity = document.getElementById('entityName').value.trim();
+    const slug = entity.replace(/[^a-z0-9]/gi,'_').toLowerCase() || 'default';
+    const rows = [];
+    document.querySelectorAll('#loanTbody tr').forEach(tr => {
+      const inputs = tr.querySelectorAll('input');
+      if (inputs.length < 5) return;
+      rows.push({ name: inputs[0].value, outstanding: inputs[1].value, emi: inputs[2].value, rate: inputs[3].value, months: inputs[4].value });
+    });
+    localStorage.setItem('credlance_dscr_' + slug, JSON.stringify(rows));
+  } catch(e) {}
+}
+
+function loadLoans(slug) {
+  try {
+    const data = localStorage.getItem('credlance_dscr_' + (slug || 'default'));
+    if (data) {
+      const rows = JSON.parse(data);
+      rows.forEach(r => addLoanRow(r));
+    }
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════
+   STEPPER NAVIGATION
+════════════════════════════════════════════════════ */
+function goToStep(n) {
+  if (n === 2) {
+    const entity = document.getElementById('entityName').value.trim();
+    if (!entity) { showToast('Please enter entity name first', true); return; }
+  }
+  if (n === 4 && n !== 4) return; // triggered via computeAndRender only
+
+  [1,2,3,4].forEach(i => {
+    const sec = document.getElementById('step' + i);
+    if (sec) sec.classList.toggle('active', i === n);
+    const sc = document.getElementById('sc' + i);
+    const sl = document.getElementById('sl' + i);
+    const sline = document.getElementById('sline' + (i));
+    if (sc) { sc.className = 'step-circle' + (i === n ? ' active' : i < n ? ' done' : ''); }
+    if (sl) { sl.className = 'step-label' + (i === n ? ' active' : ''); }
+    if (sline && i < 4) { sline.className = 'step-line' + (i < n ? ' done' : ''); }
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Load saved loans on step 2
+  if (n === 2 && document.querySelectorAll('#loanTbody tr').length === 0) {
+    const slug = document.getElementById('entityName').value.trim().replace(/[^a-z0-9]/gi,'_').toLowerCase();
+    loadLoans(slug);
+    if (document.querySelectorAll('#loanTbody tr').length === 0) {
+      addLoanRow(); // add one empty row
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════ */
+updateDerived();
+</script>
+</body>
+</html>
